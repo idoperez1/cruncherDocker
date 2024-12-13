@@ -217,7 +217,7 @@ export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ valu
               acceptCompletion();
             }
 
-            if (e.key === "Tab") {
+            if (e.key === "Tab" && e.shiftKey) {
               e.preventDefault();
               retreatHoveredItem();
             } else if (e.key == "Tab") {
