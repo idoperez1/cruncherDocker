@@ -101,7 +101,7 @@ export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ valu
     } else {
       ref.current = referenceElement;
     }
-  }, [referenceElement]);
+  }, [referenceElement, ref]);
 
   const [pos, setPos] = useState<Coordinates>({
     top: 0,

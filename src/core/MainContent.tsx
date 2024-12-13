@@ -68,7 +68,7 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, []);
+  }, [editor]);
 
   return (
     <MainContainer id="cruncher-inner-root">
