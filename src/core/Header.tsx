@@ -3,8 +3,8 @@ import type React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { ProgressBar, ProgressRoot } from "~components/ui/progress";
 
+import { css } from "@emotion/react";
 import { Badge, IconButton, Stack } from "@chakra-ui/react";
-import { Textarea } from "@chakra-ui/react/textarea";
 import { Mutex } from "async-mutex";
 import { useAtom } from "jotai";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -25,6 +25,7 @@ import {
 } from "./dateState";
 import { headerShortcuts } from "./keymaps";
 import { searchQuery, store } from "./state";
+import {Editor} from "~core/Editor.tsx";
 
 const StyledHeader = styled.form`
   display: flex;
@@ -258,17 +259,22 @@ const Header: React.FC<HeaderProps> = ({ controller, onDataChange }) => {
         onKeyDown={onHeaderKeyDown}
       >
         <QueryContainer>
-          <Textarea
-            id="cruncher-search"
-            size="xl"
-            height={120}
-            placeholder="Query..."
-            {...register("searchTerm", {
-              onChange: (e) => {
-                setSearchValue(e.target.value);
-              },
-            })}
-          />
+          <div css={css`
+              flex: 1;
+          `}>
+            <Editor value={searchValue} onChange={setSearchValue}/>
+          </div>
+          {/*<Textarea*/}
+          {/*  id="cruncher-search"*/}
+          {/*  size="xl"*/}
+          {/*  height={120}*/}
+          {/*  placeholder="Query..."*/}
+          {/*  {...register("searchTerm", {*/}
+          {/*    onChange: (e) => {*/}
+          {/*      setSearchValue(e.target.value);*/}
+          {/*    },*/}
+          {/*  })}*/}
+          {/*/>*/}
           <Timer
             startTime={queryStartTime}
             endTime={queryEndTime}
