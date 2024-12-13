@@ -3,11 +3,11 @@ import type React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { ProgressBar, ProgressRoot } from "~components/ui/progress";
 
-import { Badge, IconButton, Stack } from "@chakra-ui/react";
+import { IconButton, Stack } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import { Mutex } from "async-mutex";
-import { useAtom, useSetAtom } from "jotai";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useMemo, useRef, useState } from "react";
 import { LuSearch, LuSearchCode } from "react-icons/lu";
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
@@ -23,9 +23,15 @@ import {
   isTimeNow,
   startFullDateAtom,
 } from "./dateState";
-import { headerShortcuts } from "./keymaps";
-import { dataViewModelAtom, objectsAtom, searchQueryAtom, store } from "./state";
 import { Editor } from "./Editor";
+import { headerShortcuts } from "./keymaps";
+import {
+  dataViewModelAtom,
+  objectsAtom,
+  searchQueryAtom,
+  store,
+} from "./state";
+import { Timer } from "./Timer";
 
 const StyledHeader = styled.form`
   display: flex;
@@ -67,69 +73,68 @@ type QueryExecutionHistory = {
   end: FullDate;
 };
 
+const compareQueries = (query1: string[], query2: string[]) => {
+  if (query1.length !== query2.length) {
+    return false;
+  }
+
+  for (let i = 0; i < query1.length; i++) {
+    if (query1[i] !== query2[i]) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const compareExecutions = (
+  exec1: QueryExecutionHistory,
+  exec2: QueryExecutionHistory | undefined
+) => {
+  if (exec2 === undefined) {
+    return false;
+  }
+
+  if (!compareQueries(exec1.search, exec2.search)) {
+    return false;
+  }
+
+  if (compareFullDates(exec1.start, exec2.start) !== 0) {
+    return false;
+  }
+
+  if (compareFullDates(exec1.end, exec2.end) !== 0) {
+    return false;
+  }
+
+  return true;
+};
+
 const Header: React.FC<HeaderProps> = ({ controller }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const setObjects = useSetAtom(objectsAtom);
+  const [objects, setObjects] = useAtom(objectsAtom);
   const setDataViewModel = useSetAtom(dataViewModelAtom);
 
   const [lastExecutedQuery, setLastExecutedQuery] =
     useState<QueryExecutionHistory>();
-  const [cachedData, setCachedData] = useState<ProcessedData[]>([]);
 
-  const [selectedStartDate] = useAtom(startFullDateAtom);
-  const [selectedEndDate] = useAtom(endFullDateAtom);
+  const [searchValue, setSearchValue] = useAtom(searchQueryAtom);
+  const selectedStartTime = useAtomValue(startFullDateAtom);
+  const selectedEndTime = useAtomValue(endFullDateAtom);
 
   const abortController = useRef(new AbortController());
   const submitMutex = useRef(new Mutex());
 
+  // query execution props
+  const [isQuerySuccess, setIsQuerySuccess] = useState(true);
   const [queryStartTime, setQueryStartTime] = useState<Date>();
   const [queryEndTime, setQueryEndTime] = useState<Date>();
 
-  const compareQueries = (query1: string[], query2: string[]) => {
-    if (query1.length !== query2.length) {
-      return false;
-    }
-
-    for (let i = 0; i < query1.length; i++) {
-      if (query1[i] !== query2[i]) {
-        return false;
-      }
-    }
-
-    return true;
-  };
-
-  const compareExecutions = (
-    exec1: QueryExecutionHistory,
-    exec2: QueryExecutionHistory | undefined
-  ) => {
-    if (exec2 === undefined) {
-      return false;
-    }
-
-    if (!compareQueries(exec1.search, exec2.search)) {
-      return false;
-    }
-
-    if (compareFullDates(exec1.start, exec2.start) !== 0) {
-      return false;
-    }
-
-    if (compareFullDates(exec1.end, exec2.end) !== 0) {
-      return false;
-    }
-
-    return true;
-  };
-
-  const [searchValue, setSearchValue] = useAtom(searchQueryAtom);
-  const [isQuerySuccess, setIsQuerySuccess] = useState(true);
-
-  const { register, handleSubmit } = useForm<FormValues>({
+  const { handleSubmit } = useForm<FormValues>({
     values: {
       searchTerm: searchValue,
-      fromTime: selectedStartDate,
-      toTime: selectedEndDate,
+      fromTime: selectedStartTime,
+      toTime: selectedEndTime,
     },
   });
 
@@ -168,7 +173,7 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
 
       if (!isForced && compareExecutions(executionQuery, lastExecutedQuery)) {
         console.log("using cached data");
-        dataForPipelines = cachedData;
+        dataForPipelines = objects;
       } else {
         try {
           dataForPipelines = await controller.query(parsedTree.search, {
@@ -178,7 +183,7 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
           });
           setLastExecutedQuery(executionQuery);
 
-          setCachedData(dataForPipelines);
+          setObjects(dataForPipelines);
           setIsQuerySuccess(true);
         } catch (error) {
           if (cancelToken.aborted) {
@@ -196,7 +201,6 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
       const finalData = getPipelineItems(dataForPipelines, parsedTree.pipeline);
       console.log(finalData);
 
-      setObjects(dataForPipelines);
       setDataViewModel(finalData);
     } finally {
       setIsLoading(false);
@@ -261,10 +265,12 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
         onKeyDown={onHeaderKeyDown}
       >
         <QueryContainer>
-          <div css={css`
+          <div
+            css={css`
               flex: 1;
-          `}>
-            <Editor value={searchValue} onChange={setSearchValue}/>
+            `}
+          >
+            <Editor value={searchValue} onChange={setSearchValue} />
           </div>
           <Timer
             startTime={queryStartTime}
@@ -279,86 +285,6 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
       </StyledHeader>
     </>
   );
-};
-
-const TimerHolder = styled.div`
-  display: flex;
-  position: absolute;
-  right: 0.4rem;
-  top: 0.4rem;
-`;
-
-type TimerProps = {
-  startTime: Date | undefined;
-  endTime: Date | undefined;
-  isLoading: boolean;
-};
-
-const CustomBadge = styled(Badge)`
-  font-family: monospace;
-  justify-content: center;
-`;
-
-const Timer = ({ startTime, endTime, isLoading }: TimerProps) => {
-  // if loading render elapsed time from startTime
-  const [elapsedTime, setElapsedTime] = useState(0);
-
-  useEffect(() => {
-    setElapsedTime(0);
-  }, [startTime]);
-
-  useEffect(() => {
-    if (isLoading) {
-      const interval = setInterval(() => {
-        setElapsedTime((prev) => prev + 10);
-      }, 10);
-
-      return () => clearInterval(interval);
-    }
-  }, [isLoading]);
-
-  if (isLoading) {
-    return (
-      <TimerHolder>
-        <CustomBadge>{formatElapsedTime(elapsedTime)}</CustomBadge>
-      </TimerHolder>
-    );
-  }
-
-  if (endTime === undefined || startTime === undefined) {
-    return <TimerHolder></TimerHolder>;
-  }
-
-  return (
-    <TimerHolder>
-      <CustomBadge>{formatRange(startTime, endTime)}</CustomBadge>
-    </TimerHolder>
-  );
-};
-
-const formatRange = (start: Date, end: Date) => {
-  const elapsedMilliseconds = Math.abs(end.getTime() - start.getTime());
-  return formatElapsedTime(elapsedMilliseconds);
-};
-
-
-const formatElapsedTime = (elapsedMilliseconds: number) => {
-  if (elapsedMilliseconds < 1000) {
-    // if less than 1 second - show milliseconds
-    return `${elapsedMilliseconds}ms`;
-  }
-
-  if (elapsedMilliseconds < 10000) {
-    // if less than 10 seconds - show not rounded
-    return `${(elapsedMilliseconds / 1000).toFixed(2)}s`;
-  }
-
-  if (elapsedMilliseconds < 60000) {
-    // if less than 1 minute - show seconds
-    return `${Math.round(elapsedMilliseconds / 1000)}s`;
-  }
-
-  return `${Math.floor(elapsedMilliseconds / 60000)}m ${Math.floor((elapsedMilliseconds % 60000) / 1000)}s`;
 };
 
 type SearchBarButtonsProps = {
@@ -407,7 +333,7 @@ const SearchBarButtons: React.FC<SearchBarButtonsProps> = ({
             }}
           >
             <IconButton
-              aria-label="Search database "
+              aria-label="Search database"
               onClick={() => onForceSubmit()}
               disabled={isLoading}
             >
