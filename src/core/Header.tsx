@@ -3,18 +3,19 @@ import type React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { ProgressBar, ProgressRoot } from "~components/ui/progress";
 
-import { css } from "@emotion/react";
 import { Badge, IconButton, Stack } from "@chakra-ui/react";
+import { css } from "@emotion/react";
 import { Mutex } from "async-mutex";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LuSearch, LuSearchCode } from "react-icons/lu";
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
+import { Editor } from "~core/Editor.tsx";
 import { parse } from "~core/qql";
 import { QueryProvider } from "./common/interface";
 import { ProcessedData } from "./common/logTypes";
-import { DataFormatType, getPipelineItems } from "./common/queryUtils";
+import { getPipelineItems } from "./common/queryUtils";
 import { DateSelector, isDateSelectorOpen } from "./DateSelector";
 import {
   compareFullDates,
@@ -24,8 +25,7 @@ import {
   startFullDateAtom,
 } from "./dateState";
 import { headerShortcuts } from "./keymaps";
-import { searchQuery, store } from "./state";
-import {Editor} from "~core/Editor.tsx";
+import { dataViewModelAtom, objectsAtom, searchQueryAtom, store } from "./state";
 
 const StyledHeader = styled.form`
   display: flex;
@@ -52,7 +52,6 @@ const LoaderHolder = styled.div`
 `;
 
 type HeaderProps = {
-  onDataChange: (data: ProcessedData[], currentView: DataFormatType) => void;
   controller: QueryProvider;
 };
 
@@ -68,8 +67,10 @@ type QueryExecutionHistory = {
   end: FullDate;
 };
 
-const Header: React.FC<HeaderProps> = ({ controller, onDataChange }) => {
+const Header: React.FC<HeaderProps> = ({ controller }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const setObjects = useSetAtom(objectsAtom);
+  const setDataViewModel = useSetAtom(dataViewModelAtom);
 
   const [lastExecutedQuery, setLastExecutedQuery] =
     useState<QueryExecutionHistory>();
@@ -121,7 +122,7 @@ const Header: React.FC<HeaderProps> = ({ controller, onDataChange }) => {
     return true;
   };
 
-  const [searchValue, setSearchValue] = useAtom(searchQuery);
+  const [searchValue, setSearchValue] = useAtom(searchQueryAtom);
   const [isQuerySuccess, setIsQuerySuccess] = useState(true);
 
   const { register, handleSubmit } = useForm<FormValues>({
@@ -195,7 +196,8 @@ const Header: React.FC<HeaderProps> = ({ controller, onDataChange }) => {
       const finalData = getPipelineItems(dataForPipelines, parsedTree.pipeline);
       console.log(finalData);
 
-      onDataChange(dataForPipelines, finalData);
+      setObjects(dataForPipelines);
+      setDataViewModel(finalData);
     } finally {
       setIsLoading(false);
       setQueryEndTime(new Date());

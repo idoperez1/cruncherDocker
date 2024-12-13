@@ -13,7 +13,7 @@ import {
   MenuTrigger,
 } from "~components/ui/menu";
 import { ProcessedData } from "../common/logTypes";
-import { searchQuery, store } from "../state";
+import { searchQueryAtom, store } from "../state";
 import { isIndexOpen, openIndexesAtom } from "./state";
 import { useAtom } from "jotai";
 type DataRowProps = {
@@ -77,8 +77,8 @@ export const RowDetail: React.FC<DataRowProps> = ({ rowKey, rowValue }) => {
           size={"2xs"}
           variant="ghost"
           onClick={() => {
-            const value = store.get(searchQuery);
-            store.set(searchQuery, value + ` ${rowKey}`);
+            const value = store.get(searchQueryAtom);
+            store.set(searchQueryAtom, value + ` ${rowKey}`);
           }}
         >
           <LuAArrowUp />

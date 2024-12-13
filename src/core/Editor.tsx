@@ -1,16 +1,19 @@
 import styled from "@emotion/styled";
-import { atom } from "jotai";
-import React, { useEffect, useMemo, useState } from "react";
-import { createPortal } from 'react-dom';
+import { atom, useAtomValue } from "jotai";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { css } from "@emotion/react";
 import { IRecognitionException } from "chevrotain";
-import { usePopper } from 'react-popper';
-import { Coordinates, getCaretCoordinates } from './getCoordinates';
-import { allData } from "./qql";
+import { usePopper } from "react-popper";
+import { SUPPORTED_FUNCTIONS } from "./common/queryUtils";
+import { Coordinates, getCaretCoordinates } from "./getCoordinates";
 import { HighlightData } from "./qql/grammar";
 import { getPopperRoot } from "./shadowUtils";
-import { store } from "./state";
+import { queryDataAtom, store, availableColumnsAtom } from "./state";
+import { set } from "date-fns";
+import { MenuContent, MenuItem } from "~components/ui/menu";
+import { Card } from "@chakra-ui/react";
 
 export const queryEditorAtom = atom<HTMLTextAreaElement>();
 
@@ -104,7 +107,7 @@ type HighlightedText = {
 
 export const splitTextToChunks = (
   text: string,
-  highlightData: HighlightData[],
+  highlightData: HighlightData[]
 ) => {
   const result: (string | HighlightedText)[] = [];
 
@@ -115,7 +118,12 @@ export const splitTextToChunks = (
   highlightData.forEach((data) => {
     const { startOffset, endOffset } = data.token;
 
-    if (!startOffset || !endOffset) {
+    if (
+      startOffset === undefined ||
+      Number.isNaN(startOffset) ||
+      endOffset === undefined ||
+      Number.isNaN(endOffset)
+    ) {
       return;
     }
 
@@ -145,22 +153,22 @@ export const splitTextToChunks = (
 const typeToStyle = (type: string) => {
   switch (type) {
     case "keyword":
-      return {color: "rgb(105, 105, 177)"};
+      return { color: "rgb(105, 105, 177)" };
 
     case "column":
-      return {color: "rgb(105, 177, 105)"};
+      return { color: "rgb(105, 177, 105)" };
 
     case "string":
-      return {color: "rgb(177, 105, 105)"};
-    
+      return { color: "rgb(177, 105, 105)" };
+
     case "function":
-      return {color: "rgb(177, 105, 177)"};
-    
+      return { color: "rgb(177, 105, 177)" };
+
     case "error":
-      return {color: "red", textDecoration: "wavy underline red"};
+      return { color: "red", textDecoration: "wavy underline red" };
   }
 
-  return {color: "gray"};
+  return { color: "gray" };
 };
 
 const renderChunks = (text: string, highlightData: HighlightData[]) => {
@@ -172,7 +180,11 @@ const renderChunks = (text: string, highlightData: HighlightData[]) => {
 
       const style = typeToStyle(chunk.type);
 
-      return <span key={index} style={style}>{chunk.value}</span>;
+      return (
+        <span key={index} style={style}>
+          {chunk.value}
+        </span>
+      );
     }
   );
 
@@ -184,26 +196,186 @@ const renderChunks = (text: string, highlightData: HighlightData[]) => {
 };
 
 export const Editor = ({ value, onChange }: EditorProps) => {
-  const [referenceElement, setReferenceElement] = React.useState<HTMLTextAreaElement | null>(null);
+  const [referenceElement, setReferenceElement] =
+    React.useState<HTMLTextAreaElement | null>(null);
 
+  useEffect(() => {
+    if (!referenceElement) return;
+    store.set(queryEditorAtom, referenceElement);
+  }, [referenceElement]);
+
+  const [pos, setPos] = useState<Coordinates>({
+    top: 0,
+    left: 0,
+    height: 0,
+  });
+
+  const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(
+    null
+  );
+
+  const { styles, attributes } = usePopper(referenceElement, popperElement, {
+    placement: "bottom-start",
+    modifiers: [
+      { name: "offset", options: { offset: [pos.left, -70 + pos.top] } },
+    ],
+  });
+
+  const root = getPopperRoot();
+
+  const [cursorPosition, setCursorPosition] = useState(value.length);
+  const [isCompleterOpen, setIsCompleterOpen] = useState(false);
+
+  const [hoveredCompletionItem, setHoveredCompletionItem] = useState<number>(0);
+
+  const writtenWord = useMemo(() => {
+    const text = value.slice(0, cursorPosition);
+    const lastSpace = text.lastIndexOf(" ");
+    let word = text.slice(lastSpace + 1, cursorPosition);
+    // trim everything before special characters [a-zA-Z0-9_]
+    const specialCharIndex = word.search(/[^a-zA-Z0-9_]/);
+    if (specialCharIndex !== -1) {
+      word = word.slice(specialCharIndex + 1);
+    }
+
+    return word;
+  }, [cursorPosition, value]);
+
+  const availableColumns = useAtomValue(availableColumnsAtom);
+  const data = useAtomValue(queryDataAtom);
+
+  const suggestions = useMemo(() => {
+    const results = new Set<string>();
+    for (const suggestion of data.suggestions) {
+      // filter suggestions based on cursor position
+      if (cursorPosition < suggestion.fromPosition) continue;
+      if (suggestion.toPosition && cursorPosition > suggestion.toPosition) continue;
+
+      switch (suggestion.type) {
+        case "keywords":
+          suggestion.keywords.forEach((keyword) => results.add(keyword));
+          break;
+        case "column":
+          availableColumns.forEach((column) => results.add(column));
+          break;
+        case "function":
+          SUPPORTED_FUNCTIONS.forEach((func) => results.add(func));
+          break;
+      }
+    }
+
+    return Array.from(results).filter((suggestion) =>
+      writtenWord ? suggestion.startsWith(writtenWord) : true
+    );
+  }, [data, cursorPosition, availableColumns, writtenWord]);
+
+  return (
+    <EditorWrapper>
+      <TextHighlighter value={value} />
+      <TextareaCustom
+        value={value}
+        ref={setReferenceElement}
+        data-enable-grammarly="false"
+        style={{
+          position: "relative",
+        }}
+        onKeyDown={(e) => {
+          // if key is esc - close completer
+          if (e.key === "Escape") {
+            setIsCompleterOpen(false);
+          }
+          if (e.key === " " && e.ctrlKey) {
+            setIsCompleterOpen(true);
+          }
+          // if open and down arrow - move selection down
+          if (isCompleterOpen && e.key === "ArrowDown") {
+            e.preventDefault();
+            setHoveredCompletionItem((prev) => {
+              if (prev === suggestions.length - 1) {
+                return 0;
+              }
+
+              return prev + 1;
+            });
+          } else if (isCompleterOpen && e.key === "ArrowUp") {
+            e.preventDefault();
+            setHoveredCompletionItem((prev) => {
+              if (prev === 0) {
+                return suggestions.length - 1;
+              }
+
+              return prev - 1;
+            });
+          }
+
+          if (isCompleterOpen && e.key === "Enter" && suggestions.length > 0) {
+            onChange(
+              value.slice(0, cursorPosition - writtenWord.length) +
+                suggestions[hoveredCompletionItem] +
+                value.slice(cursorPosition)
+            );
+            setIsCompleterOpen(false);
+            e.preventDefault();
+          }
+
+          setCursorPosition(e.currentTarget.selectionStart);
+        }}
+        onChange={(e) => {
+          if (!referenceElement) return;
+
+          onChange(e.target.value);
+          setCursorPosition(e.currentTarget.selectionStart);
+          setIsCompleterOpen(true);
+          setHoveredCompletionItem(0);
+          setPos(
+            getCaretCoordinates(
+              referenceElement,
+              e.currentTarget.selectionStart
+            )
+          );
+        }}
+      />
+      {isCompleterOpen &&
+        root &&
+        createPortal(
+          <div
+            ref={setPopperElement}
+            style={styles.popper}
+            {...attributes.popper}
+          >
+            <AutoCompleter
+              suggestions={suggestions}
+              hoveredItem={hoveredCompletionItem}
+            />
+          </div>,
+          root
+        )}
+    </EditorWrapper>
+  );
+};
+
+export type HighlighterProps = {
+  value: string;
+};
+
+export const TextHighlighter = ({ value }: HighlighterProps) => {
+  const data = useAtomValue(queryDataAtom);
 
   const highlightData = useMemo(() => {
-    const resp = allData(value);
-
-    console.log("errors", resp.parserError);
-
-    const errorHighlightData = resp.parserError.map((error: IRecognitionException) => {
-      return {
-        type: "error",
-        message: error.message,
-        token: {
-          startOffset: error.token.startOffset,
-          endOffset: error.token.endOffset,
-        },
+    const errorHighlightData = data.parserError.map(
+      (error: IRecognitionException) => {
+        return {
+          type: "error",
+          message: error.message,
+          token: {
+            startOffset: error.token.startOffset,
+            endOffset: error.token.endOffset,
+          },
+        };
       }
-    });
-    return [...resp.highlight, ...errorHighlightData];
-  }, [value]);
+    );
+    return [...data.highlight, ...errorHighlightData];
+  }, [data]);
 
   const textToRender = useMemo(() => {
     let text = value;
@@ -217,60 +389,50 @@ export const Editor = ({ value, onChange }: EditorProps) => {
       .replace(new RegExp("<", "g"), "<"); /* Global RegExp */
   }, [value]);
 
-  useEffect(() => {
-    if (!referenceElement) return;
-    store.set(queryEditorAtom, referenceElement);
-  }, [referenceElement]);
-
-  const [pos, setPos] = useState<Coordinates>({
-    top: 0,
-    left: 0,
-    height: 0,
-  });
-
-  const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
-  const [arrowElement, setArrowElement] = useState(null);
-  const { styles, attributes } = usePopper(referenceElement, popperElement, {
-    placement: 'bottom-start',
-    modifiers: [
-      // { name: 'arrow', options: { element: arrowElement } },
-      { name: 'offset', options: { offset: [pos.left, -70 + pos.top] }},
-    ]});
-
-  const root = getPopperRoot();
-
-  return (
-    <EditorWrapper>
-      <StyledPre>{renderChunks(textToRender, highlightData)}</StyledPre>
-      <TextareaCustom
-        value={value}
-        ref={setReferenceElement}
-        data-enable-grammarly="false"
-        style={{
-          position: "relative",
-        }}
-        onChange={(e) => {
-          if (!referenceElement) return;
-
-          onChange(e.target.value);
-          setPos(getCaretCoordinates(referenceElement, e.currentTarget.selectionStart));
-        }}
-      />
-      {
-        root && createPortal(<div  css={css`
-          background-color: #686868;
-          padding: 0.1rem 0.3rem;
-          border-radius: 2px;
-          display: flex;
-          flex-direction: column;
-          font-size: 0.8rem;
-          z-index: 1;
-        `} ref={setPopperElement} style={styles.popper} {...attributes.popper}>
-            <span>Test</span>
-            <span>b</span>
-        </div>, root)
-      }
-    </EditorWrapper>
-  );
+  return <StyledPre>{renderChunks(textToRender, highlightData)}</StyledPre>;
 };
 
+export type AutoCompleterProps = {
+  suggestions: string[];
+  hoveredItem?: number;
+};
+
+export const AutoCompleter = ({
+  suggestions,
+  hoveredItem,
+}: AutoCompleterProps) => {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  // scroll to hovered item
+  useEffect(() => {
+    if (!scrollerRef.current || hoveredItem === undefined) return;
+
+    const element = scrollerRef.current.children[hoveredItem];
+    if (!element) return;
+    element.scrollIntoView();
+  }, [hoveredItem]);
+  
+  if (suggestions.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card.Root width="200px" overflow="hidden" zIndex={1}>
+      <Card.Body ref={scrollerRef} padding="0" fontSize="sm" lineHeight={1} overflow="auto" maxH={100}>
+        {suggestions.map((suggestion, index) => (
+          <span
+            css={css`
+              padding: 0.2rem 0.6rem;
+              ${hoveredItem === index &&
+              css`
+                background-color: #686;
+              `}
+            `}
+            key={index}
+          >
+            {suggestion}
+          </span>
+        ))}
+      </Card.Body>
+    </Card.Root>
+  );
+};

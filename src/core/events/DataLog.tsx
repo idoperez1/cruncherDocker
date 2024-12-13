@@ -3,17 +3,19 @@ import type { Range } from '@tanstack/react-virtual';
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import type React from "react";
 import { useCallback, useRef } from "react";
-import type { ProcessedData } from "../common/logTypes";
 import DataRow from "./Row";
 import { RowDetails } from "./RowDetails";
 import { isIndexOpen } from "./state";
+import { useAtom } from "jotai";
+import { objectsAtom } from "~core/state";
 
 type DataRowProps = {
-  logs: ProcessedData[];
 };
 
 
-const DataLog: React.FC<DataRowProps> = ({ logs }) => {
+const DataLog: React.FC<DataRowProps> = () => {
+  const [logs] = useAtom(objectsAtom);
+
   const parentRef = useRef(null);
 
   const activeStickyIndexRef = useRef(0);

@@ -29,6 +29,7 @@ export const allData = (input: string) => {
   return {
     ast: response,
     highlight: parser.getHighlightData(),
+    suggestions: parser.getSuggestionData(),
     parserError: parser.errors,
   };
 }

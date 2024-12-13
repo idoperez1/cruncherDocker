@@ -47,6 +47,10 @@ const assertDataValuesAsNumbers = (input: (ProcessedData["object"][string] | und
     return input.every((value) => typeof value === "number" || value === undefined);
 }
 
+export const SUPPORTED_FUNCTIONS = ["first", "last", "count", "sum", "avg", "min", "max"] as const;
+
+type SupportedFunction = typeof SUPPORTED_FUNCTIONS[number];
+
 // TODO: IMPLEMENT IT MORE EFFICIENTLY!
 const processStats = (data: Events | Table, functions: AggregationFunction[], groupBy: string[] | undefined): Table => {
     const dataPoints = data.type === "events" ? data.data : data.dataPoints;
@@ -110,7 +114,13 @@ const processStats = (data: Events | Table, functions: AggregationFunction[], gr
 
             const valueToUse = existingValue ?? 0;
 
-            switch (funcDef.function) {
+            if (!SUPPORTED_FUNCTIONS.includes(funcDef.function as SupportedFunction)) {
+                throw new Error(`Function '${funcDef.function}' is not supported`);
+            }
+
+            const func = funcDef.function as SupportedFunction;
+
+            switch (func) {
                 case "first":
                     dataPoint.object[resultColumnName] = columnData.find((value) => value !== undefined) ?? "";
                     break;
@@ -152,6 +162,9 @@ const processStats = (data: Events | Table, functions: AggregationFunction[], gr
 
                     dataPoint.object[resultColumnName] = Math.max(...columnData.filter((value) => value !== undefined));
                     break;
+                    
+                default:
+                    throw new Error(`Function '${func}' not implemented`);
             }
         }
 

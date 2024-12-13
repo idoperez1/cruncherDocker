@@ -70,7 +70,7 @@ const matchStatsByKeyword: CustomPatternMatcherFunc = (text, offset, matchedToke
     return null;
   }
 
-  return /^by/.exec(text.substring(offset));
+  return /^(by)(?!\()/.exec(text.substring(offset));
 }
 
 // Stats specific keywords
@@ -112,14 +112,101 @@ export type HighlightData = {
     startOffset: number;
     endOffset: number | undefined;
   };
-}
+};
+
+export type SuggetionType =
+  | { type: "column" }
+  | { type: "function" }
+  | { type: "keywords", keywords: string[] }
+
+
+export type SuggestionData = {
+  fromPosition: number;
+  toPosition?: number;
+  disabled?: boolean;
+} & SuggetionType;
 
 export class QQLParser extends EmbeddedActionsParser {
   private highlightData: HighlightData[] = [];
+  private suggestionData: SuggestionData[] = [];
 
   constructor() {
-    super(allTokens);
+    super(allTokens, {
+      recoveryEnabled: false,
+    });
     this.performSelfAnalysis();
+  }
+
+  private getNextPos() {
+    let res = this.LA(1).endOffset
+    if (res === undefined || Number.isNaN(res)) {
+      res = this.LA(1).startOffset
+    }
+
+    return res;
+  }
+
+  private addAutoCompleteType(suggestionType: SuggetionType, opts: { spacing?: number, disabled?: boolean } = {}) {
+    let obj: SuggestionData | undefined = undefined;
+    this.ACTION(() => {
+      const startPos = ((this.LA(0).endColumn ?? this.LA(0).startColumn ?? 0) + (opts.spacing ?? 0));
+      obj = {
+        ...suggestionType,
+        fromPosition: startPos,
+        disabled: opts.disabled ?? false,
+      }
+
+      this.suggestionData.push(obj);
+    })
+
+    return {
+      obj: obj,
+      disable: () => {
+        this.ACTION(() => {
+          if (!obj) {
+            return
+          }
+
+          obj.disabled = true;
+        })
+      },
+      resetStart: () => {
+        this.ACTION(() => {
+          if (!obj) {
+            return
+          }
+
+          obj.fromPosition = ((this.LA(0).endColumn ?? this.LA(0).startColumn ?? 0) + (opts.spacing ?? 0));
+          obj.disabled = false;
+        })
+      },
+      closeAfter1: () => {
+        this.ACTION(() => {
+          if (!obj) {
+            return
+          }
+          obj.toPosition = this.getNextPos() + 1;
+        })
+      },
+      close: () => {
+        this.ACTION(() => {
+          if (!obj) {
+            return
+          }
+
+          obj.toPosition = this.LA(1).startOffset;
+        })
+      },
+      remove: () => {
+        this.ACTION(() => {
+          if (!obj) {
+            return
+          }
+
+          this.suggestionData.splice(this.suggestionData.indexOf(obj), 1);
+        })
+      }
+    }
   }
 
   private addHighlightData(type: string, token: IToken) {
@@ -134,6 +221,11 @@ export class QQLParser extends EmbeddedActionsParser {
 
   public reset() {
     this.highlightData = [];
+    this.suggestionData = [];
+  }
+
+  public getSuggestionData() {
+    return this.suggestionData.filter((s) => !s.disabled);
   }
 
   public getHighlightData() {
@@ -157,13 +249,20 @@ export class QQLParser extends EmbeddedActionsParser {
   });
 
   private pipelineCommand = this.RULE("pipelineCommand", () => {
-    return this.OR<
+    this.addAutoCompleteType({
+      type: "keywords",
+      keywords: ["table", "stats"],
+    }).closeAfter1();
+
+    const resp = this.OR<
       | ReturnType<typeof this.table>
       | ReturnType<typeof this.statsCommand>
     >([
       { ALT: () => this.SUBRULE(this.table) },
       { ALT: () => this.SUBRULE(this.statsCommand) },
     ]);
+
+    return resp;
   });
 
   private search = this.RULE("search", () => {
@@ -190,6 +289,10 @@ export class QQLParser extends EmbeddedActionsParser {
 
     const columns: string[] = [];
 
+    const autoComplete = this.addAutoCompleteType({
+      type: "column",
+    }, { spacing: 1 });  // require a space after the column name
+
     this.AT_LEAST_ONE({
       DEF: () => {
         const column = this.SUBRULE(this.columnName);
@@ -198,6 +301,8 @@ export class QQLParser extends EmbeddedActionsParser {
       },
       ERR_MSG: "at least one column name",
     })
+
+    autoComplete.close();
 
     return {
       type: "table",
@@ -211,15 +316,41 @@ export class QQLParser extends EmbeddedActionsParser {
       this.addHighlightData("keyword", token);
     })
 
+    const autoCompleteByKeyword = this.addAutoCompleteType({
+      type: "keywords",
+      keywords: ["by"],
+    }, { spacing: 1, disabled: true });
+
+    let latestFunctionAutoComplete = this.addAutoCompleteType({
+      type: "function",
+    }, { spacing: 1 });
+    latestFunctionAutoComplete.closeAfter1();
 
     const columns: ReturnType<typeof this.aggFunctionCall>[] = [];
-    this.MANY(() => {
-      const func = this.SUBRULE(this.aggFunctionCall);
-      this.OPTION(() => this.CONSUME(Comma));
-      columns.push(func);
+    this.AT_LEAST_ONE({
+      DEF: () => {
+        autoCompleteByKeyword.disable();
+        const func = this.SUBRULE(this.aggFunctionCall);
+        this.OPTION(() => this.CONSUME(Comma));
+        columns.push(func);
+
+        // allow by auto complete only when there is at least one column
+        autoCompleteByKeyword.resetStart();
+
+        latestFunctionAutoComplete = this.addAutoCompleteType({
+          type: "function",
+        }, { spacing: 1 });
+        latestFunctionAutoComplete.closeAfter1();
+      },
     });
 
-    const groupBy = this.OPTION2(() => this.SUBRULE(this.groupByClause));
+    latestFunctionAutoComplete.close();
+
+    autoCompleteByKeyword.close(); // close right after the by keyword
+    const groupBy = this.OPTION2(() => {
+      autoCompleteByKeyword.closeAfter1(); // close right after the by keyword
+      return this.SUBRULE(this.groupByClause)
+    });
 
     return {
       type: "stats",
@@ -235,6 +366,9 @@ export class QQLParser extends EmbeddedActionsParser {
     });
 
     const columns: string[] = [];
+    const autoComplete = this.addAutoCompleteType({
+      type: "column",
+    }, { spacing: 1 });  // require a space after the column name
 
     this.AT_LEAST_ONE({
       DEF: () => {
@@ -244,6 +378,8 @@ export class QQLParser extends EmbeddedActionsParser {
       },
       ERR_MSG: "at least one column name",
     });
+
+    autoComplete.close();
 
     return columns;
   });
@@ -255,7 +391,11 @@ export class QQLParser extends EmbeddedActionsParser {
     });
 
     this.CONSUME(OpenBrackets);
+    const autoComplete = this.addAutoCompleteType({
+      type: "column",
+    });
     const column = this.OPTION(() => this.SUBRULE(this.columnName));
+    autoComplete.close();
     this.CONSUME(CloseBrackets);
 
     return {
