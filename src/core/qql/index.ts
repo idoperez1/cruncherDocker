@@ -19,6 +19,20 @@ class QQLParserError extends Error {
   }
 }
 
+export const allData = (input: string) => {
+  const lexer = QQLLexer.tokenize(input);
+
+  const parser = new QQLParser();
+  parser.input = lexer.tokens;
+  const response = parser.query();
+
+  return {
+    ast: response,
+    highlight: parser.getHighlightData(),
+    parserError: parser.errors,
+  };
+}
+
 export const parse = (input: string) => {
   const lexer = QQLLexer.tokenize(input);
   if (lexer.errors.length > 0) {

@@ -1,11 +1,13 @@
 import React from "react";
 import { useEffect } from "react";
+import { getCruncherRoot } from "~core/shadowUtils";
 
 export function useOutsideDetector(onOutsideClick = () => { }) {
     const ref = React.useRef<HTMLDivElement>(null);
     useEffect(() => {
-        const shadowDom = document.getElementById("cruncher-root")?.shadowRoot;
-        if (!shadowDom) {
+        const root = getCruncherRoot();
+        if (!root) {
+            console.warn("Root not found - useOutsideDetector will not work");
             return;
         }
 
@@ -18,10 +20,10 @@ export function useOutsideDetector(onOutsideClick = () => { }) {
             }
         }
         // Bind the event listener
-        shadowDom.addEventListener("mousedown", handleClickOutside);
+        root.addEventListener("mousedown", handleClickOutside);
         return () => {
             // Unbind the event listener on clean up
-            shadowDom.removeEventListener("mousedown", handleClickOutside);
+            root.removeEventListener("mousedown", handleClickOutside);
         };
     }, [ref, onOutsideClick]);
 

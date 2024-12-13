@@ -15,6 +15,7 @@ import { Provider as JotaiProvider } from "jotai";
 import { store } from "./state";
 import { isDateSelectorOpen } from "./DateSelector";
 import { globalShortcuts } from "./keymaps";
+import { getCruncherRoot } from "./shadowUtils";
 
 const MainContainer = styled.section`
   flex: 1;
@@ -64,13 +65,18 @@ const MainContent: React.FC<MainContentProps> = ({ controller }) => {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const root = document.getElementById("cruncher-root")?.shadowRoot ?? document;
+      const root = getCruncherRoot();
+      if (!root) {
+        return;
+      }
+
+
       if (globalShortcuts.isPressed(e, "select-time")) {
         e.preventDefault();
         store.set(isDateSelectorOpen, (prev) => !prev);
       } else if (globalShortcuts.isPressed(e, "query")) {
         e.preventDefault();
-        const queryElem = root.getElementById("cruncher-search");
+        const queryElem = root.querySelector("#cruncher-search");
         store.set(isDateSelectorOpen, false);
         // required to focus on the input after the tab is changed
         setTimeout(() => queryElem?.focus(), 0);
@@ -87,7 +93,7 @@ const MainContent: React.FC<MainContentProps> = ({ controller }) => {
   return (
     <Provider>
       <JotaiProvider store={store}>
-        <MainContainer>
+        <MainContainer id="cruncher-inner-root">
           <Header controller={controller} onDataChange={setData} />
           <Tabs.Root
             lazyMount
@@ -101,7 +107,7 @@ const MainContent: React.FC<MainContentProps> = ({ controller }) => {
             `}
             onValueChange={(e) => setSelectedTab(e.value)}
           >
-            <Tabs.List zIndex={1}>
+            <Tabs.List zIndex={10}>
               <Tabs.Trigger value="logs">
                 <LuLogs /> Logs
               </Tabs.Trigger>
@@ -144,6 +150,7 @@ const MainContent: React.FC<MainContentProps> = ({ controller }) => {
               )}
             </Tabs.Content>
           </Tabs.Root>
+          <div id="cruncher-popovers" css={css`z-index: 11;`}></div>
         </MainContainer>
       </JotaiProvider>
     </Provider>

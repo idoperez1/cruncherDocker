@@ -1,4 +1,4 @@
-import { createToken, EmbeddedActionsParser, Lexer } from "chevrotain";
+import { createToken, CustomPatternMatcherFunc, EmbeddedActionsParser, IToken, Lexer, tokenMatcher } from "chevrotain";
 
 const Identifier = createToken({ name: "Identifier", pattern: /[0-9\w][0-9\w\-]*/ });
 const Integer = createToken({ name: "Integer", pattern: /0|[1-9]\d*/ });
@@ -17,12 +17,64 @@ const DoubleQoutedString = createToken({
 const OpenBrackets = createToken({ name: "OpenBrackets", pattern: /\(/ });
 const CloseBrackets = createToken({ name: "CloseBrackets", pattern: /\)/ });
 
+const extractLastPipeline = (matchedTokens: IToken[]) => {
+  const result: IToken[] = [];
+  for (let i = matchedTokens.length - 1; i >= 0; i--) {
+    const token = matchedTokens[i];
+    if (tokenMatcher(token, Pipe)) {
+      break;
+    }
+
+    result.unshift(token);
+  }
+
+  return result;
+}
+
+const matchCommand = (pattern: RegExp): CustomPatternMatcherFunc => (text, offset, matchedTokens, _groups) => {
+  if (matchedTokens.length < 1) {
+    return null;
+  }
+
+  let lastMatchedToken = matchedTokens[matchedTokens.length - 1];
+  if (!lastMatchedToken) {
+    return null;
+  }
+
+  if (!tokenMatcher(lastMatchedToken, Pipe)) {
+    return null;
+  }
+
+  // Note that just because we are using a custom token pattern
+  // Does not mean we cannot implement it using JavaScript Regular Expressions...
+  // get substring using offset
+  const textSubstring = text.substring(offset);
+  const execResult = pattern.exec(textSubstring);
+  return execResult;
+}
+
 // Commands
-const Table = createToken({ name: "Table", pattern: /table/ });
-const Stats = createToken({ name: "Stats", pattern: /stats/ });
+const Table = createToken({ name: "Table", pattern: matchCommand(/^table/), longer_alt: Identifier, line_breaks: false });
+const Stats = createToken({ name: "Stats", pattern: matchCommand(/^stats/), longer_alt: Identifier, line_breaks: false });
+
+const matchStatsByKeyword: CustomPatternMatcherFunc = (text, offset, matchedTokens, _groups) => {
+  const pipeline = extractLastPipeline(matchedTokens);
+  if (pipeline.length < 1) {
+    return null;
+  }
+
+  // make sure it's stats command
+  const command = pipeline[0];
+
+  if (!tokenMatcher(command, Stats)) {
+    return null;
+  }
+
+  return /^by/.exec(text.substring(offset));
+}
 
 // Stats specific keywords
-const By = createToken({ name: "By", pattern: /by/ });
+const By = createToken({ name: "By", pattern: matchStatsByKeyword, longer_alt: Identifier, line_breaks: false });
 
 // note we are placing WhiteSpace first as it is very common thus it will speed up the lexer.
 const allTokens = [
@@ -54,10 +106,38 @@ export function isNumeric(value: string) {
   return /^-?\d+(?:.\d+)?$/.test(value);
 }
 
+export type HighlightData = {
+  type: string;
+  token: {
+    startOffset: number;
+    endOffset: number | undefined;
+  };
+}
+
 export class QQLParser extends EmbeddedActionsParser {
+  private highlightData: HighlightData[] = [];
+
   constructor() {
     super(allTokens);
     this.performSelfAnalysis();
+  }
+
+  private addHighlightData(type: string, token: IToken) {
+    this.highlightData.push({
+      type: type,
+      token: {
+        startOffset: token.startOffset,
+        endOffset: token.endOffset,
+      },
+    });
+  }
+
+  public reset() {
+    this.highlightData = [];
+  }
+
+  public getHighlightData() {
+    return this.highlightData;
   }
 
   public query = this.RULE("query", () => {
@@ -77,13 +157,13 @@ export class QQLParser extends EmbeddedActionsParser {
   });
 
   private pipelineCommand = this.RULE("pipelineCommand", () => {
-      return this.OR<
-        | ReturnType<typeof this.table>
-        | ReturnType<typeof this.statsCommand>
-      >([
-        { ALT: () => this.SUBRULE(this.table) },
-        { ALT: () => this.SUBRULE(this.statsCommand) },
-      ]);
+    return this.OR<
+      | ReturnType<typeof this.table>
+      | ReturnType<typeof this.statsCommand>
+    >([
+      { ALT: () => this.SUBRULE(this.table) },
+      { ALT: () => this.SUBRULE(this.statsCommand) },
+    ]);
   });
 
   private search = this.RULE("search", () => {
@@ -102,7 +182,11 @@ export class QQLParser extends EmbeddedActionsParser {
   });
 
   private table = this.RULE("table", () => {
-    this.CONSUME(Table);
+    const token = this.CONSUME(Table);
+
+    this.ACTION(() => {
+      this.addHighlightData("keyword", token);
+    })
 
     const columns: string[] = [];
 
@@ -122,9 +206,13 @@ export class QQLParser extends EmbeddedActionsParser {
   });
 
   private statsCommand = this.RULE("statsCommand", () => {
-    this.CONSUME(Stats);
-    const columns: ReturnType<typeof this.aggFunctionCall>[] = [];
+    const token = this.CONSUME(Stats);
+    this.ACTION(() => {
+      this.addHighlightData("keyword", token);
+    })
 
+
+    const columns: ReturnType<typeof this.aggFunctionCall>[] = [];
     this.MANY(() => {
       const func = this.SUBRULE(this.aggFunctionCall);
       this.OPTION(() => this.CONSUME(Comma));
@@ -141,7 +229,11 @@ export class QQLParser extends EmbeddedActionsParser {
   });
 
   private groupByClause = this.RULE("groupByClause", () => {
-    this.CONSUME(By);
+    const token = this.CONSUME(By);
+    this.ACTION(() => {
+      this.addHighlightData("keyword", token);
+    });
+
     const columns: string[] = [];
 
     this.AT_LEAST_ONE({
@@ -158,6 +250,10 @@ export class QQLParser extends EmbeddedActionsParser {
 
   private aggFunctionCall = this.RULE("functionCall", () => {
     const functionName = this.CONSUME(Identifier);
+    this.ACTION(() => {
+      this.addHighlightData("function", functionName);
+    });
+
     this.CONSUME(OpenBrackets);
     const column = this.OPTION(() => this.SUBRULE(this.columnName));
     this.CONSUME(CloseBrackets);
@@ -170,6 +266,11 @@ export class QQLParser extends EmbeddedActionsParser {
 
   private columnName = this.RULE("columnName", () => {
     const column = this.CONSUME(Identifier);
+
+    this.ACTION(() => {
+      this.addHighlightData("column", column);
+    });
+
     return column.image;
   });
 
@@ -178,6 +279,8 @@ export class QQLParser extends EmbeddedActionsParser {
     const value = this.CONSUME(Identifier);
     // try to parse the value as a number
     if (isNumeric(value.image)) {
+      this.addHighlightData("number", value);
+
       return parseInt(value.image, 10);
     }
 
@@ -188,6 +291,8 @@ export class QQLParser extends EmbeddedActionsParser {
     const token = this.CONSUME(Integer);
 
     return this.ACTION(() => {
+      this.addHighlightData("number", token);
+
       return parseInt(token.image, 10);
     });
   });
@@ -196,6 +301,8 @@ export class QQLParser extends EmbeddedActionsParser {
     const token = this.CONSUME(DoubleQoutedString);
 
     return this.ACTION(() => {
+      this.addHighlightData("string", token);
+
       return JSON.parse(token.image);
     });
   });
