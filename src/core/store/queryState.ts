@@ -1,8 +1,7 @@
-
-import { atom, createStore } from 'jotai'
-import { allData } from './qql';
-import { ProcessedData } from './common/logTypes';
-import { DataFormatType } from './common/queryUtils';
+import { atom } from 'jotai';
+import { ProcessedData } from '~core/common/logTypes';
+import { DataFormatType } from '~core/common/queryUtils';
+import { allData } from '~core/qql';
 
 export const searchQueryAtom = atom(''); // search query
 
@@ -24,6 +23,4 @@ export const availableColumnsAtom = atom((get) => {
 });
 
 
-
-export const store: ReturnType<typeof createStore> = createStore();
 

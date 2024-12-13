@@ -1,7 +1,7 @@
 import { format, isValid, parse, subMinutes } from "date-fns";
 import { atom, PrimitiveAtom } from "jotai";
 import { DateRange } from "react-day-picker";
-import { store } from "./state";
+import { store } from "./store";
 
 export const dateFormat = "yyyy/MM/dd HH:mm:ss";
 const dateOnlyFormat = "yyyy/MM/dd";

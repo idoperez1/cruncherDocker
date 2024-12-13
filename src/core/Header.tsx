@@ -22,16 +22,16 @@ import {
   FullDate,
   isTimeNow,
   startFullDateAtom,
-} from "./dateState";
+} from "./store/dateState";
 import { Editor } from "./Editor";
 import { headerShortcuts } from "./keymaps";
 import {
   dataViewModelAtom,
   objectsAtom,
   searchQueryAtom,
-  store,
-} from "./state";
+} from "./store/queryState";
 import { Timer } from "./Timer";
+import { store } from "./store/store";
 
 const StyledHeader = styled.form`
   display: flex;

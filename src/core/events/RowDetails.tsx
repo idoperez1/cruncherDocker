@@ -13,7 +13,7 @@ import {
   MenuTrigger,
 } from "~components/ui/menu";
 import { ProcessedData } from "../common/logTypes";
-import { searchQueryAtom, store } from "../state";
+import { searchQueryAtom, store } from "../store/queryState";
 import { isIndexOpen, openIndexesAtom } from "./state";
 import { useAtom } from "jotai";
 type DataRowProps = {

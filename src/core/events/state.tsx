@@ -1,5 +1,5 @@
 import { atom } from "jotai";
-import { store } from "../state";
+import { store } from "../store/queryState";
 
 
 export const openIndexesAtom = atom<number[]>([]);

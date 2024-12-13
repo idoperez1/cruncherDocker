@@ -12,9 +12,8 @@ import {
   renderedEndDateAtom,
   renderedStartDateAtom,
   startFullDateAtom,
-  tryToUpdateDate,
-} from "./dateState";
-import { store } from "./state";
+  tryToUpdateDate as tryToUpdateDateFromText,
+} from "./store/dateState";
 
 import { IconButton, Input, SimpleGrid, Stack } from "@chakra-ui/react";
 import { LuClock2 } from "react-icons/lu";
@@ -30,6 +29,7 @@ import { CalendarSelector } from "./CalendarSelector";
 import { Tooltip } from "~components/ui/tooltip";
 import { Shortcut } from "~components/ui/shortcut";
 import { globalShortcuts } from "./keymaps";
+import { store } from "./store/store";
 
 export const setRangeByMinutes = (minutes: number) => {
   const now = new Date();
@@ -143,12 +143,12 @@ const CalendarPopUp = ({ setIsOpen }: CalendarPopUpProps) => {
   );
 
   const onInputStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    tryToUpdateDate(startFullDateAtom, e.target.value);
+    tryToUpdateDateFromText(startFullDateAtom, e.target.value);
     setInputRenderedStartDate(e.target.value);
   };
 
   const onInputEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    tryToUpdateDate(endFullDateAtom, e.target.value);
+    tryToUpdateDateFromText(endFullDateAtom, e.target.value);
     setInputRenderedEndDate(e.target.value);
   };
 

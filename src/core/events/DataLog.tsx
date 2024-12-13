@@ -7,7 +7,7 @@ import DataRow from "./Row";
 import { RowDetails } from "./RowDetails";
 import { isIndexOpen } from "./state";
 import { useAtom } from "jotai";
-import { objectsAtom } from "~core/state";
+import { objectsAtom } from "~core/store/queryState";
 
 type DataRowProps = {
 };

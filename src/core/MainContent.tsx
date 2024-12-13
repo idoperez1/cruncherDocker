@@ -12,9 +12,10 @@ import DataLog from "./events/DataLog";
 import Header from "./Header";
 import { globalShortcuts } from "./keymaps";
 import { getCruncherRoot } from "./shadowUtils";
-import { store, dataViewModelAtom } from "./state";
+import { dataViewModelAtom } from "./store/queryState";
 import { TableView } from "./table/TableView";
 import { queryEditorAtom } from "./Editor";
+import { store } from "./store/store";
 
 const MainContainer = styled.section`
   flex: 1;

@@ -1,5 +1,5 @@
 import { atom, useAtomValue, useSetAtom } from "jotai";
-import { availableColumnsAtom, queryDataAtom } from "./state";
+import { availableColumnsAtom, queryDataAtom } from "./store/queryState";
 import { useMemo } from "react";
 import { IRecognitionException } from "chevrotain";
 import { Suggestion } from "~components/ui/editor/AutoCompleter";

@@ -4,7 +4,7 @@ import { useAtom } from "jotai";
 import React, { useMemo } from "react";
 import { formatDataTime } from "../common/formatters";
 import { ProcessedData } from "../common/logTypes";
-import { store } from "../state";
+import { store } from "../store/queryState";
 import { isIndexOpen, openIndexesAtom } from "./state";
 
 type DataRowProps = {
