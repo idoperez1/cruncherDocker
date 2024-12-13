@@ -19,7 +19,14 @@ export const availableColumnsAtom = atom((get) => {
         return [];
     }
 
-    return Object.keys(data[0].object);
+    const columns = new Set<string>();
+    data.forEach((dataPoint) => {
+        for (const key in dataPoint.object) {
+            columns.add(key);
+        }
+    });
+
+    return Array.from(columns);
 });
 
 

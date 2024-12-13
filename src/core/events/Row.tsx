@@ -4,7 +4,6 @@ import { useAtom } from "jotai";
 import React, { useMemo } from "react";
 import { formatDataTime } from "../common/formatters";
 import { ProcessedData } from "../common/logTypes";
-import { store } from "../store/queryState";
 import { isIndexOpen, openIndexesAtom } from "./state";
 
 type DataRowProps = {
@@ -33,11 +32,10 @@ const DataRow: React.FC<DataRowProps> = ({ row, index }) => {
   const isOpen = useMemo(() => isIndexOpen(index), [index, openIndexes]);
 
   const setIsOpen = (value: boolean) => {
-    const currentValue = store.get(openIndexesAtom)
     if (value) {
-      setOpenIndexes([...currentValue, index]);
+      setOpenIndexes((prev) => [...prev, index]);
     } else {
-      setOpenIndexes(currentValue.filter((i) => i !== index));
+      setOpenIndexes((prev) => prev.filter((i) => i !== index));
     }
   }
 

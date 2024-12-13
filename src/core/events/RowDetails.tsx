@@ -13,9 +13,11 @@ import {
   MenuTrigger,
 } from "~components/ui/menu";
 import { ProcessedData } from "../common/logTypes";
-import { searchQueryAtom, store } from "../store/queryState";
+import { searchQueryAtom } from "../store/queryState";
 import { isIndexOpen, openIndexesAtom } from "./state";
 import { useAtom } from "jotai";
+import { store } from "~core/store/store";
+
 type DataRowProps = {
   rowKey: string;
   rowValue: string | number | boolean;
@@ -50,6 +52,7 @@ export const RowDetails = ({
 
 export const RowDetail: React.FC<DataRowProps> = ({ rowKey, rowValue }) => {
   const [isOpen, setIsOpen] = React.useState(false);
+
   return (
     <div
       css={css`
