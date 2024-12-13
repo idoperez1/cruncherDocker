@@ -11,7 +11,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { LuSearch, LuSearchCode } from "react-icons/lu";
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
-import { Editor } from "~core/Editor.tsx";
 import { parse } from "~core/qql";
 import { QueryProvider } from "./common/interface";
 import { ProcessedData } from "./common/logTypes";
@@ -26,6 +25,7 @@ import {
 } from "./dateState";
 import { headerShortcuts } from "./keymaps";
 import { dataViewModelAtom, objectsAtom, searchQueryAtom, store } from "./state";
+import { Editor } from "./Editor";
 
 const StyledHeader = styled.form`
   display: flex;
@@ -266,17 +266,6 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
           `}>
             <Editor value={searchValue} onChange={setSearchValue}/>
           </div>
-          {/*<Textarea*/}
-          {/*  id="cruncher-search"*/}
-          {/*  size="xl"*/}
-          {/*  height={120}*/}
-          {/*  placeholder="Query..."*/}
-          {/*  {...register("searchTerm", {*/}
-          {/*    onChange: (e) => {*/}
-          {/*      setSearchValue(e.target.value);*/}
-          {/*    },*/}
-          {/*  })}*/}
-          {/*/>*/}
           <Timer
             startTime={queryStartTime}
             endTime={queryEndTime}

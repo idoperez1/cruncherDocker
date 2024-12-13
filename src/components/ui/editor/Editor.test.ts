@@ -1,5 +1,5 @@
-import { splitTextToChunks } from "./Editor";
 import { expect, test } from "vitest";
+import { splitTextToChunks } from "./Highlighter";
 
 
 test("split string to highlight chunks", () => {

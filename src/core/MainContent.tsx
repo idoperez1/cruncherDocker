@@ -140,7 +140,7 @@ const MainContent: React.FC<MainContentProps> = (props) => {
   return (
     <Provider>
       <JotaiProvider store={store}>
-        <MainContentInner {...props}/>
+        <MainContentInner {...props} />
       </JotaiProvider>
     </Provider>
   );
