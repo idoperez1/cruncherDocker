@@ -249,7 +249,8 @@ export const Editor = ({ value, onChange }: EditorProps) => {
     for (const suggestion of data.suggestions) {
       // filter suggestions based on cursor position
       if (cursorPosition < suggestion.fromPosition) continue;
-      if (suggestion.toPosition && cursorPosition > suggestion.toPosition) continue;
+      if (suggestion.toPosition && cursorPosition > suggestion.toPosition)
+        continue;
 
       switch (suggestion.type) {
         case "keywords":
@@ -269,6 +270,35 @@ export const Editor = ({ value, onChange }: EditorProps) => {
     );
   }, [data, cursorPosition, availableColumns, writtenWord]);
 
+  const acceptCompletion = () => {
+    onChange(
+      value.slice(0, cursorPosition - writtenWord.length) +
+        suggestions[hoveredCompletionItem] +
+        value.slice(cursorPosition)
+    );
+    setIsCompleterOpen(false);
+  };
+
+  const advanceHoveredItem = () => {
+    setHoveredCompletionItem((prev) => {
+      if (prev === suggestions.length - 1) {
+        return 0;
+      }
+
+      return prev + 1;
+    });
+  };
+
+  const retreatHoveredItem = () => {
+    setHoveredCompletionItem((prev) => {
+      if (prev === 0) {
+        return suggestions.length - 1;
+      }
+
+      return prev - 1;
+    });
+  };
+
   return (
     <EditorWrapper>
       <TextHighlighter value={value} />
@@ -287,35 +317,29 @@ export const Editor = ({ value, onChange }: EditorProps) => {
           if (e.key === " " && e.ctrlKey) {
             setIsCompleterOpen(true);
           }
-          // if open and down arrow - move selection down
-          if (isCompleterOpen && e.key === "ArrowDown") {
-            e.preventDefault();
-            setHoveredCompletionItem((prev) => {
-              if (prev === suggestions.length - 1) {
-                return 0;
-              }
 
-              return prev + 1;
-            });
-          } else if (isCompleterOpen && e.key === "ArrowUp") {
-            e.preventDefault();
-            setHoveredCompletionItem((prev) => {
-              if (prev === 0) {
-                return suggestions.length - 1;
-              }
+          if (isCompleterOpen) {
+            // if open and down arrow - move selection down
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              advanceHoveredItem();
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              retreatHoveredItem();
+            }
 
-              return prev - 1;
-            });
-          }
+            if (e.key === "Enter" && suggestions.length > 0) {
+              e.preventDefault();
+              acceptCompletion();
+            }
 
-          if (isCompleterOpen && e.key === "Enter" && suggestions.length > 0) {
-            onChange(
-              value.slice(0, cursorPosition - writtenWord.length) +
-                suggestions[hoveredCompletionItem] +
-                value.slice(cursorPosition)
-            );
-            setIsCompleterOpen(false);
-            e.preventDefault();
+            if (e.key === "Tab" && e.shiftKey && suggestions.length > 0) {
+              e.preventDefault();
+              retreatHoveredItem();
+            } else if (e.key == "Tab" && suggestions.length > 0) {
+              e.preventDefault();
+              advanceHoveredItem();
+            }
           }
 
           setCursorPosition(e.currentTarget.selectionStart);
@@ -410,14 +434,21 @@ export const AutoCompleter = ({
     if (!element) return;
     element.scrollIntoView();
   }, [hoveredItem]);
-  
+
   if (suggestions.length === 0) {
     return null;
   }
 
   return (
     <Card.Root width="200px" overflow="hidden" zIndex={1}>
-      <Card.Body ref={scrollerRef} padding="0" fontSize="sm" lineHeight={1} overflow="auto" maxH={100}>
+      <Card.Body
+        ref={scrollerRef}
+        padding="0"
+        fontSize="sm"
+        lineHeight={1}
+        overflow="auto"
+        maxH={100}
+      >
         {suggestions.map((suggestion, index) => (
           <span
             css={css`

@@ -37,7 +37,6 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
   const dataType = dataViewModel?.type ?? "events";
 
   useEffect(() => {
-    console.log("im here");
     if (dataType === "events") {
       setSelectedTab("logs");
     } else {
