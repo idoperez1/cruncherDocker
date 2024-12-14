@@ -6,14 +6,17 @@ import { useCallback, useEffect, useRef } from "react";
 import DataRow from "./Row";
 import { RowDetails } from "./RowDetails";
 import { isIndexOpen, rangeInViewAtom } from "./state";
-import { useAtomValue, useSetAtom } from "jotai";
+import { atom, useAtomValue, useSetAtom } from "jotai";
 import { objectsAtom } from "~core/store/queryState";
 import { store } from "~core/store/store";
+
+export const scrollToIndexAtom = atom<(index: number) => void>();
 
 type DataRowProps = {};
 
 const DataLog: React.FC<DataRowProps> = () => {
   const logs = useAtomValue(objectsAtom);
+  const setScrollToIndex = useSetAtom(scrollToIndexAtom);
 
   const parentRef = useRef(null);
 
@@ -50,6 +53,10 @@ const DataLog: React.FC<DataRowProps> = () => {
       return [...next].sort((a, b) => a - b);
     }, []),
   });
+
+  useEffect(() => {
+    setScrollToIndex(() => (index: number) => rowVirtualizer.scrollToIndex(index * 2));
+  }, [rowVirtualizer.scrollToIndex, setScrollToIndex]);
 
   useEffect(() => {
     if (!rowVirtualizer.range) {
@@ -140,3 +147,7 @@ const DataLog: React.FC<DataRowProps> = () => {
 };
 
 export default DataLog;
+function useSetValue(scrollToIndexAtom: import("jotai").PrimitiveAtom<((index: number) => void) | undefined> & { init: ((index: number) => void) | undefined; }) {
+  throw new Error("Function not implemented.");
+}
+

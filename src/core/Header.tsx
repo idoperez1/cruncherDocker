@@ -34,6 +34,7 @@ import {
 } from "./store/queryState";
 import { Timer } from "./Timer";
 import { store } from "./store/store";
+import { tree } from "./indexes/timeIndex";
 
 const StyledHeader = styled.form`
   display: flex;
@@ -205,6 +206,11 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
       }
 
       console.log(parsedTree);
+
+      tree.clear();
+      dataForPipelines.forEach((data, index) => {
+        tree.set(data.timestamp, {data, index});
+      });
 
       const finalData = getPipelineItems(dataForPipelines, parsedTree.pipeline);
       console.log(finalData);

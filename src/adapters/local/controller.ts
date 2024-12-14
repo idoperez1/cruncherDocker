@@ -11,7 +11,8 @@ const data = [
         tags: ["nice", "developer"],
     },
 ];
-for (let i = 2; i <= 100000; i++) {
+
+for (let i = 2; i <= 10000; i++) {
     const randomTags = [
         tagsOptions[Math.floor(Math.random() * tagsOptions.length)],
         tagsOptions[Math.floor(Math.random() * tagsOptions.length)],

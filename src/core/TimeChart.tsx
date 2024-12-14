@@ -18,9 +18,13 @@ import { formatDataTimeShort } from "./common/formatters";
 import { actualEndTimeAtom, actualStartTimeAtom } from "./store/dateState";
 import { objectsAtom } from "./store/queryState";
 import { rangeInViewAtom } from "./events/state";
+import { scrollToIndexAtom } from "./events/DataLog";
+import { tree } from "./indexes/timeIndex";
 
 export const TimeChart = () => {
   const objects = useAtomValue(objectsAtom);
+
+  const scrollToIndex = useAtomValue(scrollToIndexAtom);
 
   const ref = useRef(null);
 
@@ -92,7 +96,12 @@ export const TimeChart = () => {
           data={dataBuckets}
           onMouseDown={(e) => {
             if (e.chartX === undefined) return;
-            setRefAreaLeft(scale.invert(e.chartX));
+
+            const timestampClicked = scale.invert(e.chartX);
+            setRefAreaLeft(timestampClicked);
+
+            const clicked = tree.getPairOrNextLower(timestampClicked);
+            clicked?.[1]?.index !== undefined && scrollToIndex?.(clicked?.[1]?.index);
           }}
           onMouseMove={(e) => {
             if (!refAreaLeft) return;
