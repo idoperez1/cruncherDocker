@@ -147,7 +147,4 @@ const DataLog: React.FC<DataRowProps> = () => {
 };
 
 export default DataLog;
-function useSetValue(scrollToIndexAtom: import("jotai").PrimitiveAtom<((index: number) => void) | undefined> & { init: ((index: number) => void) | undefined; }) {
-  throw new Error("Function not implemented.");
-}
 
