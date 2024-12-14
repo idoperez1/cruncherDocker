@@ -108,7 +108,7 @@ export const TimeChart = () => {
             dataKey="timestamp"
             ticks={scale.ticks()}
             domain={scale.domain()}
-            tickFormatter={(value) => formatDataTimeShort(new Date(value))}
+            tickFormatter={(value) => formatDataTimeShort(value)}
             type="number"
           />
           <YAxis
@@ -178,8 +178,8 @@ const CustomTooltip = ({
         <Card.Body padding={2}>
           {leftArea && rightArea ? (
             <p className="intro">
-              {formatDataTimeShort(new Date(leftArea))} to{" "}
-              {formatDataTimeShort(new Date(rightArea))}
+              {formatDataTimeShort(leftArea)} to{" "}
+              {formatDataTimeShort(rightArea)}
             </p>
           ) : (
             <>

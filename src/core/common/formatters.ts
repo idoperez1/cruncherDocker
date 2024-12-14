@@ -6,5 +6,7 @@ export const formatDataTime = (date: Date | number): string => {
 }
 
 export const formatDataTimeShort = (date: Date | number): string => {
+    if (date === undefined) return "";
+
     return format(new Date(date), "yyyy-MM-dd HH:mm:ss")
 }

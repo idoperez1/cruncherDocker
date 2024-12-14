@@ -1,3 +1,4 @@
+import styled from "@emotion/styled";
 import { css } from "@emotion/react";
 import { parse } from "ansicolor";
 import { useAtom } from "jotai";
@@ -27,6 +28,24 @@ const getColorFromObject = (object: ProcessedData["object"], columnName: string)
   }
 };
 
+const StyledRow = styled.div`
+  display: flex;
+  flex-direction: row;
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  & ::selection {
+    background-color: rgba(255, 255, 255, 0.5);
+  }
+`;
+
+const StyledGutter = styled.div<{ row: ProcessedData }>`
+  width: 6px;
+  border-right: 1px solid rgb(49, 54, 63);
+  background-color: ${({row}) => getColorFromObject(row.object, "level")}; // TODO: this needs to be configurable by user
+  margin-right: 0.3rem;
+`;
+
 const DataRow: React.FC<DataRowProps> = ({ row, index }) => {
   const [openIndexes, setOpenIndexes] = useAtom(openIndexesAtom);
   const isOpen = useMemo(() => isIndexOpen(index), [index, openIndexes]);
@@ -40,58 +59,39 @@ const DataRow: React.FC<DataRowProps> = ({ row, index }) => {
   }
 
   return (
-    <div
-      css={css`
-        display: flex;
-        flex-direction: row;
-        &:hover {
-          background-color: rgba(255, 255, 255, 0.1);
-        }
-
-        & ::selection {
-          background-color: rgba(255, 255, 255, 0.5);
-        }
-      `}
-    >
+    <StyledRow>
+      <StyledGutter row={row} />
       <div
-        css={css`
-          width: 6px;
-          border-right: 1px solid rgb(49, 54, 63);
-          background-color: ${getColorFromObject(row.object, "level")}; // TODO: this needs to be configurable by user
-          margin-right: 0.3rem;
-        `}
-      />
-      <div
-        css={css`
-          display: flex;
-          flex-direction: column;
-          flex: 1;
-        `}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          flex: 1
+        }}
       >
         <div
           onClick={() => setIsOpen(!isOpen)}
-          css={css`
-            cursor: pointer;
-            display: flex;
-            flex-direction: row;
-          `}
+          style={{
+            cursor: "pointer",
+            display: "flex",
+            flexDirection: "row"
+          }}
         >
           <div
-            css={css`
-              width: 160px;
-            `}
+            style={{
+              width: 160
+            }}
           >
             {formatDataTime(row.timestamp)}
           </div>
           <div
-            css={css`
-              flex: 1;
-            `}
+            style={{
+              flex: 1
+            }}
           >
             {parse(row.message).spans.map((span, spanIndex) => {
               return (
                 <span
-                  key={`${spanIndex}`}
+                  key={spanIndex}
                   css={css`
                     ${span.css}
                   `}
@@ -103,7 +103,7 @@ const DataRow: React.FC<DataRowProps> = ({ row, index }) => {
           </div>
         </div>
       </div>
-    </div>
+    </StyledRow>
   );
 };
 
