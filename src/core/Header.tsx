@@ -8,7 +8,7 @@ import { css } from "@emotion/react";
 import { Mutex } from "async-mutex";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useMemo, useRef, useState } from "react";
-import { LuSearch, LuSearchCode } from "react-icons/lu";
+import { LuSearch, LuSearchCode, LuSearchX } from "react-icons/lu";
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
 import { parse } from "~core/qql";
@@ -189,7 +189,6 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
         );
         console.log(finalData);
         setDataViewModel(finalData);
-
       } else {
         try {
           tree.clear();
@@ -214,17 +213,18 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
               setDataViewModel(finalData);
             },
           });
-          setLastExecutedQuery(executionQuery);
 
+          setLastExecutedQuery(executionQuery);
           setOriginalData(dataForPipelines);
           setIsQuerySuccess(true);
         } catch (error) {
+          setIsQuerySuccess(false);
+          console.log(error);
           if (cancelToken.aborted) {
             return; // don't continue if the request was aborted
           }
 
           console.error("Error executing query: ", error);
-          setIsQuerySuccess(false);
           throw error;
         }
       }
@@ -239,10 +239,10 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
     async (values) => {
       if (isLoading) {
         abortController.current.abort("New query submitted");
-
-        // reset abort controller
-        abortController.current = new AbortController();
       }
+
+      // reset abort controller
+      abortController.current = new AbortController();
 
       await submitMutex.current.runExclusive(async () => {
         await doSubmit(values, isForced);
@@ -307,6 +307,7 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
         <SearchBarButtons
           isLoading={isLoading}
           onForceSubmit={() => handleSubmit(onSubmit(true))()}
+          onTerminateSearch={() => abortController.current.abort("User aborted")}
         />
       </StyledHeader>
     </>
@@ -316,11 +317,13 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
 type SearchBarButtonsProps = {
   isLoading: boolean;
   onForceSubmit: () => void;
+  onTerminateSearch: () => void;
 };
 
 const SearchBarButtons: React.FC<SearchBarButtonsProps> = ({
   isLoading,
   onForceSubmit,
+  onTerminateSearch,
 }) => {
   return (
     <ButtonsHolder>
@@ -347,25 +350,45 @@ const SearchBarButtons: React.FC<SearchBarButtonsProps> = ({
               <LuSearchCode />
             </IconButton>
           </Tooltip>
-          <Tooltip
-            content={
-              <span>
-                Search <Shortcut keys={headerShortcuts.getAlias("search")} />
-              </span>
-            }
-            showArrow
-            positioning={{
-              placement: "bottom",
-            }}
-          >
-            <IconButton
-              aria-label="Search database"
-              onClick={() => onForceSubmit()}
-              disabled={isLoading}
+          {isLoading ? (
+            <Tooltip
+              content={
+                <span>
+                  Terminate Search
+                </span>
+              }
+              showArrow
+              positioning={{
+                placement: "bottom",
+              }}
             >
-              <LuSearch />
-            </IconButton>
-          </Tooltip>
+              <IconButton
+                aria-label="Terminate database"
+                onClick={() => onTerminateSearch()}
+              >
+                <LuSearchX />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <Tooltip
+              content={
+                <span>
+                  Search <Shortcut keys={headerShortcuts.getAlias("search")} />
+                </span>
+              }
+              showArrow
+              positioning={{
+                placement: "bottom",
+              }}
+            >
+              <IconButton
+                aria-label="Search database"
+                onClick={() => onForceSubmit()}
+              >
+                <LuSearch />
+              </IconButton>
+            </Tooltip>
+          )}
         </Stack>
       </Stack>
     </ButtonsHolder>

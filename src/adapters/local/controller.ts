@@ -40,7 +40,7 @@ for (let i = 2; i <= 10000; i++) {
 // Used for testing purposes
 export const MockController = {
     query: async (searchTerm: string[], options: QueryOptions): Promise<void> => {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             // filter using the search term
             const filteredData = data.filter((item) => {
                 if (searchTerm.length === 0) {
@@ -81,11 +81,16 @@ export const MockController = {
             // randomize a delay between 1 - 3 seconds
             const delay = Math.floor(Math.random() * 1000) + 500;
 
-            // simulate a delay
-            setTimeout(() => {
+            // simulate a delay - and listen to options.cancelToken as well - reject if cancelled
+            const timeout = setTimeout(() => {
                 options.onBatchDone(result);
                 resolve();
             }, delay);
+
+            options.cancelToken.addEventListener("abort", () => {
+                clearTimeout(timeout);
+                reject("Query cancelled");
+            });
         });
     },
 } satisfies QueryProvider;
