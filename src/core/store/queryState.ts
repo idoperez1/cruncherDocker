@@ -10,11 +10,22 @@ export const queryDataAtom = atom((get) => {
     return allData(searchQuery);
 });
 
-export const objectsAtom = atom<ProcessedData[]>([]);
-export const dataViewModelAtom = atom<[Events, Table | undefined]>();
+export const originalDataAtom = atom<ProcessedData[]>([]);
+export const dataViewModelAtom = atom<[Events, Table | undefined]>([
+    {
+        type: "events",
+        data: []
+    },
+    undefined,
+]);
+
+export const eventsAtom = atom<Events>((get) => {
+    return get(dataViewModelAtom)[0];
+})
 
 export const availableColumnsAtom = atom((get) => {
-    const data = get(objectsAtom);
+    const events = get(eventsAtom);
+    const data = events.data;
     if (!data.length) {
         return [];
     }

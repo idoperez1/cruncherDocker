@@ -16,13 +16,14 @@ import {
 } from "recharts";
 import { formatDataTimeShort } from "./common/formatters";
 import { actualEndTimeAtom, actualStartTimeAtom } from "./store/dateState";
-import { objectsAtom } from "./store/queryState";
+import { eventsAtom } from "./store/queryState";
 import { rangeInViewAtom } from "./events/state";
 import { scrollToIndexAtom } from "./events/DataLog";
 import { tree } from "./indexes/timeIndex";
 
 export const TimeChart = () => {
-  const objects = useAtomValue(objectsAtom);
+  const events = useAtomValue(eventsAtom);
+  const objects = events.data;
 
   const scrollToIndex = useAtomValue(scrollToIndexAtom);
 

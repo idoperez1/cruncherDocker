@@ -8,14 +8,14 @@ import { Provider } from "~components/ui/provider";
 import { Tooltip } from "~components/ui/tooltip";
 import { QueryProvider } from "./common/interface";
 import { isDateSelectorOpen } from "./DateSelector";
+import { queryEditorAtom } from "./Editor";
 import DataLog from "./events/DataLog";
 import Header from "./Header";
 import { globalShortcuts } from "./keymaps";
 import { getCruncherRoot } from "./shadowUtils";
-import { dataViewModelAtom, objectsAtom } from "./store/queryState";
-import { TableView } from "./table/TableView";
-import { queryEditorAtom } from "./Editor";
+import { dataViewModelAtom, eventsAtom } from "./store/queryState";
 import { store } from "./store/store";
+import { TableView } from "./table/TableView";
 import { TimeChart } from "./TimeChart";
 
 const MainContainer = styled.section`
@@ -32,7 +32,7 @@ type MainContentProps = {
 
 const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
   const [selectedTab, setSelectedTab] = useState<string | null>("logs");
-  const events = useAtomValue(objectsAtom);
+  const events = useAtomValue(eventsAtom);
   const dataViewModel = useAtomValue(dataViewModelAtom);
   const [, tableView] = dataViewModel ?? [undefined, undefined];
 
@@ -89,7 +89,7 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
         <Tabs.List zIndex={10}>
           <Tabs.Trigger value="logs">
             <LuLogs /> Logs{" "}
-            {events.length > 0 && <Badge>{events.length}</Badge>}
+            {events.data.length > 0 && <Badge>{events.data.length}</Badge>}
           </Tabs.Trigger>
           <Tabs.Trigger
             value="table"

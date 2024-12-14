@@ -29,7 +29,7 @@ import { Editor } from "./Editor";
 import { headerShortcuts } from "./keymaps";
 import {
   dataViewModelAtom,
-  objectsAtom,
+  originalDataAtom,
   searchQueryAtom,
 } from "./store/queryState";
 import { Timer } from "./Timer";
@@ -115,7 +115,7 @@ const compareExecutions = (
 
 const Header: React.FC<HeaderProps> = ({ controller }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [objects, setObjects] = useAtom(objectsAtom);
+  const [originalData, setOriginalData] = useAtom(originalDataAtom);
   const setDataViewModel = useSetAtom(dataViewModelAtom);
 
   const [lastExecutedQuery, setLastExecutedQuery] =
@@ -182,7 +182,7 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
 
       if (!isForced && compareExecutions(executionQuery, lastExecutedQuery)) {
         console.log("using cached data");
-        dataForPipelines = objects;
+        dataForPipelines = originalData;
       } else {
         try {
           dataForPipelines = await controller.query(parsedTree.search, {
@@ -192,7 +192,7 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
           });
           setLastExecutedQuery(executionQuery);
 
-          setObjects(dataForPipelines);
+          setOriginalData(dataForPipelines);
           setIsQuerySuccess(true);
         } catch (error) {
           if (cancelToken.aborted) {
