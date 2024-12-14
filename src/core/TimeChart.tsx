@@ -142,6 +142,7 @@ export const TimeChart = () => {
             x1={objects[rangeInView.start]?.timestamp}
             x2={objects[rangeInView.end]?.timestamp}
             fill="rgba(143, 143, 143, 0.39)"
+            stroke="#FFF"
             strokeOpacity={0.3}
             />
 
