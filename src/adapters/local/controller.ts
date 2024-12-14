@@ -40,7 +40,7 @@ for (let i = 2; i <= 10000; i++) {
 
 // Used for testing purposes
 export const MockController = {
-    query: async (searchTerm: string[], options: QueryOptions): Promise<ProcessedData[]> => {
+    query: async (searchTerm: string[], options: QueryOptions): Promise<void> => {
         return new Promise((resolve) => {
             // filter using the search term
             const filteredData = data.filter((item) => {
@@ -84,7 +84,8 @@ export const MockController = {
 
             // simulate a delay
             setTimeout(() => {
-                resolve(result);
+                options.onBatchDone(result);
+                resolve();
             }, delay);
         });
     },

@@ -183,12 +183,34 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
       if (!isForced && compareExecutions(executionQuery, lastExecutedQuery)) {
         console.log("using cached data");
         dataForPipelines = originalData;
+        const finalData = getPipelineItems(
+          dataForPipelines,
+          parsedTree.pipeline
+        );
+        console.log(finalData);
+        setDataViewModel(finalData);
+        
       } else {
         try {
-          dataForPipelines = await controller.query(parsedTree.search, {
+          tree.clear();
+          await controller.query(parsedTree.search, {
             fromTime: fromTime,
             toTime: toTime,
             cancelToken: cancelToken,
+            onBatchDone: (data) => {
+              dataForPipelines = data.concat(dataForPipelines); // prepend data
+              data.forEach((data) => {
+                dataForPipelines.push(data);
+                tree.set(data.timestamp, data);
+              });
+
+              const finalData = getPipelineItems(
+                dataForPipelines,
+                parsedTree.pipeline
+              );
+              console.log(finalData);
+              setDataViewModel(finalData);
+            },
           });
           setLastExecutedQuery(executionQuery);
 
@@ -204,18 +226,6 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
           throw error;
         }
       }
-
-      console.log(parsedTree);
-
-      tree.clear();
-      dataForPipelines.forEach((data, index) => {
-        tree.set(data.timestamp, {data, index});
-      });
-
-      const finalData = getPipelineItems(dataForPipelines, parsedTree.pipeline);
-      console.log(finalData);
-
-      setDataViewModel(finalData);
     } finally {
       setIsLoading(false);
       setQueryEndTime(new Date());

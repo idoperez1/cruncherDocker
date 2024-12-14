@@ -102,7 +102,10 @@ export const TimeChart = () => {
             setRefAreaLeft(timestampClicked);
 
             const clicked = tree.getPairOrNextLower(timestampClicked);
-            clicked?.[1]?.index !== undefined && scrollToIndex?.(clicked?.[1]?.index);
+            const asArray = tree.toArray();
+            const index = asArray.findIndex((item) => item[0] === clicked?.[0]);
+            if (index === -1) return;
+            scrollToIndex?.(index);
           }}
           onMouseMove={(e) => {
             if (!refAreaLeft) return;
