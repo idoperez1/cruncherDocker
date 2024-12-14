@@ -141,9 +141,11 @@ export const TimeChart = () => {
             yAxisId="1"
             x1={objects[rangeInView.start]?.timestamp}
             x2={objects[rangeInView.end]?.timestamp}
-            fill="rgba(143, 143, 143, 0.39)"
-            stroke="#FFF"
-            strokeOpacity={0.3}
+            fill="rgb(255, 255, 255)"
+            stroke="#3c55a7"
+            strokeWidth={2}
+            strokeOpacity={1}
+            fillOpacity={0.2}
             />
 
           {refAreaLeft && refAreaRight ? (
