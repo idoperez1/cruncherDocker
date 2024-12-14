@@ -109,8 +109,7 @@ export const TimeChart = () => {
             type="number"
           />
           <YAxis
-            allowDataOverflow
-            domain={["dataMin - 1", "dataMax + 1"]}
+            domain={[0, "dataMax + 1"]}
             type="number"
             yAxisId="1"
           />
@@ -121,10 +120,10 @@ export const TimeChart = () => {
           />
           <Bar
             yAxisId="1"
-            type="natural"
             dataKey="count"
             stroke="#302d6d"
             fill="#8884d8"
+            maxBarSize={10}
             animationDuration={300}
           />
           {/* <Line
