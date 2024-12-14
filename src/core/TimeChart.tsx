@@ -141,14 +141,6 @@ export const TimeChart = () => {
             maxBarSize={10}
             animationDuration={300}
           />
-          {/* <Line
-            yAxisId="1"
-            type="natural"
-            dataKey="impression"
-            stroke="#82ca9d"
-            animationDuration={300}
-          /> */}
-
           <ReferenceArea
             yAxisId="1"
             x1={objects[rangeInView.start]?.timestamp}
