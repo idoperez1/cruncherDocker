@@ -13,7 +13,7 @@ type DataRowProps = {
 };
 
 const getColorFromObject = (object: ProcessedData["object"], columnName: string) => {
-  const level = object[columnName];
+  const level = object[columnName]?.value;
   if (typeof level !== "string") {
     return "rgb(44, 175, 0)";
   }
