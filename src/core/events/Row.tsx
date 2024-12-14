@@ -4,7 +4,7 @@ import { parse } from "ansicolor";
 import { useAtom } from "jotai";
 import React, { useMemo } from "react";
 import { formatDataTime } from "../common/formatters";
-import { ProcessedData } from "../common/logTypes";
+import { asDateField, ProcessedData } from "../common/logTypes";
 import { isIndexOpen, openIndexesAtom } from "./state";
 
 type DataRowProps = {
@@ -81,7 +81,7 @@ const DataRow: React.FC<DataRowProps> = ({ row, index }) => {
               width: 160
             }}
           >
-            {formatDataTime(row.timestamp)}
+            {formatDataTime(asDateField(row.object._time).value)}
           </div>
           <div
             style={{

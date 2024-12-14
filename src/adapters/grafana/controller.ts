@@ -1,9 +1,36 @@
 import { QueryOptions, QueryProvider } from "~core/common/interface";
-import { ProcessedData } from "~core/common/logTypes";
+import { asNumberField, Field, ObjectFields } from "~core/common/logTypes";
 import { buildQuery, LIMIT } from "./query";
 import { Frame } from "./types";
 
-const getAllObjects = (frames: Frame[]): ProcessedData[] => {
+const processField = (field: any): Field => {
+    if (typeof field === "number") {
+        return {
+            type: "number",
+            value: field,
+        };
+    } else if (field instanceof Date) {
+        return {
+            type: "date",
+            value: field.getTime(),
+        };
+    }
+
+    // try to parse as number
+    if (/^\d+(?:\.\d+)?$/.test(field)) {
+        return {
+            type: "number",
+            value: parseFloat(field),
+        };
+    }
+
+    return {
+        type: "string",
+        value: field,
+    };
+}
+
+const getAllObjects = (frames: Frame[]) => {
     const objects = frames.map((frame) => frame.data.values[0]).flat();
     const timestamps = frames.map((frame) => frame.data.values[1]).flat();
     const messages = frames.map((frame) => frame.data.values[2]).flat();
@@ -20,26 +47,42 @@ const getAllObjects = (frames: Frame[]): ProcessedData[] => {
         uniqueIds,
     };
 
-    const getRow = (index: number): ProcessedData => {
+    const getRow = (index: number) => {
         const object = processedData.objects[index];
         const timestamp = processedData.timestamps[index];
         const message = processedData.messages[index];
         const nanoSeconds = parseInt(processedData.nanoSeconds[index]);
         const uniqueId = processedData.uniqueIds[index];
 
+        const objectFields: ObjectFields = {
+            _time: {
+                type: "date",
+                value: timestamp,
+            },
+            _sortBy: {
+                type: "number",
+                value: nanoSeconds,
+            },
+            _uniqueId: {
+                type: "string",
+                value: uniqueId,
+            },
+        };
+
+        Object.entries(object).forEach(([key, value]) => {
+            objectFields[key] = processField(value);
+        });
+
         return {
-            uniqueId,
-            object,
-            timestamp,
+            object: objectFields,
             message,
-            nanoSeconds,
         };
     };
 
 
     return processedData.objects
         .map((_, index) => getRow(index))
-        .sort((a, b) => b.nanoSeconds - a.nanoSeconds); // TODO: optimize and map sorting
+        .sort((a, b) => asNumberField(b.object._sortBy).value - asNumberField(a.object._sortBy).value); // TODO: optimize and map sorting
 }
 
 export class GrafanaController implements QueryProvider {
@@ -86,11 +129,11 @@ export class GrafanaController implements QueryProvider {
 
             // get last timestamp
             const fromTime = options.fromTime.getTime();
-            const earliestTimestamp = objects.length > 0 ? objects[objects.length - 1].timestamp : 0;
+            const earliestTimestamp = objects.length > 0 ? asNumberField(objects[objects.length - 1].object._time).value : 0;
             if (earliestTimestamp === 0 || !(earliestTimestamp > fromTime && objects.length === LIMIT)) {
                 break;
             }
-    
+
             // assume we reached the limit - try to get the next batch
             options.toTime = new Date(earliestTimestamp - 1);
         }

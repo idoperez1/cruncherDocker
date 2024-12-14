@@ -12,7 +12,7 @@ import {
   MenuRoot,
   MenuTrigger,
 } from "~components/ui/menu";
-import { ProcessedData } from "../common/logTypes";
+import { asDisplayString, Field, ProcessedData } from "../common/logTypes";
 import { searchQueryAtom } from "../store/queryState";
 import { isIndexOpen, openIndexesAtom } from "./state";
 import { useAtom } from "jotai";
@@ -20,7 +20,7 @@ import { store } from "~core/store/store";
 
 type DataRowProps = {
   rowKey: string;
-  rowValue: string | number | boolean;
+  rowValue: Field;
 };
 
 export const RowDetails = ({
@@ -94,7 +94,7 @@ export const RowDetail: React.FC<DataRowProps> = ({ rowKey, rowValue }) => {
           align-items: center;
         `}
       >
-        {rowValue}
+        {asDisplayString(rowValue)}
       </div>
       {/* <PopoverRoot
                       size="sm"
@@ -122,7 +122,7 @@ export const RowDetail: React.FC<DataRowProps> = ({ rowKey, rowValue }) => {
           <MenuItem
             value="copy-value"
             onClick={() => {
-              navigator.clipboard.writeText(rowValue as string);
+              navigator.clipboard.writeText(asDisplayString(rowValue));
               setIsOpen(false);
             }}
             cursor={"pointer"}

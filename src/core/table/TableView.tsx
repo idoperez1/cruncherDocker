@@ -1,15 +1,11 @@
 import React, { useMemo } from "react";
 import { TableVirtuoso } from "react-virtuoso";
-import { ProcessedData } from "../common/logTypes";
+import { asDisplayString, ProcessedData } from "../common/logTypes";
 import { Table } from "@chakra-ui/react";
-import { formatDataTime } from "../common/formatters";
+
 export type TableViewProps = {
   columns: string[];
   dataPoints: ProcessedData[];
-};
-
-const specialColumns: Record<string, (dataPoint: ProcessedData) => string> = {
-  _time: (dataPoint: ProcessedData) => formatDataTime(dataPoint.timestamp),
 };
 
 const prepareData = (dataPoints: ProcessedData[], columns: string[]) => {
@@ -22,12 +18,7 @@ const prepareData = (dataPoints: ProcessedData[], columns: string[]) => {
   for (const dataPoint of dataPoints) {
     const object: string[] = [];
     for (const column of columns) {
-      let value = dataPoint.object[column] ?? "";
-      if (specialColumns[column]) {
-        value = specialColumns[column](dataPoint);
-      }
-
-      value = value.toString();
+      const value = asDisplayString(dataPoint.object[column]);
       object.push(value);
 
       const valueLength = value.length + 2; // 2 is the padding

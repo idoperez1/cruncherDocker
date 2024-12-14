@@ -20,10 +20,11 @@ import { eventsAtom } from "./store/queryState";
 import { rangeInViewAtom } from "./events/state";
 import { scrollToIndexAtom } from "./events/DataLog";
 import { tree } from "./indexes/timeIndex";
+import { asDateField } from "./common/logTypes";
 
 export const TimeChart = () => {
   const events = useAtomValue(eventsAtom);
-  const objects = events.data;
+  const data = events.data;
 
   const scrollToIndex = useAtomValue(scrollToIndexAtom);
 
@@ -60,13 +61,15 @@ export const TimeChart = () => {
     const buckets: Record<number, number> = {};
     const ticks = scale.ticks(100);
 
-    objects.forEach((object) => {
+    data.forEach((object) => {
       // round timestamp to the nearest tick
-      const timestamp = ticks.reduce((prev, curr) =>
-        Math.abs(curr - object.timestamp) < Math.abs(prev - object.timestamp)
+      const timestamp = ticks.reduce((prev, curr) => {
+        const thisTimestamp = asDateField(object.object._time).value;
+
+        return Math.abs(curr - thisTimestamp) < Math.abs(prev - thisTimestamp)
           ? curr
-          : prev
-      );
+          : prev;
+      });
       if (!buckets[timestamp]) {
         buckets[timestamp] = 0;
       }
@@ -78,7 +81,7 @@ export const TimeChart = () => {
       timestamp: parseInt(timestamp),
       count,
     }));
-  }, [objects, scale]);
+  }, [data, scale]);
 
   if (!scale) {
     return null;
@@ -102,7 +105,10 @@ export const TimeChart = () => {
             setRefAreaLeft(timestampClicked);
 
             const clicked = tree.nextLowerKey(timestampClicked);
-            const index = objects.findIndex((item) => item.timestamp === clicked);
+            const index = data.findIndex((item) => {
+              const timestamp = asDateField(item.object._time).value;
+              return timestamp === clicked;
+            });
             if (index === -1) return;
             scrollToIndex?.(index);
           }}
@@ -123,11 +129,7 @@ export const TimeChart = () => {
             tickFormatter={(value) => formatDataTimeShort(value)}
             type="number"
           />
-          <YAxis
-            domain={[0, "dataMax + 1"]}
-            type="number"
-            yAxisId="1"
-          />
+          <YAxis domain={[0, "dataMax + 1"]} type="number" yAxisId="1" />
           <Tooltip
             content={
               <CustomTooltip leftArea={refAreaLeft} rightArea={refAreaRight} />
@@ -143,14 +145,14 @@ export const TimeChart = () => {
           />
           <ReferenceArea
             yAxisId="1"
-            x1={objects[rangeInView.start]?.timestamp}
-            x2={objects[rangeInView.end]?.timestamp}
+            x1={asDateField(data[rangeInView.start]?.object._time).value}
+            x2={asDateField(data[rangeInView.end]?.object._time).value}
             fill="rgb(255, 255, 255)"
             stroke="#3c55a7"
             strokeWidth={2}
             strokeOpacity={1}
             fillOpacity={0.2}
-            />
+          />
 
           {refAreaLeft && refAreaRight ? (
             <ReferenceArea

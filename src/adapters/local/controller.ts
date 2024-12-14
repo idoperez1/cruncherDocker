@@ -1,4 +1,5 @@
 import { QueryOptions, QueryProvider } from "~core/common/interface";
+import { asNumberField, Field, ObjectFields, ProcessedData } from "~core/common/logTypes";
 
 const tagsOptions = ["nice", "developer", "trash collector"];
 const data = [
@@ -37,6 +38,54 @@ for (let i = 2; i <= 100000; i++) {
     });
 }
 
+const processField = (field: any): Field => {
+    if (typeof field === "number") {
+        return {
+            type: "number",
+            value: field,
+        };
+    } else if (field instanceof Date) {
+        return {
+            type: "date",
+            value: field.getTime(),
+        };
+    } else if (typeof field === "boolean") {
+        return {
+            type: "boolean",
+            value: field,
+        };
+    } else if (Array.isArray(field)) {
+        return {
+            type: "array",
+            value: field.map((item) => processField(item)),
+        };
+    } else if (typeof field === "object") {
+        const objectFields: ObjectFields = {};
+
+        Object.entries(field).forEach(([key, value]) => {
+            objectFields[key] = processField(value);
+        });
+
+        return {
+            type: "object",
+            value: objectFields,
+        };
+    }
+
+    // try to parse as number
+    if (/^\d+(?:\.\d+)?$/.test(field)) {
+        return {
+            type: "number",
+            value: parseFloat(field),
+        };
+    }
+
+    return {
+        type: "string",
+        value: field,
+    };
+}
+
 // Used for testing purposes
 export const MockController = {
     query: async (searchTerm: string[], options: QueryOptions): Promise<void> => {
@@ -57,25 +106,28 @@ export const MockController = {
 
 
             // convert the data to ProcessedData
-            const result = filteredData.map((item) => {
+            const result = filteredData.map<ProcessedData>((item) => {
                 // get random time between fromTime and toTime
                 const randomTime = Math.floor(Math.random() * (toTime.getTime() - fromTime.getTime())) + fromTime.getTime();
+                const fields: ObjectFields = {
+                    _time: {
+                        type: "date",
+                        value: randomTime,
+                    },   
+                };
+                Object.entries(item).forEach(([key, value]) => {
+                    fields[key] = processField(value);
+                });
+
                 return {
-                    uniqueId: item.key,
-                    nanoSeconds: 0,
-                    // randomize a time
-                    timestamp: randomTime,
-                    object: {
-                        ...item,
-                        tags: item.tags.join(", "),
-                    },
+                    object: fields,
                     message: `Name: ${item.name}, Age: ${item.age}, Address: ${item.address}, Tags: ${item.tags.join(", ")}`,
                 };
             });
 
             // sort by timestamp
             result.sort((a, b) => {
-                return b.timestamp - a.timestamp;
+                return asNumberField(b.object._time).value - asNumberField(a.object._time).value;
             });
 
             // randomize a delay between 1 - 3 seconds

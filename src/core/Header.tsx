@@ -13,7 +13,7 @@ import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
 import { parse } from "~core/qql";
 import { QueryProvider } from "./common/interface";
-import { ProcessedData } from "./common/logTypes";
+import { asDateField, ProcessedData } from "./common/logTypes";
 import { getPipelineItems } from "./common/queryUtils";
 import { DateSelector, isDateSelectorOpen } from "./DateSelector";
 import {
@@ -200,9 +200,10 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
             onBatchDone: (data) => {
               dataForPipelines = dataForPipelines.concat(data); // append data
               data.forEach((data) => {
-                const toAppendTo = tree.get(data.timestamp) ?? [];
+                const timestamp = asDateField(data.object._time).value;
+                const toAppendTo = tree.get(timestamp) ?? [];
                 toAppendTo.push(data);
-                tree.set(data.timestamp, toAppendTo);
+                tree.set(timestamp, toAppendTo);
               });
 
               const finalData = getPipelineItems(

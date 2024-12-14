@@ -1,6 +1,6 @@
 import { PipelineItem } from "~core/qql";
-import { ProcessedData } from "./logTypes";
-import { AggregationFunction, isNumeric } from "../qql/grammar";
+import { AggregationFunction } from "../qql/grammar";
+import { asDisplayString, asNumberField, Field, NumberField, ProcessedData } from "./logTypes";
 
 export type Events = {
     type: "events",
@@ -48,13 +48,6 @@ const processPipeline = (currentData: [Events, Table | undefined], pipeline: Pip
     }
 }
 
-const asString = (data: ProcessedData["object"][string] | undefined) => {
-    if (data === undefined) {
-        return "";
-    }
-
-    return data.toString();
-}
 
 const processRegex = (data: [Events, Table | undefined], regex: RegExp, column: string | undefined): [Events, Table | undefined] => {
     const [events, table] = data;
@@ -67,14 +60,17 @@ const processRegex = (data: [Events, Table | undefined], regex: RegExp, column: 
     const addedColumns = new Set<string>();
 
     dataPoints.forEach((dataPoint) => {
-        const term = searchInObject ? JSON.stringify(dataPoint.object) : asString(dataPoint.object[column ?? ""]);
+        const term = searchInObject ? JSON.stringify(dataPoint.object) : asDisplayString(dataPoint.object[column]);
         const match = regex.exec(term);
 
         if (match) {
             // iterate over all groups - and set them in the object
             Object.entries(match.groups ?? {}).forEach(([key, value]) => {
                 addedColumns.add(key);
-                dataPoint.object[key] = value;
+                dataPoint.object[key] = {
+                    type: "string",
+                    value,
+                };
             })
         }
 
@@ -92,8 +88,8 @@ const processRegex = (data: [Events, Table | undefined], regex: RegExp, column: 
 }
 
 
-const assertDataValuesAsNumbers = (input: (ProcessedData["object"][string] | undefined)[]): input is (number | undefined)[] => {
-    return input.every((value) => typeof value === "number" || value === undefined);
+const assertDataValuesAsNumbers = (input: Field[]): input is (NumberField | undefined | null)[] => {
+    return input.every((value) => value === undefined || value === null || asNumberField(value).errors === undefined);
 }
 
 export const SUPPORTED_FUNCTIONS = ["first", "last", "count", "sum", "avg", "min", "max"] as const;
@@ -108,7 +104,7 @@ const processStats = (data: [Events, Table | undefined], functions: AggregationF
     const groups: Record<string, ProcessedData[]> = {};
 
     for (const dataPoint of dataPoints) {
-        const groupKey = groupBy ? groupBy.map((column) => dataPoint.object[column] ?? "").join(",") : "all";
+        const groupKey = groupBy ? groupBy.map((column) => asDisplayString(dataPoint.object[column]) ?? "").join(",") : "all";
         if (!groups[groupKey]) {
             groups[groupKey] = [];
         }
@@ -125,14 +121,12 @@ const processStats = (data: [Events, Table | undefined], functions: AggregationF
         const groupData = groups[groupKey];
         const dataPoint: ProcessedData = {
             object: {},
-            timestamp: 0,
-            nanoSeconds: 0,
-            uniqueId: "",
             message: "",
         };
 
         for (const column of groupBy ?? []) {
-            dataPoint.object[column] = groupData[0].object[column];
+            // populate the value of the column - all objects in the group should have the same value - so we can just take the first one
+            dataPoint.object[column] = groupData?.[0].object[column]; 
         }
 
         for (const funcDef of functions) {
@@ -141,28 +135,10 @@ const processStats = (data: [Events, Table | undefined], functions: AggregationF
                     return undefined;
                 }
 
-                if (funcDef.column === "_time") {
-                    return dataPoint.timestamp;
-                }
-
-                const data = dataPoint.object[funcDef.column];
-
-                if (typeof data === "string" && isNumeric(data)) {
-                    return parseFloat(data);
-                }
-
                 return dataPoint.object[funcDef.column]
             });
 
             const resultColumnName = getFuncColName(funcDef);
-
-            // assert existing column is number or undefined
-            const existingValue = dataPoint.object[resultColumnName];
-            if (!(existingValue === undefined || typeof existingValue === "number")) {
-                throw new Error(`Existing value for column ${resultColumnName} is not a number`);
-            }
-
-            const valueToUse = existingValue ?? 0;
 
             if (!SUPPORTED_FUNCTIONS.includes(funcDef.function as SupportedFunction)) {
                 throw new Error(`Function '${funcDef.function}' is not supported`);
@@ -172,45 +148,60 @@ const processStats = (data: [Events, Table | undefined], functions: AggregationF
 
             switch (func) {
                 case "first":
-                    dataPoint.object[resultColumnName] = columnData.find((value) => value !== undefined) ?? "";
+                    dataPoint.object[resultColumnName] = columnData.find((value) => value !== undefined);
                     break;
                 
                 case "last":
-                    dataPoint.object[resultColumnName] = columnData.reverse().find((value) => value !== undefined) ?? "";
+                    dataPoint.object[resultColumnName] = columnData.reverse().find((value) => value !== undefined);
                     break;
 
                 case "count":
-                    dataPoint.object[resultColumnName] = columnData.length;
+                    dataPoint.object[resultColumnName] = {
+                        type: "number",
+                        value: columnData.length
+                    };
                     break;
                 case "sum":
                     if (!assertDataValuesAsNumbers(columnData)) {
                         throw new Error("Data values are not numbers");
                     }
 
-                    dataPoint.object[resultColumnName] = columnData.reduce((acc, value) => (acc ?? 0) + (value ?? 0), valueToUse) ?? 0;
+                    dataPoint.object[resultColumnName] = {
+                        type: "number",
+                        value: columnData.reduce((acc, value) => (acc ?? 0) + (value?.value ?? 0), 0)
+                    };
                     break;
                 case "avg":
                     if (!assertDataValuesAsNumbers(columnData)) {
                         throw new Error("Data values are not numbers");
                     }
 
-                    const res = columnData.reduce((acc, value) => (acc ?? 0) + (value ?? 0), valueToUse) ?? 0;
+                    const res = columnData.reduce((acc, value) => (acc ?? 0) + (value?.value ?? 0), 0);
 
-                    dataPoint.object[resultColumnName] = res / columnData.length;
+                    dataPoint.object[resultColumnName] = {
+                        type: "number",
+                        value: res / columnData.length,
+                    }
                     break;
                 case "min":
                     if (!assertDataValuesAsNumbers(columnData)) {
                         throw new Error("Data values are not numbers");
                     }
 
-                    dataPoint.object[resultColumnName] = Math.min(...columnData.filter((value) => value !== undefined));
+                    dataPoint.object[resultColumnName] = {
+                        type: "number",
+                        value: Math.min(...columnData.filter((value) => value !== undefined && value !== null).map((value) => value.value))
+                    };
                     break;
                 case "max":
                     if (!assertDataValuesAsNumbers(columnData)) {
                         throw new Error("Data values are not numbers");
                     }
 
-                    dataPoint.object[resultColumnName] = Math.max(...columnData.filter((value) => value !== undefined));
+                    dataPoint.object[resultColumnName] = {
+                        type: "number",
+                        value: Math.max(...columnData.filter((value) => value !== undefined && value !== null).map((value) => value.value))
+                    }
                     break;
                     
                 default:
@@ -238,9 +229,6 @@ const processTable = (data: [Events, Table | undefined], columns: string[]): [Ev
     for (const dataPoint of dataPoints) {
         const newDataPoint: ProcessedData = {
             object: {},
-            timestamp: dataPoint.timestamp,
-            nanoSeconds: dataPoint.nanoSeconds,
-            uniqueId: dataPoint.uniqueId,
             message: dataPoint.message,
         };
 
