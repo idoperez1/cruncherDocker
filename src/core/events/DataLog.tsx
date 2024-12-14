@@ -2,12 +2,12 @@ import { css } from "@emotion/react";
 import type { Range } from "@tanstack/react-virtual";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import type React from "react";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import DataRow from "./Row";
 import { RowDetails } from "./RowDetails";
 import { isIndexOpen, rangeInViewAtom } from "./state";
 import { atom, useAtomValue, useSetAtom } from "jotai";
-import { objectsAtom } from "~core/store/queryState";
+import { dataViewModelAtom } from "~core/store/queryState";
 import { store } from "~core/store/store";
 
 export const scrollToIndexAtom = atom<(index: number) => void>();
@@ -15,8 +15,16 @@ export const scrollToIndexAtom = atom<(index: number) => void>();
 type DataRowProps = {};
 
 const DataLog: React.FC<DataRowProps> = () => {
-  const logs = useAtomValue(objectsAtom);
+  const [events, ] = useAtomValue(dataViewModelAtom) ?? [undefined,];
   const setScrollToIndex = useSetAtom(scrollToIndexAtom);
+
+  const logs = useMemo(() => {
+    if (!events) {
+      return [];
+    }
+    
+    return events.data;
+  }, [events]);
 
   const parentRef = useRef(null);
 

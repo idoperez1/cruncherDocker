@@ -3,7 +3,7 @@ import { css } from "@emotion/react";
 import { useEffect, useRef } from "react";
 
 export type Suggestion = {
-  type: "keyword" | "function" | "variable";
+  type: "keyword" | "function" | "variable" | "param";
   value: string;
   fromPosition: number;
   toPosition?: number;

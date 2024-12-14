@@ -23,7 +23,10 @@ type HighlightedText = {
   value: string;
 };
 
-export const splitTextToChunks = (text: string, highlightData: HighlightData[]) => {
+export const splitTextToChunks = (
+  text: string,
+  highlightData: HighlightData[]
+) => {
   const result: (string | HighlightedText)[] = [];
 
   // sort highlight data by start offset
@@ -81,6 +84,9 @@ const typeToStyle = (type: string) => {
 
     case "error":
       return { color: "red", textDecoration: "wavy underline red" };
+
+    case "param":
+      return { color: "rgb(105, 177, 177)" };
   }
 
   return { color: "gray" };

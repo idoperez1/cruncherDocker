@@ -34,18 +34,17 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
   const [selectedTab, setSelectedTab] = useState<string | null>("logs");
   const events = useAtomValue(objectsAtom);
   const dataViewModel = useAtomValue(dataViewModelAtom);
+  const [, tableView] = dataViewModel ?? [undefined, undefined];
 
   const editor = useAtomValue(queryEditorAtom);
 
-  const dataType = dataViewModel?.type ?? "events";
-
   useEffect(() => {
-    if (dataType === "events") {
+    if (tableView === undefined) {
       setSelectedTab("logs");
     } else {
       setSelectedTab("table");
     }
-  }, [dataType]);
+  }, [tableView]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -95,7 +94,7 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
           <Tabs.Trigger
             value="table"
             disabled={
-              dataViewModel?.type === undefined || dataType === "events"
+              tableView !== undefined
             }
           >
             <LuTable /> Table
@@ -123,10 +122,10 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
           display={"flex"}
           flexDirection={"column"}
         >
-          {dataViewModel?.type === "table" && (
+          {tableView !== undefined && (
             <TableView
-              columns={dataViewModel.columns}
-              dataPoints={dataViewModel.dataPoints}
+              columns={tableView.columns}
+              dataPoints={tableView.dataPoints}
             />
           )}
         </Tabs.Content>

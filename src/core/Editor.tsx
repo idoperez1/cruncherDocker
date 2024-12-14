@@ -38,6 +38,19 @@ export const Editor = ({ value, onChange }: EditorProps) => {
     const results: Suggestion[] = [];
     for (const suggestion of data.suggestions ?? []) {
       switch (suggestion.type) {
+        case "params":
+          results.push(
+            ...suggestion.keywords.map(
+              (keyword) =>
+                ({
+                  type: "param",
+                  value: keyword,
+                  fromPosition: suggestion.fromPosition,
+                  toPosition: suggestion.toPosition,
+                }) satisfies Suggestion
+            )
+          );
+          break;
         case "keywords":
           results.push(
             ...suggestion.keywords.map(

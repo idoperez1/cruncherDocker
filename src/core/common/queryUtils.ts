@@ -22,13 +22,13 @@ export type DataFormatType =
 export const getPipelineItems = (data: ProcessedData[], pipeline: PipelineItem[]) => {
     const currentData = {
         type: "events",
-        data: data,
+        data: JSON.parse(JSON.stringify(data)), // deep copy
     } satisfies Events;
 
-    return processPipeline(currentData, pipeline, 0);
+    return processPipeline([currentData, undefined], pipeline, 0);
 }
 
-const processPipeline = (currentData: DataFormatType, pipeline: PipelineItem[], currentIndex: number) => {
+const processPipeline = (currentData: [Events, Table | undefined], pipeline: PipelineItem[], currentIndex: number) => {
     if (currentIndex >= pipeline.length) {
         return currentData;
     }
@@ -40,8 +40,57 @@ const processPipeline = (currentData: DataFormatType, pipeline: PipelineItem[], 
             return processPipeline(processTable(currentData, currentPipeline.columns), pipeline, currentIndex + 1);
         case "stats":
             return processPipeline(processStats(currentData, currentPipeline.columns, currentPipeline.groupBy), pipeline, currentIndex + 1);
+        case "regex":
+            return processPipeline(processRegex(currentData, new RegExp(currentPipeline.pattern), currentPipeline.columnSelected), pipeline, currentIndex + 1);
+        default:
+            // @ts-expect-error - this should never happen
+            throw new Error(`Pipeline type '${currentPipeline.type}' not implemented`);
     }
 }
+
+const asString = (data: ProcessedData["object"][string] | undefined) => {
+    if (data === undefined) {
+        return "";
+    }
+
+    return data.toString();
+}
+
+const processRegex = (data: [Events, Table | undefined], regex: RegExp, column: string | undefined): [Events, Table | undefined] => {
+    const [events, table] = data;
+    const dataPoints = table ? table.dataPoints : events.data;
+
+    const resultDataPoints: ProcessedData[] = [];
+    // if column is not defined, search in json stringified object
+    const searchInObject = column === undefined;
+
+    const addedColumns = new Set<string>();
+
+    dataPoints.forEach((dataPoint) => {
+        const term = searchInObject ? JSON.stringify(dataPoint.object) : asString(dataPoint.object[column ?? ""]);
+        const match = regex.exec(term);
+
+        if (match) {
+            // iterate over all groups - and set them in the object
+            Object.entries(match.groups ?? {}).forEach(([key, value]) => {
+                addedColumns.add(key);
+                dataPoint.object[key] = value;
+            })
+        }
+
+        resultDataPoints.push(dataPoint);
+    });
+
+    return [
+        events,
+        table && {
+            type: "table",
+            columns: [...table.columns, ...addedColumns],
+            dataPoints: resultDataPoints,
+        }
+    ]
+}
+
 
 const assertDataValuesAsNumbers = (input: (ProcessedData["object"][string] | undefined)[]): input is (number | undefined)[] => {
     return input.every((value) => typeof value === "number" || value === undefined);
@@ -52,8 +101,9 @@ export const SUPPORTED_FUNCTIONS = ["first", "last", "count", "sum", "avg", "min
 type SupportedFunction = typeof SUPPORTED_FUNCTIONS[number];
 
 // TODO: IMPLEMENT IT MORE EFFICIENTLY!
-const processStats = (data: Events | Table, functions: AggregationFunction[], groupBy: string[] | undefined): Table => {
-    const dataPoints = data.type === "events" ? data.data : data.dataPoints;
+const processStats = (data: [Events, Table | undefined], functions: AggregationFunction[], groupBy: string[] | undefined): [Events, Table | undefined] => {
+    const [events, table] = data;
+    const dataPoints = table ? table.dataPoints : events.data;
     // get unique groups
     const groups: Record<string, ProcessedData[]> = {};
 
@@ -173,15 +223,17 @@ const processStats = (data: Events | Table, functions: AggregationFunction[], gr
 
     const allColumns = [...(groupBy ?? []), ...functions.map(getFuncColName)];
 
-    return {
+    return [events, {
         type: "table",
         columns: allColumns,
         dataPoints: processedData,
-    }
+    }]
 }
 
-const processTable = (data: Events | Table, columns: string[]): Table => {
-    const dataPoints = data.type === "events" ? data.data : data.dataPoints;
+const processTable = (data: [Events, Table | undefined], columns: string[]): [Events, Table | undefined] => {
+    const [events, table] = data;
+    const dataPoints = table ? table.dataPoints : events.data;
+
     const resultDataPoints: ProcessedData[] = [];
     for (const dataPoint of dataPoints) {
         const newDataPoint: ProcessedData = {
@@ -199,9 +251,9 @@ const processTable = (data: Events | Table, columns: string[]): Table => {
         resultDataPoints.push(newDataPoint);
     }
 
-    return {
+    return [events, {
         type: "table",
         columns,
         dataPoints: resultDataPoints,
-    };
+    }];
 }

@@ -1,4 +1,4 @@
-import { createToken, CustomPatternMatcherFunc, EmbeddedActionsParser, IToken, Lexer, tokenMatcher } from "chevrotain";
+import { createToken, CustomPatternMatcherFunc, EmbeddedActionsParser, IToken, Lexer, tokenMatcher, TokenType } from "chevrotain";
 
 const Identifier = createToken({ name: "Identifier", pattern: /[0-9\w][0-9\w\-]*/ });
 const Integer = createToken({ name: "Integer", pattern: /0|[1-9]\d*/ });
@@ -9,6 +9,7 @@ const WhiteSpace = createToken({
 });
 const Comma = createToken({ name: "Comma", pattern: /,/ });
 const Pipe = createToken({ name: "Pipe", pattern: /\|/ });
+const Equal = createToken({ name: "Equal", pattern: /=/ });
 const DoubleQoutedString = createToken({
   name: "DoubleQoutedString",
   pattern: /"(?:[^\\"]|\\(?:[bfnrtv"\\/]|u[0-9a-fA-F]{4}))*"/,
@@ -53,11 +54,7 @@ const matchCommand = (pattern: RegExp): CustomPatternMatcherFunc => (text, offse
   return execResult;
 }
 
-// Commands
-const Table = createToken({ name: "Table", pattern: matchCommand(/^table/), longer_alt: Identifier, line_breaks: false });
-const Stats = createToken({ name: "Stats", pattern: matchCommand(/^stats/), longer_alt: Identifier, line_breaks: false });
-
-const matchStatsByKeyword: CustomPatternMatcherFunc = (text, offset, matchedTokens, _groups) => {
+const matchKeywordOfCommand = (token: TokenType, pattern: RegExp): CustomPatternMatcherFunc => (text, offset, matchedTokens, _groups) => {
   const pipeline = extractLastPipeline(matchedTokens);
   if (pipeline.length < 1) {
     return null;
@@ -66,21 +63,35 @@ const matchStatsByKeyword: CustomPatternMatcherFunc = (text, offset, matchedToke
   // make sure it's stats command
   const command = pipeline[0];
 
-  if (!tokenMatcher(command, Stats)) {
+  if (!tokenMatcher(command, token)) {
     return null;
   }
 
-  return /^(by)(?!\()/.exec(text.substring(offset));
+  return pattern.exec(text.substring(offset));
 }
 
+// Commands
+const Table = createToken({ name: "Table", pattern: matchCommand(/^table/), longer_alt: Identifier, line_breaks: false });
+const Stats = createToken({ name: "Stats", pattern: matchCommand(/^stats/), longer_alt: Identifier, line_breaks: false });
+
 // Stats specific keywords
-const By = createToken({ name: "By", pattern: matchStatsByKeyword, longer_alt: Identifier, line_breaks: false });
+const By = createToken({ name: "By", pattern: matchKeywordOfCommand(Stats, /^(by)(?!\()/), longer_alt: Identifier, line_breaks: false });
+
+// Regex specific
+const Regex = createToken({ name: "Regex", pattern: matchCommand(/^regex/), longer_alt: Identifier, line_breaks: false });
+
+const RegexPattern = createToken({ name: "RegexPattern", pattern: /`(?:[^\\`]|\\(?:[bfnrtv`\\/]|u[0-9a-fA-F]{4}|\w))*`/});
+
+const RegexParamField = createToken({ name: "RegexParamField", pattern: matchKeywordOfCommand(Regex, /^(field)/), longer_alt: Identifier, line_breaks: false });
+
 
 // note we are placing WhiteSpace first as it is very common thus it will speed up the lexer.
 const allTokens = [
   WhiteSpace,
   DoubleQoutedString,
+  RegexPattern,
   Pipe,
+  Equal,
   Comma,
   OpenBrackets,
   CloseBrackets,
@@ -88,7 +99,9 @@ const allTokens = [
   // "keywords" appear before the Identifier
   Table,
   Stats,
+  Regex,
   By,
+  RegexParamField,
 
   Identifier,
   Integer,
@@ -118,6 +131,7 @@ export type SuggetionType =
   | { type: "column" }
   | { type: "function" }
   | { type: "keywords", keywords: string[] }
+  | { type: "params", keywords: string[] };
 
 
 export type SuggestionData = {
@@ -251,15 +265,17 @@ export class QQLParser extends EmbeddedActionsParser {
   private pipelineCommand = this.RULE("pipelineCommand", () => {
     this.addAutoCompleteType({
       type: "keywords",
-      keywords: ["table", "stats"],
+      keywords: ["table", "stats", "regex"],
     }).closeAfter1();
 
     const resp = this.OR<
       | ReturnType<typeof this.table>
       | ReturnType<typeof this.statsCommand>
+      | ReturnType<typeof this.regex>
     >([
       { ALT: () => this.SUBRULE(this.table) },
       { ALT: () => this.SUBRULE(this.statsCommand) },
+      { ALT: () => this.SUBRULE(this.regex) },
     ]);
 
     return resp;
@@ -278,6 +294,46 @@ export class QQLParser extends EmbeddedActionsParser {
     });
 
     return { search: tokens };
+  });
+
+  private regex = this.RULE("regex", () => {
+    const token = this.CONSUME(Regex);
+    this.ACTION(() => {
+      this.addHighlightData("keyword", token);
+    });
+
+    let columnSelected: string | undefined = undefined;
+
+    this.addAutoCompleteType({
+      type: "params",
+      keywords: ["field"],
+    }).closeAfter1();
+
+    this.OPTION(() => {
+      const field = this.CONSUME(RegexParamField);
+      this.ACTION(() => {
+        this.addHighlightData("param", field);
+      });
+      this.CONSUME(Equal);
+      
+      this.addAutoCompleteType({
+        type: "column",
+      }).closeAfter1();
+      const column = this.SUBRULE(this.columnName);
+
+      columnSelected = column;
+    })
+
+    const pattern = this.CONSUME(RegexPattern);
+    this.ACTION(() => {
+      this.addHighlightData("regex", pattern);
+    });
+
+    return this.ACTION(() => ({
+      type: "regex",
+      columnSelected: columnSelected,
+      pattern: unqouteBacktick(pattern.image),
+    } as const));
   });
 
   private table = this.RULE("table", () => {
@@ -449,3 +505,10 @@ export class QQLParser extends EmbeddedActionsParser {
 }
 
 export type AggregationFunction = ReturnType<QQLParser["aggFunctionCall"]>;
+
+
+// remove backticks from the string
+// if backtick is escaped, then keep it
+const unqouteBacktick = (input: string) => {
+  return input.replace(/\\`/g, "`").slice(1, -1);
+}

@@ -108,7 +108,6 @@ test("table command multiple columns", () => {
   });
 });
 
-
 test("table command multiple columns no comma", () => {
   const parser = new QQLParser();
 
@@ -182,6 +181,43 @@ test("support for stats group by", () => {
           }
         ],
         groupBy: ["column1"],
+      },
+    ],
+  });
+})
+
+test("support for regex command", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | regex \`pattern\``);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+  expect(result).toEqual({
+    search: ["hello", "world"],
+    pipeline: [
+      {
+        type: "regex",
+        pattern: "pattern",
+      },
+    ],
+  });
+})
+
+test("support for regex command with column", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | regex field=abc \`pattern\``);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+  expect(result).toEqual({
+    search: ["hello", "world"],
+    pipeline: [
+      {
+        type: "regex",
+        columnSelected: "abc",
+        pattern: "pattern",
       },
     ],
   });
