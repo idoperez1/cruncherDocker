@@ -1,4 +1,4 @@
-import { Tabs } from "@chakra-ui/react";
+import { Badge, Tabs } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import styled from "@emotion/styled";
 import { Provider as JotaiProvider, useAtomValue } from "jotai";
@@ -12,7 +12,7 @@ import DataLog from "./events/DataLog";
 import Header from "./Header";
 import { globalShortcuts } from "./keymaps";
 import { getCruncherRoot } from "./shadowUtils";
-import { dataViewModelAtom } from "./store/queryState";
+import { dataViewModelAtom, objectsAtom } from "./store/queryState";
 import { TableView } from "./table/TableView";
 import { queryEditorAtom } from "./Editor";
 import { store } from "./store/store";
@@ -32,6 +32,7 @@ type MainContentProps = {
 
 const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
   const [selectedTab, setSelectedTab] = useState<string | null>("logs");
+  const events = useAtomValue(objectsAtom);
   const dataViewModel = useAtomValue(dataViewModelAtom);
 
   const editor = useAtomValue(queryEditorAtom);
@@ -88,7 +89,8 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
       >
         <Tabs.List zIndex={10}>
           <Tabs.Trigger value="logs">
-            <LuLogs /> Logs
+            <LuLogs /> Logs{" "}
+            {events.length > 0 && <Badge>{events.length}</Badge>}
           </Tabs.Trigger>
           <Tabs.Trigger
             value="table"
