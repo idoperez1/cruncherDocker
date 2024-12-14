@@ -139,8 +139,8 @@ export const TimeChart = () => {
 
           <ReferenceArea
             yAxisId="1"
-            x1={rangeInView.start}
-            x2={rangeInView.end}
+            x1={objects[rangeInView.start]?.timestamp}
+            x2={objects[rangeInView.end]?.timestamp}
             fill="rgba(143, 143, 143, 0.39)"
             strokeOpacity={0.3}
             />
