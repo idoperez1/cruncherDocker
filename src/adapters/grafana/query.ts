@@ -1,3 +1,5 @@
+export const LIMIT = 5000;
+
 const buildExpression = (baseFilter: string, search: string[], filterExtensions?: string[]) => {
   const terms = [
     baseFilter,
@@ -29,7 +31,7 @@ export const buildQuery = (uid: string, baseFilter: string, search: string[], fr
           uid: uid,
         },
         editorMode: "code",
-        maxLines: 5000,
+        maxLines: LIMIT,
         step: "",
         legendFormat: "",
         datasourceId: 7,

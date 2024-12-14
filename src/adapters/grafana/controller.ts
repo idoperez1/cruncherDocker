@@ -1,6 +1,6 @@
-import { ProcessedData } from "~core/common/logTypes";
 import { QueryOptions, QueryProvider } from "~core/common/interface";
-import { buildQuery } from "./query";
+import { ProcessedData } from "~core/common/logTypes";
+import { buildQuery, LIMIT } from "./query";
 import { Frame } from "./types";
 
 const getAllObjects = (frames: Frame[]): ProcessedData[] => {
@@ -72,8 +72,26 @@ export class GrafanaController implements QueryProvider {
 
         return getAllObjects(data.results.A.frames);
     }
-    query(searchTerm: string[], queryOptions: QueryOptions): Promise<ProcessedData[]> {
-        return this._doQuery(searchTerm, queryOptions);
+
+    private _runAllBatches = async (searchTerm: string[], options: QueryOptions) => {
+        while (true) {
+            const objects = await this._doQuery(searchTerm, options);
+            console.log("batch retrieved", objects.length);
+            options.onBatchDone(objects);
+            // get last timestamp
+            const fromTime = options.fromTime.getTime();
+            const earliestTimestamp = objects.length > 0 ? objects[0].timestamp : 0;
+            if (!(earliestTimestamp > fromTime && objects.length === LIMIT)) {
+                break;
+            }
+    
+            // assume we reached the limit - try to get the next batch
+            options.toTime = new Date(earliestTimestamp);
+        }
+    }
+
+    query(searchTerm: string[], options: QueryOptions): Promise<void> {
+        return this._runAllBatches(searchTerm, options);
     }
 
 }
