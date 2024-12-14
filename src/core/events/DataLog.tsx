@@ -59,8 +59,8 @@ const DataLog: React.FC<DataRowProps> = () => {
         const dataIndexStart = Math.floor(range.startIndex / 2);
         const dataIndexEnd = Math.floor(range.endIndex / 2);
 
-        const dataTimestampStart = logs[dataIndexStart].timestamp;
-        const dataTimestampEnd = logs[dataIndexEnd].timestamp
+        const dataTimestampStart = logs[dataIndexStart]?.timestamp;
+        const dataTimestampEnd = logs[dataIndexEnd]?.timestamp
 
         setRangeInView({
           start: dataTimestampStart,
