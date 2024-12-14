@@ -124,3 +124,15 @@ export const asDateField = (field: Field): DateField => {
     errors: ["Invalid date"],
   }
 }
+
+export const getTimeFromProcessedData = (data: ProcessedData): number => {
+  if (data.object._time) {
+    return asDateField(data.object._time).value;
+  }
+
+  return 0;
+}
+
+export const compareProcessedData = (a: ProcessedData, b: ProcessedData): number => {
+  return getTimeFromProcessedData(b) - getTimeFromProcessedData(a);
+}

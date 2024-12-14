@@ -50,6 +50,9 @@ importers:
       jotai:
         specifier: ^2.10.3
         version: 2.10.3(@types/react@18.3.14)(react@18.3.1)
+      merge-k-sorted-arrays:
+        specifier: ^2.1.0
+        version: 2.1.0
       next-themes:
         specifier: ^0.4.4
         version: 0.4.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2022,6 +2025,10 @@ packages:
   mdn-data@2.0.14:
     resolution: {integrity: sha512-dn6wd0uw5GsdswPFfsgMp5NSB0/aDe6fK94YJV/AJDYXL6HVLWBsxeq7js7Ad+mU2K9LAlwpk6kN2D5mwCPVow==}
 
+  merge-k-sorted-arrays@2.1.0:
+    resolution: {integrity: sha512-csVZs8n4xmdgvGZEV/2fAkZv5T7qb6EtrPwPIQwcApbnzE+8eqNxhzR1jaWLIKl2DCT5G/HBI3Fn9xPwgUwL9Q==}
+    engines: {node: '>=16'}
+
   merge2@1.4.1:
     resolution: {integrity: sha512-8q7VEgMJW4J8tcfVPy8g09NcQwZdbwFEqhe/WZkoIzjn/3TGDwtOCYtXGxA3O8tPzpczCCDgv+P2P5y00ZJOOg==}
     engines: {node: '>= 8'}
@@ -2477,6 +2484,9 @@ packages:
   tinypool@1.0.2:
     resolution: {integrity: sha512-al6n+QEANGFOMf/dmUMsuS5/r9B06uwlyNjZZql/zv8J7ybHCgoihBNORZCY2mzUuAnomQa2JdhyHKzZxPCrFA==}
     engines: {node: ^18.0.0 || >=20.0.0}
+
+  tinyqueue@2.0.3:
+    resolution: {integrity: sha512-ppJZNDuKGgxzkHihX8v9v9G5f+18gzaTfrukGrq6ueg0lmH4nqVnA2IPG0AEH3jKEk2GRJCUhDoqpoiw3PHLBA==}
 
   tinyrainbow@1.2.0:
     resolution: {integrity: sha512-weEDEq7Z5eTHPDh4xjX789+fHfF+P8boiFB+0vbWzpbnbsEr/GRaohi/uMKxg8RZMXnl1ItAi/IUHWMsjDV7kQ==}
@@ -5012,6 +5022,11 @@ snapshots:
 
   mdn-data@2.0.14: {}
 
+  merge-k-sorted-arrays@2.1.0:
+    dependencies:
+      '@babel/runtime': 7.26.0
+      tinyqueue: 2.0.3
+
   merge2@1.4.1: {}
 
   micromatch@4.0.8:
@@ -5450,6 +5465,8 @@ snapshots:
   tinyexec@0.3.1: {}
 
   tinypool@1.0.2: {}
+
+  tinyqueue@2.0.3: {}
 
   tinyrainbow@1.2.0: {}
 

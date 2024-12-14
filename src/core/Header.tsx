@@ -2,6 +2,7 @@ import styled from "@emotion/styled";
 import type React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { ProgressBar, ProgressRoot } from "~components/ui/progress";
+import merge from "merge-k-sorted-arrays";
 
 import { IconButton, Stack } from "@chakra-ui/react";
 import { css } from "@emotion/react";
@@ -13,7 +14,11 @@ import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
 import { parse } from "~core/qql";
 import { QueryProvider } from "./common/interface";
-import { asDateField, ProcessedData } from "./common/logTypes";
+import {
+  asDateField,
+  compareProcessedData,
+  ProcessedData,
+} from "./common/logTypes";
 import { DateSelector, isDateSelectorOpen } from "./DateSelector";
 import {
   actualEndTimeAtom,
@@ -198,7 +203,10 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
             cancelToken: cancelToken,
             limit: 100000,
             onBatchDone: (data) => {
-              dataForPipelines = dataForPipelines.concat(data); // append data
+              dataForPipelines = merge<ProcessedData>(
+                [dataForPipelines, data],
+                compareProcessedData
+              );
               data.forEach((data) => {
                 const timestamp = asDateField(data.object._time).value;
                 const toAppendTo = tree.get(timestamp) ?? [];
@@ -308,7 +316,9 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
         <SearchBarButtons
           isLoading={isLoading}
           onForceSubmit={() => handleSubmit(onSubmit(true))()}
-          onTerminateSearch={() => abortController.current.abort("User aborted")}
+          onTerminateSearch={() =>
+            abortController.current.abort("User aborted")
+          }
         />
       </StyledHeader>
     </>
@@ -353,11 +363,7 @@ const SearchBarButtons: React.FC<SearchBarButtonsProps> = ({
           </Tooltip>
           {isLoading ? (
             <Tooltip
-              content={
-                <span>
-                  Terminate Search
-                </span>
-              }
+              content={<span>Terminate Search</span>}
               showArrow
               positioning={{
                 placement: "bottom",
