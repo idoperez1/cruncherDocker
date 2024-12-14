@@ -1,5 +1,5 @@
 import { Events, Table } from "~core/common/displayTypes";
-import { asDisplayString, ProcessedData } from "~core/common/logTypes";
+import { asDisplayString, asStringFieldOrUndefined, ProcessedData } from "~core/common/logTypes";
 
 
 
@@ -13,8 +13,10 @@ export const processRegex = (data: [Events, Table | undefined], regex: RegExp, c
 
     const addedColumns = new Set<string>();
 
+    console.log(regex, column, searchInObject);
+
     dataPoints.forEach((dataPoint) => {
-        const term = searchInObject ? JSON.stringify(dataPoint.object) : asDisplayString(dataPoint.object[column]);
+        const term = searchInObject ? asStringFieldOrUndefined(dataPoint.object._raw)?.value ?? dataPoint.message : asDisplayString(dataPoint.object[column]);
         const match = regex.exec(term);
 
         if (match) {

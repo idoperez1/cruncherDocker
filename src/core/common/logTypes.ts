@@ -53,19 +53,53 @@ export type Field =
   | undefined | null;
 
 
-export const asNumberField = (field: Field): NumberField => {
-  if (typeof field?.value === "number") {
+export const asStringFieldOrUndefined = (field: Field): StringField | undefined => {
+  if (field?.type === "string") {
+    return field;
+  }
+
+  return undefined;
+}
+
+export const asStringField = (field: Field): StringField => {
+  const result = asStringFieldOrUndefined(field);
+  if (!result) {
+    return {
+      type: "string",
+      value: "",
+      errors: ["Invalid string"],
+    }
+  }
+
+  return result;
+}
+
+export const asNumberFieldOrUndefined = (field: Field): NumberField | undefined => {
+  if (field?.type === "number") {
+    return field;
+  }
+
+  if (typeof field?.value === "number") { // if field value is numeric - we can cast it to number
     return {
       type: "number",
       value: field.value,
     };
   }
 
-  return {
-    type: "number",
-    value: NaN,
-    errors: ["Invalid number"],
+  return undefined;
+}
+
+export const asNumberField = (field: Field): NumberField => {
+  const result = asNumberFieldOrUndefined(field);
+  if (!result) {
+    return {
+      type: "number",
+      value: NaN,
+      errors: ["Invalid number"],
+    }
   }
+
+  return result;
 }
 
 export const asJson = (field: Field): string => {
@@ -73,7 +107,7 @@ export const asJson = (field: Field): string => {
     return "<null>";
   }
 
-  
+
   if (field.type === "object") {
     const results: Record<string, any> = {};
     for (const key in field.value) {

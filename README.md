@@ -83,7 +83,8 @@ regex command allows you to extract values from the input event - and create new
 ```
 token1 | regex [field=<columnName>] `<regexPattern>`
 ```
-If `field` is not specified - then cruncher will try to match against all the object record as a json.
+If `field` is not specified - then cruncher will try to match against all the object record as a json (aka. `_raw` column).
+If `_raw` doesn't exist - then it will try to match against the `message` column.
 Use named groups to specify the column name - e.g.:
 ```
 token1 | regex field=column1 `(?<subIndex>\d+)`

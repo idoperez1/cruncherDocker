@@ -67,6 +67,10 @@ const getAllObjects = (frames: Frame[]) => {
                 type: "string",
                 value: uniqueId,
             },
+            _raw: {
+                type: "string",
+                value: JSON.stringify(object),
+            }
         };
 
         Object.entries(object).forEach(([key, value]) => {

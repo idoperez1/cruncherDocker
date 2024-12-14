@@ -113,7 +113,11 @@ export const MockController = {
                     _time: {
                         type: "date",
                         value: randomTime,
-                    },   
+                    },
+                    _raw: {
+                        type: "string",
+                        value: JSON.stringify(item),
+                    }
                 };
                 Object.entries(item).forEach(([key, value]) => {
                     fields[key] = processField(value);
