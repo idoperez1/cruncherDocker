@@ -92,7 +92,7 @@ export class GrafanaController implements QueryProvider {
             }
     
             // assume we reached the limit - try to get the next batch
-            options.toTime = new Date(earliestTimestamp);
+            options.toTime = new Date(earliestTimestamp - 1);
         }
     }
 

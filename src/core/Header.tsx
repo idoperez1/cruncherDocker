@@ -201,8 +201,9 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
             onBatchDone: (data) => {
               dataForPipelines = dataForPipelines.concat(data); // append data
               data.forEach((data) => {
-                dataForPipelines.push(data);
-                tree.set(data.timestamp, data);
+                const toAppendTo = tree.get(data.timestamp) ?? [];
+                toAppendTo.push(data);
+                tree.set(data.timestamp, toAppendTo);
               });
 
               const finalData = getPipelineItems(

@@ -101,9 +101,8 @@ export const TimeChart = () => {
             const timestampClicked = scale.invert(e.chartX);
             setRefAreaLeft(timestampClicked);
 
-            const clicked = tree.getPairOrNextLower(timestampClicked);
-            const asArray = tree.toArray();
-            const index = asArray.findIndex((item) => item[0] === clicked?.[0]);
+            const clicked = tree.nextLowerKey(timestampClicked);
+            const index = objects.findIndex((item) => item.timestamp === clicked);
             if (index === -1) return;
             scrollToIndex?.(index);
           }}
