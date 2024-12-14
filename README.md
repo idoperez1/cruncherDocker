@@ -77,5 +77,33 @@ available functions:
 - `last` - last value of the column in the group
 
 
+#### regex
+
+regex command allows you to extract values from the input event - and create new columns from that:
+```
+token1 | regex [field=<columnName>] `<regexPattern>`
+```
+If `field` is not specified - then cruncher will try to match against all the object record as a json.
+Use named groups to specify the column name - e.g.:
+```
+token1 | regex field=column1 `(?<subIndex>\d+)`
+```
+
+Then if the object is:
+```json
+{
+  "column1": "some value 3"
+}
+```
+
+The result would be:
+```json
+{
+  "column1": "some value 3",
+  "subIndex": "3"
+}
+```
+
+
 ### Far Future plans
 - [ ] offload calculation to a service worker.

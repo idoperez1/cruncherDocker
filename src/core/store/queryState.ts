@@ -1,6 +1,6 @@
 import { atom } from 'jotai';
 import { ProcessedData } from '~core/common/logTypes';
-import { DataFormatType, Events, Table } from '~core/common/queryUtils';
+import { Events, Table } from '~core/common/queryUtils';
 import { allData } from '~core/qql';
 
 export const searchQueryAtom = atom(''); // search query
