@@ -17,6 +17,7 @@ import {
 import { formatDataTimeShort } from "./common/formatters";
 import { actualEndTimeAtom, actualStartTimeAtom } from "./store/dateState";
 import { objectsAtom } from "./store/queryState";
+import { rangeInViewAtom } from "./events/state";
 
 export const TimeChart = () => {
   const objects = useAtomValue(objectsAtom);
@@ -43,6 +44,8 @@ export const TimeChart = () => {
       selectedEndTime.getTime(),
     ]);
   }, [selectedStartTime, selectedEndTime]);
+
+  const rangeInView = useAtomValue(rangeInViewAtom);
 
   const dataBuckets = useMemo(() => {
     if (!scale) {
@@ -121,8 +124,8 @@ export const TimeChart = () => {
           <Bar
             yAxisId="1"
             dataKey="count"
-            stroke="#302d6d"
-            fill="#8884d8"
+            stroke="#949494"
+            fill="#e0e0e0"
             maxBarSize={10}
             animationDuration={300}
           />
@@ -133,6 +136,14 @@ export const TimeChart = () => {
             stroke="#82ca9d"
             animationDuration={300}
           /> */}
+
+          <ReferenceArea
+            yAxisId="1"
+            x1={rangeInView.start}
+            x2={rangeInView.end}
+            fill="rgba(143, 143, 143, 0.39)"
+            strokeOpacity={0.3}
+            />
 
           {refAreaLeft && refAreaRight ? (
             <ReferenceArea

@@ -5,8 +5,8 @@ import type React from "react";
 import { useCallback, useRef } from "react";
 import DataRow from "./Row";
 import { RowDetails } from "./RowDetails";
-import { isIndexOpen } from "./state";
-import { useAtom } from "jotai";
+import { isIndexOpen, rangeInViewAtom } from "./state";
+import { useAtom, useSetAtom } from "jotai";
 import { objectsAtom } from "~core/store/queryState";
 
 type DataRowProps = {
@@ -32,6 +32,8 @@ const DataLog: React.FC<DataRowProps> = () => {
     return activeStickyIndexRef.current === index && isOpen;
   }
 
+  const setRangeInView = useSetAtom(rangeInViewAtom);
+
   const rowVirtualizer = useVirtualizer({
     count: logs.length * 2,
     getScrollElement: () => parentRef.current,
@@ -53,6 +55,17 @@ const DataLog: React.FC<DataRowProps> = () => {
           activeStickyIndexRef.current,
           ...defaultRangeExtractor(range),
         ]);
+
+        const dataIndexStart = Math.floor(range.startIndex / 2);
+        const dataIndexEnd = Math.floor(range.endIndex / 2);
+
+        const dataTimestampStart = logs[dataIndexStart].timestamp;
+        const dataTimestampEnd = logs[dataIndexEnd].timestamp
+
+        setRangeInView({
+          start: dataTimestampStart,
+          end: dataTimestampEnd,
+        })
 
         return [...next].sort((a, b) => a - b);
       },
