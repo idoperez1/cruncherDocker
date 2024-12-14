@@ -14,7 +14,6 @@ import { Tooltip } from "~components/ui/tooltip";
 import { parse } from "~core/qql";
 import { QueryProvider } from "./common/interface";
 import { asDateField, ProcessedData } from "./common/logTypes";
-import { getPipelineItems } from "./common/queryUtils";
 import { DateSelector, isDateSelectorOpen } from "./DateSelector";
 import {
   actualEndTimeAtom,
@@ -35,6 +34,7 @@ import {
 import { Timer } from "./Timer";
 import { store } from "./store/store";
 import { tree } from "./indexes/timeIndex";
+import { getPipelineItems } from "./pipelineEngine/root";
 
 const StyledHeader = styled.form`
   display: flex;

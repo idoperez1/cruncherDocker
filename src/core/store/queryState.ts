@@ -1,7 +1,7 @@
 import { scaleLinear } from 'd3-scale';
 import { atom } from 'jotai';
 import { asDateField, ProcessedData } from '~core/common/logTypes';
-import { Events, Table } from '~core/common/queryUtils';
+import { Events, Table } from '~core/common/displayTypes';
 import { allData } from '~core/qql';
 import { actualEndTimeAtom, actualStartTimeAtom } from './dateState';
 

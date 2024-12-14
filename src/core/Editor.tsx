@@ -3,9 +3,9 @@ import { availableColumnsAtom, queryDataAtom } from "./store/queryState";
 import { useMemo } from "react";
 import { IRecognitionException } from "chevrotain";
 import { Suggestion } from "~components/ui/editor/AutoCompleter";
-import { SUPPORTED_FUNCTIONS } from "./common/queryUtils";
 import { Editor as EditorComponent } from "~components/ui/editor/Editor";
 import { getPopperRoot } from "./shadowUtils";
+import { SUPPORTED_FUNCTIONS } from "./pipelineEngine/stats";
 
 export const queryEditorAtom = atom<HTMLTextAreaElement | null>(null);
 
