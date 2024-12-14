@@ -1,6 +1,8 @@
 import { Card } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import { useEffect, useRef } from "react";
+import { AiOutlineFunction } from "react-icons/ai";
+import { VscSymbolKeyword, VscSymbolParameter, VscSymbolVariable } from "react-icons/vsc";
 
 export type Suggestion = {
   type: "keyword" | "function" | "variable" | "param";
@@ -13,6 +15,19 @@ export type AutoCompleterProps = {
   suggestions: Suggestion[];
   hoveredItem?: number;
 };
+
+const getSuggestionIcon = (suggestion: Suggestion) => {
+  switch (suggestion.type) {
+    case "keyword":
+      return <VscSymbolKeyword />;
+    case "function":
+      return <AiOutlineFunction />;
+    case "variable":
+      return <VscSymbolVariable />;
+    case "param":
+      return <VscSymbolParameter />;
+  }
+}
 
 export const AutoCompleter = ({
   suggestions,
@@ -46,6 +61,8 @@ export const AutoCompleter = ({
           <span
             css={css`
               padding: 0.2rem 0.6rem;
+              display: flex;
+              gap: 5px;
               ${hoveredItem === index &&
               css`
                 background-color: #686;
@@ -53,6 +70,7 @@ export const AutoCompleter = ({
             `}
             key={index}
           >
+            {getSuggestionIcon(suggestion)}
             {suggestion.value}
           </span>
         ))}

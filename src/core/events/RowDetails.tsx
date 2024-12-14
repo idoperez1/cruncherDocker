@@ -18,6 +18,10 @@ import { isIndexOpen, openIndexesAtom } from "./state";
 import { useAtom } from "jotai";
 import { store } from "~core/store/store";
 
+import {VscSymbolArray, VscSymbolClass, VscSymbolNumeric, VscSymbolString} from "react-icons/vsc";
+import {CiCalendarDate} from "react-icons/ci";
+import {GrStatusUnknown} from "react-icons/gr";
+
 type DataRowProps = {
   rowKey: string;
   rowValue: Field;
@@ -49,6 +53,26 @@ export const RowDetails = ({
     </div>
   );
 };
+
+const getRowIcon = (row: Field) => {
+  if (!row) return null
+
+  switch (row.type) {
+    case "string":
+      return <VscSymbolString />
+    case "number":
+      return <VscSymbolNumeric />
+    case "array":
+      return <VscSymbolArray />
+    case "object":
+      return <VscSymbolClass />
+    case "date":
+      return <CiCalendarDate />
+    
+    default:
+      return <GrStatusUnknown />
+  }
+}
 
 export const RowDetail: React.FC<DataRowProps> = ({ rowKey, rowValue }) => {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -92,8 +116,10 @@ export const RowDetail: React.FC<DataRowProps> = ({ rowKey, rowValue }) => {
           flex: 1;
           display: flex;
           align-items: center;
+          gap: 5px;
         `}
       >
+        {getRowIcon(rowValue)}
         {asDisplayString(rowValue)}
       </div>
       {/* <PopoverRoot
