@@ -17,6 +17,8 @@ import { ProcessedData } from "./common/logTypes";
 import { getPipelineItems } from "./common/queryUtils";
 import { DateSelector, isDateSelectorOpen } from "./DateSelector";
 import {
+  actualEndTimeAtom,
+  actualStartTimeAtom,
   compareFullDates,
   endFullDateAtom,
   FullDate,
@@ -122,6 +124,9 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
   const selectedStartTime = useAtomValue(startFullDateAtom);
   const selectedEndTime = useAtomValue(endFullDateAtom);
 
+  const setActualStartTime = useSetAtom(actualStartTimeAtom);
+  const setActualEndTime = useSetAtom(actualEndTimeAtom);
+
   const abortController = useRef(new AbortController());
   const submitMutex = useRef(new Mutex());
 
@@ -156,6 +161,9 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
       // TODO: return error
       return;
     }
+
+    setActualStartTime(fromTime);
+    setActualEndTime(toTime);
 
     const parsedTree = parse(values.searchTerm);
     let dataForPipelines: ProcessedData[] = [];

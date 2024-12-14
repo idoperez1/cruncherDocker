@@ -39,7 +39,7 @@ for (let i = 2; i <= 1000; i++) {
 
 // Used for testing purposes
 export const MockController = {
-    query: async (searchTerm: string[], _options: QueryOptions): Promise<ProcessedData[]> => {
+    query: async (searchTerm: string[], options: QueryOptions): Promise<ProcessedData[]> => {
         return new Promise((resolve) => {
             // filter using the search term
             const filteredData = data.filter((item) => {
@@ -52,13 +52,19 @@ export const MockController = {
                 });
             });
 
+            const fromTime = options.fromTime;
+            const toTime = options.toTime;
+
+
             // convert the data to ProcessedData
             const result = filteredData.map((item) => {
+                // get random time between fromTime and toTime
+                const randomTime = Math.floor(Math.random() * (toTime.getTime() - fromTime.getTime())) + fromTime.getTime();
                 return {
                     uniqueId: item.key,
                     nanoSeconds: 0,
                     // randomize a time
-                    timestamp: Date.now() - Math.floor(Math.random() * 1000000000),
+                    timestamp: randomTime,
                     object: {
                         ...item,
                         tags: item.tags.join(", "),

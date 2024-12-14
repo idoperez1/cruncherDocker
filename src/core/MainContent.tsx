@@ -16,6 +16,7 @@ import { dataViewModelAtom } from "./store/queryState";
 import { TableView } from "./table/TableView";
 import { queryEditorAtom } from "./Editor";
 import { store } from "./store/store";
+import { TimeChart } from "./TimeChart";
 
 const MainContainer = styled.section`
   flex: 1;
@@ -110,6 +111,7 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
           display={"flex"}
           flexDirection={"column"}
         >
+          <TimeChart />
           <DataLog />
         </Tabs.Content>
         <Tabs.Content

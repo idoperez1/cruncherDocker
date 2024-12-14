@@ -23,6 +23,10 @@ const defaultStartDate = subMinutes(defaultEndDate, 30);
 export const startFullDateAtom = atom<FullDate | undefined>(defaultStartDate);
 export const endFullDateAtom = atom<FullDate | undefined>(defaultEndDate);
 
+export const actualStartTimeAtom = atom<Date | undefined>();
+export const actualEndTimeAtom = atom<Date | undefined>();
+
+
 const getDateWithTimeFromDateB = (dateA: Date, dateB: Date) => {
     return new Date(
         dateA.getFullYear(),
