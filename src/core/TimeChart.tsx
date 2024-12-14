@@ -101,7 +101,6 @@ export const TimeChart = () => {
         >
           <CartesianGrid strokeDasharray="10 10" />
           <XAxis
-            allowDataOverflow
             scale={scale}
             dataKey="timestamp"
             ticks={scale.ticks()}
