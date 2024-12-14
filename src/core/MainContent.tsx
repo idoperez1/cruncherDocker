@@ -94,7 +94,7 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
           <Tabs.Trigger
             value="table"
             disabled={
-              tableView !== undefined
+              tableView === undefined
             }
           >
             <LuTable /> Table
