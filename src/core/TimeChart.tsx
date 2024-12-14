@@ -1,26 +1,24 @@
-import { scaleLinear } from "d3-scale";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { Card } from "@chakra-ui/react";
 import { useAtomValue } from "jotai";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ReferenceArea,
-  ResponsiveContainer,
-  Tooltip,
-  TooltipProps,
-  XAxis,
-  YAxis,
+    Bar,
+    BarChart,
+    CartesianGrid,
+    ReferenceArea,
+    ResponsiveContainer,
+    Tooltip,
+    TooltipProps,
+    XAxis,
+    YAxis,
 } from "recharts";
 import { formatDataTimeShort } from "./common/formatters";
-import { actualEndTimeAtom, actualStartTimeAtom } from "./store/dateState";
-import { eventsAtom } from "./store/queryState";
-import { rangeInViewAtom } from "./events/state";
-import { scrollToIndexAtom } from "./events/DataLog";
-import { tree } from "./indexes/timeIndex";
 import { asDateField } from "./common/logTypes";
+import { scrollToIndexAtom } from "./events/DataLog";
+import { rangeInViewAtom } from "./events/state";
+import { tree } from "./indexes/timeIndex";
+import { dataBucketsAtom, eventsAtom, scaleAtom } from "./store/queryState";
 
 export const TimeChart = () => {
   const events = useAtomValue(eventsAtom);
@@ -38,50 +36,9 @@ export const TimeChart = () => {
     setRefAreaRight(undefined);
   };
 
-  const selectedStartTime = useAtomValue(actualStartTimeAtom);
-  const selectedEndTime = useAtomValue(actualEndTimeAtom);
-  const scale = useMemo(() => {
-    if (!selectedStartTime || !selectedEndTime) {
-      return;
-    }
-
-    return scaleLinear().domain([
-      selectedStartTime.getTime(),
-      selectedEndTime.getTime(),
-    ]);
-  }, [selectedStartTime, selectedEndTime]);
-
   const rangeInView = useAtomValue(rangeInViewAtom);
-
-  const dataBuckets = useMemo(() => {
-    if (!scale) {
-      return;
-    }
-
-    const buckets: Record<number, number> = {};
-    const ticks = scale.ticks(100);
-
-    data.forEach((object) => {
-      // round timestamp to the nearest tick
-      const timestamp = ticks.reduce((prev, curr) => {
-        const thisTimestamp = asDateField(object.object._time).value;
-
-        return Math.abs(curr - thisTimestamp) < Math.abs(prev - thisTimestamp)
-          ? curr
-          : prev;
-      });
-      if (!buckets[timestamp]) {
-        buckets[timestamp] = 0;
-      }
-
-      buckets[timestamp] += 1;
-    });
-
-    return Object.entries(buckets).map(([timestamp, count]) => ({
-      timestamp: parseInt(timestamp),
-      count,
-    }));
-  }, [data, scale]);
+  const scale = useAtomValue(scaleAtom);
+  const dataBuckets = useAtomValue(dataBucketsAtom);
 
   if (!scale) {
     return null;

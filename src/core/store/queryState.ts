@@ -1,7 +1,9 @@
+import { scaleLinear } from 'd3-scale';
 import { atom } from 'jotai';
-import { ProcessedData } from '~core/common/logTypes';
+import { asDateField, ProcessedData } from '~core/common/logTypes';
 import { Events, Table } from '~core/common/queryUtils';
 import { allData } from '~core/qql';
+import { actualEndTimeAtom, actualStartTimeAtom } from './dateState';
 
 export const searchQueryAtom = atom(''); // search query
 
@@ -41,4 +43,50 @@ export const availableColumnsAtom = atom((get) => {
 });
 
 
+export const scaleAtom = atom((get) => {
+  const selectedStartTime = get(actualStartTimeAtom);
+  const selectedEndTime = get(actualEndTimeAtom);
 
+    if (!selectedStartTime || !selectedEndTime) {
+      return;
+    }
+
+    return scaleLinear().domain([
+      selectedStartTime.getTime(),
+      selectedEndTime.getTime(),
+    ]);
+});
+
+export const dataBucketsAtom = atom((get) => {
+    const scale = get(scaleAtom);
+    if (!scale) {
+      return [];
+    }
+
+    
+    const buckets: Record<number, number> = {};
+    const ticks = scale.ticks(100);
+
+    const data = get(eventsAtom).data;
+
+    data.forEach((object) => {
+      // round timestamp to the nearest tick
+      const timestamp = ticks.reduce((prev, curr) => {
+        const thisTimestamp = asDateField(object.object._time).value;
+
+        return Math.abs(curr - thisTimestamp) < Math.abs(prev - thisTimestamp)
+          ? curr
+          : prev;
+      });
+      if (!buckets[timestamp]) {
+        buckets[timestamp] = 0;
+      }
+
+      buckets[timestamp] += 1;
+    });
+
+    return Object.entries(buckets).map(([timestamp, count]) => ({
+      timestamp: parseInt(timestamp),
+      count,
+    }));
+});
