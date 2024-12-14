@@ -189,7 +189,7 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
         );
         console.log(finalData);
         setDataViewModel(finalData);
-        
+
       } else {
         try {
           tree.clear();
@@ -197,8 +197,9 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
             fromTime: fromTime,
             toTime: toTime,
             cancelToken: cancelToken,
+            limit: 100000,
             onBatchDone: (data) => {
-              dataForPipelines = data.concat(dataForPipelines); // prepend data
+              dataForPipelines = dataForPipelines.concat(data); // append data
               data.forEach((data) => {
                 dataForPipelines.push(data);
                 tree.set(data.timestamp, data);

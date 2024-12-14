@@ -4,6 +4,7 @@ export type QueryOptions = {
     fromTime: Date,
     toTime: Date,
     cancelToken: AbortSignal
+    limit: number,
     onBatchDone: (data: ProcessedData[]) => void
 }
 

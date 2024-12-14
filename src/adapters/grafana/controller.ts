@@ -39,7 +39,7 @@ const getAllObjects = (frames: Frame[]): ProcessedData[] => {
 
     return processedData.objects
         .map((_, index) => getRow(index))
-        .sort((a, b) => a.nanoSeconds - b.nanoSeconds); // TODO: optimize and map sorting
+        .sort((a, b) => b.nanoSeconds - a.nanoSeconds); // TODO: optimize and map sorting
 }
 
 export class GrafanaController implements QueryProvider {
@@ -74,14 +74,20 @@ export class GrafanaController implements QueryProvider {
     }
 
     private _runAllBatches = async (searchTerm: string[], options: QueryOptions) => {
+        let currentLimit = options.limit;
         while (true) {
             const objects = await this._doQuery(searchTerm, options);
             console.log("batch retrieved", objects.length);
             options.onBatchDone(objects);
+            currentLimit -= objects.length;
+            if (currentLimit <= 0) {
+                break; // limit reached!
+            }
+
             // get last timestamp
             const fromTime = options.fromTime.getTime();
-            const earliestTimestamp = objects.length > 0 ? objects[0].timestamp : 0;
-            if (!(earliestTimestamp > fromTime && objects.length === LIMIT)) {
+            const earliestTimestamp = objects.length > 0 ? objects[objects.length - 1].timestamp : 0;
+            if (earliestTimestamp === 0 || !(earliestTimestamp > fromTime && objects.length === LIMIT)) {
                 break;
             }
     

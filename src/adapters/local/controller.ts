@@ -1,5 +1,4 @@
 import { QueryOptions, QueryProvider } from "~core/common/interface";
-import { ProcessedData } from "~core/common/logTypes";
 
 const tagsOptions = ["nice", "developer", "trash collector"];
 const data = [
@@ -76,7 +75,7 @@ export const MockController = {
 
             // sort by timestamp
             result.sort((a, b) => {
-                return a.timestamp - b.timestamp;
+                return b.timestamp - a.timestamp;
             });
 
             // randomize a delay between 1 - 3 seconds
