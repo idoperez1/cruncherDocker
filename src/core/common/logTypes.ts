@@ -68,6 +68,28 @@ export const asNumberField = (field: Field): NumberField => {
   }
 }
 
+export const asJson = (field: Field): string => {
+  if (!field) {
+    return "<null>";
+  }
+
+  
+  if (field.type === "object") {
+    const results: Record<string, any> = {};
+    for (const key in field.value) {
+      results[key] = asJson(field.value[key]);
+    }
+
+    return JSON.stringify(results);
+  }
+
+  if (field.type === "array") {
+    return JSON.stringify(field.value.map(asJson));
+  }
+
+  return field.value.toString();
+}
+
 export const asDisplayString = (field: Field): string => {
   if (!field) {
     return "<null>";
@@ -75,6 +97,10 @@ export const asDisplayString = (field: Field): string => {
 
   if (field.type === "date") {
     return formatDataTime(field.value);
+  }
+
+  if (field.type === "object" || field.type === "array") {
+    return asJson(field);
   }
 
   return field.value.toString();
