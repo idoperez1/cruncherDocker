@@ -91,13 +91,9 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
             <LuLogs /> Logs{" "}
             {events.data.length > 0 && <Badge>{events.data.length}</Badge>}
           </Tabs.Trigger>
-          <Tabs.Trigger
-            value="table"
-            disabled={
-              tableView === undefined
-            }
-          >
-            <LuTable /> Table
+          <Tabs.Trigger value="table" disabled={tableView === undefined}>
+            <LuTable /> Table{" "}
+            {tableView && tableView.dataPoints.length > 0 && <Badge>{tableView.dataPoints.length}</Badge>}
           </Tabs.Trigger>
           <Tooltip content="TBD Not Implemented yet">
             <Tabs.Trigger value="view" disabled={true}>
