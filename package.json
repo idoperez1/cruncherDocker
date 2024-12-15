@@ -25,6 +25,7 @@
     "chevrotain": "^11.0.3",
     "d3-scale": "^4.0.2",
     "date-fns": "^4.1.0",
+    "export-to-csv": "^1.4.0",
     "jotai": "^2.10.3",
     "merge-k-sorted-arrays": "^2.1.0",
     "next-themes": "^0.4.4",

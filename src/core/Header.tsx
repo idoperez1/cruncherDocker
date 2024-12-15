@@ -1,15 +1,29 @@
 import styled from "@emotion/styled";
+import merge from "merge-k-sorted-arrays";
 import type React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { ProgressBar, ProgressRoot } from "~components/ui/progress";
-import merge from "merge-k-sorted-arrays";
 
-import { IconButton, Stack } from "@chakra-ui/react";
+import { IconButton, MenuSeparator, Stack } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import { Mutex } from "async-mutex";
+import { generateCsv, mkConfig } from "export-to-csv";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useMemo, useRef, useState } from "react";
-import { LuSearch, LuSearchCode, LuSearchX } from "react-icons/lu";
+import { CiExport } from "react-icons/ci";
+import {
+  LuClipboardCopy,
+  LuDownload,
+  LuSearch,
+  LuSearchCode,
+  LuSearchX,
+} from "react-icons/lu";
+import {
+  MenuContent,
+  MenuItem,
+  MenuRoot,
+  MenuTrigger,
+} from "~components/ui/menu";
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
 import { parse } from "~core/qql";
@@ -20,6 +34,10 @@ import {
   ProcessedData,
 } from "./common/logTypes";
 import { DateSelector, isDateSelectorOpen } from "./DateSelector";
+import { Editor } from "./Editor";
+import { tree } from "./indexes/timeIndex";
+import { headerShortcuts } from "./keymaps";
+import { getPipelineItems } from "./pipelineEngine/root";
 import {
   actualEndTimeAtom,
   actualStartTimeAtom,
@@ -29,17 +47,13 @@ import {
   isTimeNow,
   startFullDateAtom,
 } from "./store/dateState";
-import { Editor } from "./Editor";
-import { headerShortcuts } from "./keymaps";
 import {
   dataViewModelAtom,
   originalDataAtom,
   searchQueryAtom,
 } from "./store/queryState";
-import { Timer } from "./Timer";
 import { store } from "./store/store";
-import { tree } from "./indexes/timeIndex";
-import { getPipelineItems } from "./pipelineEngine/root";
+import { Timer } from "./Timer";
 
 const StyledHeader = styled.form`
   display: flex;
@@ -397,8 +411,103 @@ const SearchBarButtons: React.FC<SearchBarButtonsProps> = ({
             </Tooltip>
           )}
         </Stack>
+        <MiniButtons />
       </Stack>
     </ButtonsHolder>
+  );
+};
+
+const csvConfig = mkConfig({ useKeysAsHeaders: true });
+
+const downloadFile = (filename: string, data: string, mimeType: string) => {
+  const blob = new Blob([data], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const MiniButtons = () => {
+  const [_eventsView, tableView] = useAtomValue(dataViewModelAtom);
+
+  const isDisabled = tableView === undefined;
+
+  const dataAsArray = () => {
+    if (tableView === undefined) {
+      throw new Error("Table view is undefined");
+    }
+
+    return tableView.dataPoints.map((row) => {
+      const result: Record<string, any> = {};
+      for (const key in row.object) {
+        result[key] = row.object[key]?.value;
+      }
+
+      return result;
+    });
+  }
+
+  const getCSVValue = () => {
+    const data = dataAsArray();
+
+    return generateCsv(csvConfig)(data) as unknown as string;
+  };
+
+  const downloadCsv = () => {
+    const csvValue = getCSVValue();
+    const filename = `data-export-${new Date().toISOString()}.csv`;
+    downloadFile(filename, csvValue, "text/csv");
+  }
+
+  const copyCsv = () => {
+    const csvValue = getCSVValue();
+    navigator.clipboard.writeText(csvValue);
+  }
+
+  const getJson = () => {
+    const data = dataAsArray();
+
+    return JSON.stringify(data);
+  }
+
+  const copyJson = () => {
+    navigator.clipboard.writeText(getJson());
+  }
+
+  const downloadJson = () => {
+    const filename = `data-export-${new Date().toISOString()}.json`;
+    downloadFile(filename, getJson(), "application/json");
+  }
+
+  return (
+    <Stack gap={3} direction="row">
+      <MenuRoot lazyMount unmountOnExit>
+        <MenuTrigger asChild disabled={isDisabled}>
+          <IconButton aria-label="Export" size="2xs" variant="surface">
+            <CiExport />
+          </IconButton>
+        </MenuTrigger>
+        <MenuContent>
+          <MenuItem value="json-copy" cursor="pointer" onClick={copyJson}>
+            <LuClipboardCopy /> Copy JSON
+          </MenuItem>
+          <MenuItem value="csv-copy" cursor="pointer" onClick={copyCsv}>
+            <LuClipboardCopy /> Copy CSV
+          </MenuItem>
+          <MenuSeparator />
+          <MenuItem value="json-download" cursor="pointer" onClick={downloadJson}>
+            <LuDownload /> Download JSON
+          </MenuItem>
+          <MenuItem value="csv-download" cursor="pointer" onClick={downloadCsv}>
+            <LuDownload /> Download CSV
+          </MenuItem>
+        </MenuContent>
+      </MenuRoot>
+    </Stack>
   );
 };
 

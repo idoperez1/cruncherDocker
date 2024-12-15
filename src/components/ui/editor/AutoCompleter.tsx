@@ -29,6 +29,17 @@ const getSuggestionIcon = (suggestion: Suggestion) => {
   }
 }
 
+const compareTypes = (suggestionA: Suggestion, suggestionB: Suggestion, type: string) => {
+  if (suggestionA.type === type && suggestionB.type !== type) {
+    return -1;
+  }
+  if (suggestionA.type !== type && suggestionB.type === type) {
+    return 1;
+  }
+
+  return 0;
+}
+
 export const AutoCompleter = ({
   suggestions,
   hoveredItem,
@@ -59,20 +70,10 @@ export const AutoCompleter = ({
       >
         {suggestions.sort((a, b) => {
           // keyword should be shown first then functions
-          if (a.type === "keyword" && b.type !== "keyword") {
-            return -1;
-          }
-          if (a.type !== "keyword" && b.type === "keyword") {
-            return 1;
-          }
-
-          if (a.type === "function" && b.type !== "function") {
-            return -1;
-          }
-          if (a.type !== "function" && b.type === "function") {
-            return 1;
-          }
-
+          const keywordFirst = compareTypes(a, b, "keyword");
+          if (keywordFirst !== 0) return keywordFirst;
+          const functionFirst = compareTypes(a, b, "function");
+          if (functionFirst !== 0) return functionFirst;
           return 0;
         }).map((suggestion, index) => (
           <span

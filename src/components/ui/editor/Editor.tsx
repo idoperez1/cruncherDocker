@@ -12,13 +12,14 @@ const EditorWrapper = styled.div`
   grid-template-columns: 1fr;
   grid-template-rows: 1fr;
   gap: 0;
-  min-height: 100px;
+  height: 130px;
 
   & pre,
   & textarea {
     grid-area: 1 / 1 / 2 / 2;
-    overflow: hidden;
-    white-space: pre-wrap; /* Allows textarea to scroll horizontally */
+    /* overflow: hidden; */
+    white-space: pre-wrap;
+    overflow: auto;
 
     font-family:
       ui-sans-serif,
@@ -92,6 +93,8 @@ export type EditorProps = {
 export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ value, onChange, suggestions, popperRoot, highlightData }, ref) => {
   const [referenceElement, setReferenceElement] =
     React.useState<HTMLTextAreaElement | null>(null);
+  
+  const preElement = React.useRef<HTMLPreElement | null>(null);
 
   useEffect(() => {
     if (!referenceElement || !ref) return;
@@ -192,9 +195,16 @@ export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ valu
     });
   };
 
+  const syncScroll = () => {
+    if (!referenceElement || !preElement.current) return;
+
+    preElement.current.scrollTop = referenceElement.scrollTop;
+    preElement.current.scrollLeft = referenceElement.scrollLeft;
+  }
+
   return (
     <EditorWrapper>
-      <TextHighlighter value={value} highlightData={highlightData}/>
+      <TextHighlighter value={value} highlightData={highlightData} ref={preElement}/>
       <TextareaCustom
         value={value}
         ref={setReferenceElement}
@@ -236,6 +246,12 @@ export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ valu
           }
 
           setCursorPosition(e.currentTarget.selectionStart);
+        }}
+        onInput={() => {
+          syncScroll();
+        }}
+        onScroll={() => {
+          syncScroll();
         }}
         onChange={(e) => {
           if (!referenceElement) return;

@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 
 const StyledPre = styled.pre`
   /* background-color: #f8f8f8; */
@@ -116,7 +116,7 @@ const renderChunks = (text: string, highlightData: HighlightData[]) => {
   return render.reduce((prev, curr) => [prev, curr]);
 };
 
-export const TextHighlighter = ({ value, highlightData }: HighlighterProps) => {
+export const TextHighlighter = React.forwardRef<HTMLPreElement, HighlighterProps>(({ value, highlightData }, ref) => {
   const textToRender = useMemo(() => {
     let text = value;
     if (text[text.length - 1] == "\n") {
@@ -129,5 +129,5 @@ export const TextHighlighter = ({ value, highlightData }: HighlighterProps) => {
       .replace(new RegExp("<", "g"), "<"); /* Global RegExp */
   }, [value]);
 
-  return <StyledPre>{renderChunks(textToRender, highlightData)}</StyledPre>;
-};
+  return <StyledPre ref={ref}>{renderChunks(textToRender, highlightData)}</StyledPre>;
+});

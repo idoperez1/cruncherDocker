@@ -156,7 +156,6 @@ export const RowDetail: React.FC<DataRowProps> = ({ rowKey, rowValue }) => {
             <LuClipboardCopy />
             <Box flex="1">Copy Value</Box>
           </MenuItem>
-          <MenuItem value="something">Something</MenuItem>
         </MenuContent>
       </MenuRoot>
     </div>
