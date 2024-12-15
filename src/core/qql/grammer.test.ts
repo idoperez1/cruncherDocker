@@ -236,7 +236,7 @@ test("support for orderBy command", () => {
       {
         type: "orderBy",
         columns: [
-          {name: "column1", order: "asc"}
+          { name: "column1", order: "asc" }
         ]
       },
     ],
@@ -256,7 +256,7 @@ test("support for orderBy desc command", () => {
       {
         type: "orderBy",
         columns: [
-          {name: "column1", order: "desc"}
+          { name: "column1", order: "desc" }
         ]
       },
     ],
@@ -276,10 +276,172 @@ test("support for orderBy desc multiple", () => {
       {
         type: "orderBy",
         columns: [
-          {name: "column1", order: "desc"},
-          {name: "column2", order: "asc"}
+          { name: "column1", order: "desc" },
+          { name: "column2", order: "asc" }
         ]
       },
     ],
   });
 })
+
+test("support for where command function", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | where isNotNull(column1)`);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+  expect(result).toEqual({
+    search: ["hello", "world"],
+    pipeline: [
+      {
+        type: "where",
+        expression: {
+          type: "logicalExpression",
+          left: {
+            type: "unitExpression",
+            value: {
+              args: [
+                "column1",
+              ],
+              function: "isNotNull",
+              type: "functionExpression",
+            }
+          },
+          right: undefined,
+        },
+      },
+    ],
+  });
+})
+
+test.each([
+  ["&&", "andExpression"],
+  ["||", "orExpression"],
+])("support for where command logical operators %s", (operator, type) => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | where column1 == 1 ${operator} column2 == 2`);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+  expect(result).toEqual({
+    search: ["hello", "world"],
+    pipeline: [
+      {
+        type: "where",
+        expression: {
+          type: "logicalExpression",
+          left: {
+            type: "unitExpression",
+            value: {
+              left: "column1",
+              operator: "==",
+              right: "1",
+              type: "comparisonExpression",
+            },
+          },
+          right: {
+            type: type,
+            right: {
+              type: "logicalExpression",
+              left: {
+                type: "unitExpression",
+                value: {
+                  left: "column2",
+                  operator: "==",
+                  right: "2",
+                  type: "comparisonExpression",
+                },
+              },
+              right: undefined,
+            }
+          },
+        },
+      },
+    ],
+  });
+});
+
+// test("support for where command complex and", () => {
+//   const parser = new QQLParser();
+
+//   const lexer = QQLLexer.tokenize(`hello world | where column1 == 1 && column2 == 2`);
+//   expect(lexer.errors).toEqual([]);
+//   parser.input = lexer.tokens;
+//   const result = parser.query();
+//   expect(result).toEqual({
+//     search: ["hello", "world"],
+//     pipeline: [
+//       {
+//         type: "where",
+//         expression: {
+//           type: "logicalExpression",
+//           left: {
+//             type: "unitExpression",
+//             value: {
+//               left: "column1",
+//               operator: "==",
+//               right: "1",
+//               type: "comparisonExpression",
+//             },
+//           },
+//           right: {
+//             type: "andExpression",
+//             right: {
+//               type: "logicalExpression",
+//               left: {
+//                 type: "unitExpression",
+//                 value: {
+//                   left: "column2",
+//                   operator: "==",
+//                   right: "2",
+//                   type: "comparisonExpression",
+//                 },
+//               },
+//               right: undefined,
+//             }
+//           },
+//         },
+//       },
+//     ],
+//   });
+// });
+
+
+test.each([
+  ["=="],
+  ["!="],
+  [">"],
+  ["<"],
+  [">="],
+  ["<="],
+])("test where command operators %s", (operator) => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | where column1 ${operator} 1`);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+  expect(result).toEqual({
+    search: ["hello", "world"],
+    pipeline: [
+      {
+        type: "where",
+        expression: {
+          type: "logicalExpression",
+          left: {
+            type: "unitExpression",
+            value: {
+              left: "column1",
+              operator: operator,
+              right: "1",
+              type: "comparisonExpression",
+            },
+          },
+          right: undefined, 
+        },
+      },
+    ],
+  });
+});

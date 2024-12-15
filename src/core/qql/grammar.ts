@@ -9,7 +9,6 @@ const WhiteSpace = createToken({
 });
 const Comma = createToken({ name: "Comma", pattern: /,/ });
 const Pipe = createToken({ name: "Pipe", pattern: /\|/ });
-const Equal = createToken({ name: "Equal", pattern: /=/ });
 const DoubleQoutedString = createToken({
   name: "DoubleQoutedString",
   pattern: /"(?:[^\\"]|\\(?:[bfnrtv"\\/]|u[0-9a-fA-F]{4}))*"/,
@@ -17,6 +16,7 @@ const DoubleQoutedString = createToken({
 
 const OpenBrackets = createToken({ name: "OpenBrackets", pattern: /\(/ });
 const CloseBrackets = createToken({ name: "CloseBrackets", pattern: /\)/ });
+const Equal = createToken({ name: "Equal", pattern: /=/ });
 
 const extractLastPipeline = (matchedTokens: IToken[]) => {
   const result: IToken[] = [];
@@ -91,17 +91,57 @@ const Asc = createToken({ name: "Asc", pattern: matchKeywordOfCommand(OrderBy, /
 const Desc = createToken({ name: "Desc", pattern: matchKeywordOfCommand(OrderBy, /^(desc)/), longer_alt: Identifier, line_breaks: false });
 
 
+// Where command
+const Where = createToken({ name: "Where", pattern: matchCommand(/^where/), longer_alt: Identifier, line_breaks: false });
+
+const matchBooleanExpressionContext = (pattern: RegExp): CustomPatternMatcherFunc => (text, offset, matchedTokens, _groups) => {
+  const pipeline = extractLastPipeline(matchedTokens);
+  if (pipeline.length < 1) {
+    return null;
+  }
+
+  // make sure it's stats command
+  const command = pipeline[0];
+
+  if (!tokenMatcher(command, Where)) {
+    return null;
+  }
+
+  return pattern.exec(text.substring(offset));
+}
+
+
+// TODO: those should be lexed only in boolean context
+const GreaterThanEqual = createToken({ name: "GreaterThanEqual", pattern: matchBooleanExpressionContext(/^>=/), line_breaks: false });
+const LessThanEqual = createToken({ name: "LessThanEqual", pattern: matchBooleanExpressionContext(/^<=/), line_breaks: false });
+const GreaterThan = createToken({ name: "GreaterThan", pattern: matchBooleanExpressionContext(/^>/), line_breaks: false });
+const LessThan = createToken({ name: "LessThan", pattern: matchBooleanExpressionContext(/^</), line_breaks: false });
+const NotEqual = createToken({ name: "NotEqual", pattern: matchBooleanExpressionContext(/^!=/), line_breaks: false });
+const IsEqual = createToken({ name: "IsEqual", pattern: matchBooleanExpressionContext(/^==/), line_breaks: false });
+const And = createToken({ name: "BooleanAnd", pattern: matchBooleanExpressionContext(/^&&/), line_breaks: false });
+const Or = createToken({ name: "BooleanOr", pattern: matchBooleanExpressionContext(/^\|\|/), line_breaks: false });
+const Not = createToken({ name: "BooleanNot", pattern: matchBooleanExpressionContext(/^!/), line_breaks: false });
+
 
 // note we are placing WhiteSpace first as it is very common thus it will speed up the lexer.
 const allTokens = [
   WhiteSpace,
   DoubleQoutedString,
   RegexPattern,
-  Pipe,
+  GreaterThanEqual,
+  LessThanEqual,
+  GreaterThan,
+  LessThan,
+  NotEqual,
+  IsEqual,
+  And,
+  Or,
   Equal,
+  Not,
   Comma,
   OpenBrackets,
   CloseBrackets,
+  Pipe,
 
   // "keywords" appear before the Identifier
   Table,
@@ -112,6 +152,7 @@ const allTokens = [
   OrderBy,
   Asc,
   Desc,
+  Where,
 
   Identifier,
   Integer,
@@ -151,6 +192,39 @@ export type SuggestionData = {
 } & SuggetionType;
 
 export type Order = "asc" | "desc";
+
+export type LogicalExpression = {
+  type: "logicalExpression";
+  left: UnitExpression;
+  right: AndExpression | OrExpression | undefined;
+}
+
+export type AndExpression = {
+  type: "andExpression";
+  right: LogicalExpression;
+}
+
+export type OrExpression = {
+  type: "orExpression";
+  right: LogicalExpression;
+}
+
+export type UnitExpression = {
+  type: "unitExpression";
+  value: ComparisonExpression | NotExpression;
+}
+
+export type NotExpression = {
+  type: "notExpression";
+  expression: UnitExpression;
+}
+
+export type ComparisonExpression = {
+  type: "comparisonExpression";
+  left: string | number; // TODO: support for column name
+  operator: string;
+  right: string | number; // TODO: support for column name
+}
 
 
 export class QQLParser extends EmbeddedActionsParser {
@@ -286,11 +360,13 @@ export class QQLParser extends EmbeddedActionsParser {
       | ReturnType<typeof this.statsCommand>
       | ReturnType<typeof this.regex>
       | ReturnType<typeof this.orderBy>
+      | ReturnType<typeof this.where>
     >([
       { ALT: () => this.SUBRULE(this.table) },
       { ALT: () => this.SUBRULE(this.statsCommand) },
       { ALT: () => this.SUBRULE(this.regex) },
       { ALT: () => this.SUBRULE(this.orderBy) },
+      { ALT: () => this.SUBRULE(this.where) },
     ]);
 
     return resp;
@@ -310,6 +386,162 @@ export class QQLParser extends EmbeddedActionsParser {
 
     return { search: tokens };
   });
+
+  private where = this.RULE("where", () => {
+    const token = this.CONSUME(Where);
+    this.ACTION(() => {
+      this.addHighlightData("keyword", token);
+    });
+
+    const expression = this.SUBRULE(this.logicalExpression);
+
+
+    return {
+      type: "where",
+      expression: expression,
+    } as const;
+  });
+
+  private logicalExpression = this.RULE("logicalExpression", (): LogicalExpression => {
+    const parentRule = this.SUBRULE(this.unitExpression);
+    const tail = this.OPTION(() => {
+      return this.OR([
+        { ALT: () => this.SUBRULE(this.andExpression) },
+        { ALT: () => this.SUBRULE(this.orExpression) },
+      ]);
+    })
+
+    return {
+      type: "logicalExpression",
+      left: parentRule,
+      right: tail,
+    }
+  });
+
+  private andExpression = this.RULE("andExpression", (): AndExpression => {
+    const token = this.CONSUME(And);
+    this.ACTION(() => {
+      this.addHighlightData("operator", token);
+    });
+
+    const right = this.SUBRULE2(this.logicalExpression);
+
+    return {
+      type: "andExpression",
+      right: right,
+    } as const;
+  });
+
+  private orExpression = this.RULE("orExpression", (): OrExpression => {
+    const token = this.CONSUME(Or);
+    this.ACTION(() => {
+      this.addHighlightData("operator", token);
+    });
+
+    const right = this.SUBRULE2(this.logicalExpression);
+
+    return {
+      type: "orExpression",
+      right: right,
+    } as const;
+  });
+
+  private parenthesisExpression = this.RULE("parenthesisExpression", () => {
+    this.CONSUME(OpenBrackets);
+    const expression = this.SUBRULE(this.logicalExpression);
+    this.CONSUME(CloseBrackets);
+
+    return expression;
+  });
+
+  private unitExpression = this.RULE("unitExpression", (): UnitExpression => {
+    const result = this.OR([
+      { ALT: () => this.SUBRULE(this.comparisonExpression) },
+      { ALT: () => this.SUBRULE(this.notExpression) },
+      { ALT: () => this.SUBRULE(this.functionExpression) },
+      { ALT: () => this.SUBRULE(this.parenthesisExpression) },
+    ])
+
+    return {
+      type: "unitExpression",
+      value: result,
+    }
+  })
+
+  private notExpression = this.RULE("notExpression", (): NotExpression => {
+    const token = this.CONSUME(Not);
+    this.ACTION(() => {
+      this.addHighlightData("operator", token);
+    });
+
+    const expression = this.SUBRULE(this.unitExpression);
+
+    return {
+      type: "notExpression",
+      expression: expression,
+    } as const;
+  });
+
+  private functionExpression = this.RULE("functionExpression", () => {
+    const args: ReturnType<typeof this.functionArgs>[] = [];
+    const functionName = this.CONSUME(Identifier);
+    this.CONSUME(OpenBrackets);
+    this.MANY_SEP({
+      SEP: Comma,
+      DEF: () => {
+        args.push(this.SUBRULE(this.functionArgs));
+      },
+    });
+    this.CONSUME(CloseBrackets);
+
+    return {
+      type: "functionExpression",
+      function: functionName.image,
+      args: args,
+    } as const;
+  });
+
+  private functionArgs = this.RULE("functionArgs", () => {
+    return this.OR({
+      DEF: [
+        { ALT: () => this.SUBRULE(this.logicalExpression) },
+        { ALT: () => this.SUBRULE(this.doubleQuotedString) },
+        { ALT: () => this.SUBRULE(this.integer) },
+        { ALT: () => this.SUBRULE(this.columnName) },
+      ],
+    })
+  });
+
+  private comparisonExpression = this.RULE("comparisonExpression", (): ComparisonExpression => {
+    const left = this.OR({
+      DEF: [
+        { ALT: () => this.SUBRULE1(this.columnName) },
+        { ALT: () => this.SUBRULE1(this.integer) },
+        { ALT: () => this.SUBRULE1(this.doubleQuotedString) }
+      ],
+    });
+    const operator = this.OR2([
+      { ALT: () => this.CONSUME(IsEqual) },
+      { ALT: () => this.CONSUME(NotEqual) },
+      { ALT: () => this.CONSUME(GreaterThanEqual) },
+      { ALT: () => this.CONSUME(LessThanEqual) },
+      { ALT: () => this.CONSUME(GreaterThan) },
+      { ALT: () => this.CONSUME(LessThan) },
+    ]);
+    const right = this.OR3([
+      { ALT: () => this.SUBRULE2(this.columnName) },
+      { ALT: () => this.SUBRULE2(this.integer) },
+      { ALT: () => this.SUBRULE2(this.doubleQuotedString) }
+    ]);
+
+    return {
+      type: "comparisonExpression",
+      left: left,
+      operator: operator.image,
+      right: right,
+    } as const;
+  });
+
 
   private orderBy = this.RULE("orderBy", () => {
     const token = this.CONSUME(OrderBy);
