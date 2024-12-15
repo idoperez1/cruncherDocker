@@ -80,9 +80,16 @@ const By = createToken({ name: "By", pattern: matchKeywordOfCommand(Stats, /^(by
 // Regex specific
 const Regex = createToken({ name: "Regex", pattern: matchCommand(/^regex/), longer_alt: Identifier, line_breaks: false });
 
-const RegexPattern = createToken({ name: "RegexPattern", pattern: /`(?:[^\\`]|\\(?:[bfnrtv`\\/]|u[0-9a-fA-F]{4}|\w|[\[\]\(\)\{\}]))*`/});
+const RegexPattern = createToken({ name: "RegexPattern", pattern: /`(?:[^\\`]|\\(?:[bfnrtv`\\/]|u[0-9a-fA-F]{4}|\w|[\[\]\(\)\{\}]))*`/ });
 
 const RegexParamField = createToken({ name: "RegexParamField", pattern: matchKeywordOfCommand(Regex, /^(field)/), longer_alt: Identifier, line_breaks: false });
+
+// OrderBy specific
+const OrderBy = createToken({ name: "OrderBy", pattern: matchCommand(/^(orderBy)/), longer_alt: Identifier, line_breaks: false });
+
+const Asc = createToken({ name: "Asc", pattern: matchKeywordOfCommand(OrderBy, /^(asc)/), longer_alt: Identifier, line_breaks: false });
+const Desc = createToken({ name: "Desc", pattern: matchKeywordOfCommand(OrderBy, /^(desc)/), longer_alt: Identifier, line_breaks: false });
+
 
 
 // note we are placing WhiteSpace first as it is very common thus it will speed up the lexer.
@@ -99,9 +106,12 @@ const allTokens = [
   // "keywords" appear before the Identifier
   Table,
   Stats,
-  Regex,
   By,
+  Regex,
   RegexParamField,
+  OrderBy,
+  Asc,
+  Desc,
 
   Identifier,
   Integer,
@@ -139,6 +149,9 @@ export type SuggestionData = {
   toPosition?: number;
   disabled?: boolean;
 } & SuggetionType;
+
+export type Order = "asc" | "desc";
+
 
 export class QQLParser extends EmbeddedActionsParser {
   private highlightData: HighlightData[] = [];
@@ -265,17 +278,19 @@ export class QQLParser extends EmbeddedActionsParser {
   private pipelineCommand = this.RULE("pipelineCommand", () => {
     this.addAutoCompleteType({
       type: "keywords",
-      keywords: ["table", "stats", "regex"],
+      keywords: ["table", "stats", "regex", "orderBy"],
     }).closeAfter1();
 
     const resp = this.OR<
       | ReturnType<typeof this.table>
       | ReturnType<typeof this.statsCommand>
       | ReturnType<typeof this.regex>
+      | ReturnType<typeof this.orderBy>
     >([
       { ALT: () => this.SUBRULE(this.table) },
       { ALT: () => this.SUBRULE(this.statsCommand) },
       { ALT: () => this.SUBRULE(this.regex) },
+      { ALT: () => this.SUBRULE(this.orderBy) },
     ]);
 
     return resp;
@@ -294,6 +309,65 @@ export class QQLParser extends EmbeddedActionsParser {
     });
 
     return { search: tokens };
+  });
+
+  private orderBy = this.RULE("orderBy", () => {
+    const token = this.CONSUME(OrderBy);
+    this.ACTION(() => {
+      this.addHighlightData("keyword", token);
+    });
+
+    const columns: ReturnType<typeof this.orderByRule>[] = [];
+
+    const columnAutocomplete = this.addAutoCompleteType({
+      type: "column",
+    });
+
+    this.AT_LEAST_ONE_SEP({
+      DEF: () => {
+        columnAutocomplete.closeAfter1();
+        this.addAutoCompleteType({
+          type: "column",
+        }).closeAfter1();
+        const result = this.SUBRULE(this.orderByRule);
+        columns.push(result);
+      },
+      SEP: Comma,
+      ERR_MSG: "at least one column name",
+    });
+
+    columnAutocomplete.close();
+
+    return {
+      type: "orderBy",
+      columns: columns,
+    } as const;
+  });
+
+  private orderByRule = this.RULE("orderByRule", () => {
+    const column = this.SUBRULE(this.columnName);
+
+    this.addAutoCompleteType({
+      type: "keywords",
+      keywords: ["asc", "desc"],
+    }).closeAfter1();
+    const order: Order = this.OPTION(() => {
+      const token = this.OR([
+        { ALT: () => this.CONSUME(Asc) },
+        { ALT: () => this.CONSUME(Desc) },
+      ]);
+
+      this.ACTION(() => {
+        this.addHighlightData("keyword", token);
+      });
+
+      return token.image as Order;
+    }) ?? 'asc';
+
+    return {
+      name: column,
+      order: order,
+    } as const;
   });
 
   private regex = this.RULE("regex", () => {
@@ -315,7 +389,7 @@ export class QQLParser extends EmbeddedActionsParser {
         this.addHighlightData("param", field);
       });
       this.CONSUME(Equal);
-      
+
       this.addAutoCompleteType({
         type: "column",
       }).closeAfter1();

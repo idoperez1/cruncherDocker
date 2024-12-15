@@ -155,11 +155,20 @@ export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ valu
   }, [suggestions, cursorPosition, writtenWord]);
 
   const acceptCompletion = () => {
+    const startPos = cursorPosition - writtenWord.length;
+    const endPos = startPos + filteredSuggestions[hoveredCompletionItem].value.length;
     onChange(
-      value.slice(0, cursorPosition - writtenWord.length) +
+      value.slice(0, startPos) +
         filteredSuggestions[hoveredCompletionItem].value +
         value.slice(cursorPosition)
     );
+    // set cursor position to end of the word
+    setTimeout(() => {
+      if (referenceElement) {
+        referenceElement.selectionEnd = endPos;
+      }
+    }, 0)
+
     setIsCompleterOpen(false);
   };
 
@@ -231,10 +240,14 @@ export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ valu
         onChange={(e) => {
           if (!referenceElement) return;
 
+          const isCharAdded = e.target.value.length > value.length;
+          console.log(isCharAdded)
+
           onChange(e.target.value);
           setCursorPosition(e.currentTarget.selectionStart);
-          setIsCompleterOpen(true);
+          setIsCompleterOpen(isCharAdded);
           setHoveredCompletionItem(0);
+
           setPos(
             getCaretCoordinates(
               referenceElement,

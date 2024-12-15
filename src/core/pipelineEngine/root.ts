@@ -4,6 +4,7 @@ import { processRegex } from "./regex";
 import { Events, Table } from "~core/common/displayTypes";
 import { processStats } from "./stats";
 import { processTable } from "./table";
+import { processOrderBy } from "./orderBy";
 
 export const getPipelineItems = (data: ProcessedData[], pipeline: PipelineItem[]) => {
     const currentData = {
@@ -28,6 +29,8 @@ const processPipeline = (currentData: [Events, Table | undefined], pipeline: Pip
             return processPipeline(processStats(currentData, currentPipeline.columns, currentPipeline.groupBy), pipeline, currentIndex + 1);
         case "regex":
             return processPipeline(processRegex(currentData, new RegExp(currentPipeline.pattern), currentPipeline.columnSelected), pipeline, currentIndex + 1);
+        case "orderBy":
+            return processPipeline(processOrderBy(currentData, currentPipeline.columns), pipeline, currentIndex + 1);
         default:
             // @ts-expect-error - this should never happen
             throw new Error(`Pipeline type '${currentPipeline.type}' not implemented`);

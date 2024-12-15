@@ -57,7 +57,24 @@ export const AutoCompleter = ({
         overflow="auto"
         maxH={100}
       >
-        {suggestions.map((suggestion, index) => (
+        {suggestions.sort((a, b) => {
+          // keyword should be shown first then functions
+          if (a.type === "keyword" && b.type !== "keyword") {
+            return -1;
+          }
+          if (a.type !== "keyword" && b.type === "keyword") {
+            return 1;
+          }
+
+          if (a.type === "function" && b.type !== "function") {
+            return -1;
+          }
+          if (a.type !== "function" && b.type === "function") {
+            return 1;
+          }
+
+          return 0;
+        }).map((suggestion, index) => (
           <span
             css={css`
               padding: 0.2rem 0.6rem;

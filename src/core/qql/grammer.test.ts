@@ -222,3 +222,64 @@ test("support for regex command with column", () => {
     ],
   });
 })
+
+test("support for orderBy command", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | orderBy column1`);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+  expect(result).toEqual({
+    search: ["hello", "world"],
+    pipeline: [
+      {
+        type: "orderBy",
+        columns: [
+          {name: "column1", order: "asc"}
+        ]
+      },
+    ],
+  });
+})
+
+test("support for orderBy desc command", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | orderBy column1 desc`);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+  expect(result).toEqual({
+    search: ["hello", "world"],
+    pipeline: [
+      {
+        type: "orderBy",
+        columns: [
+          {name: "column1", order: "desc"}
+        ]
+      },
+    ],
+  });
+})
+
+test("support for orderBy desc multiple", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | orderBy column1 desc, column2 asc`);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+  expect(result).toEqual({
+    search: ["hello", "world"],
+    pipeline: [
+      {
+        type: "orderBy",
+        columns: [
+          {name: "column1", order: "desc"},
+          {name: "column2", order: "asc"}
+        ]
+      },
+    ],
+  });
+})

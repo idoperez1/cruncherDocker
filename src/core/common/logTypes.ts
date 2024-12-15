@@ -170,3 +170,7 @@ export const getTimeFromProcessedData = (data: ProcessedData): number => {
 export const compareProcessedData = (a: ProcessedData, b: ProcessedData): number => {
   return getTimeFromProcessedData(b) - getTimeFromProcessedData(a);
 }
+
+export const isNotDefined = (field: Field): field is null | undefined => {
+  return field === undefined || field === null;
+}
