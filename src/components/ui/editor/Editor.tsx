@@ -241,8 +241,6 @@ export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ valu
           if (!referenceElement) return;
 
           const isCharAdded = e.target.value.length > value.length;
-          console.log(isCharAdded)
-
           onChange(e.target.value);
           setCursorPosition(e.currentTarget.selectionStart);
           setIsCompleterOpen(isCharAdded);
