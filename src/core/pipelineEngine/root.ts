@@ -18,7 +18,9 @@ export const getPipelineItems = (data: ProcessedData[], pipeline: PipelineItem[]
     const allData = [currentData, undefined] as [Events, Table | undefined];
 
     return produce(allData, (draft) => {
-        processPipeline(draft, pipeline, 0);
+        const res = processPipeline(draft, pipeline, 0);
+        draft[0] = res[0];
+        draft[1] = res[1];
     })
 }
 
