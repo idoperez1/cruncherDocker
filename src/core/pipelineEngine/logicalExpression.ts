@@ -81,8 +81,8 @@ const processStringFunction = (args: FactorType[], context: Context, func: (a: s
     }
 
     const [left, right] = args;
-    if (left.type !== "columnRef" || (right.type !== "string" && right.type !== "columnRef")) {
-        throw new Error(`Invalid argument types for function - expected: (columnRef, string | columnRef), got ${left.type} and ${right.type}`);
+    if ((left.type !== "string" && left.type !== "columnRef") || (right.type !== "string" && right.type !== "columnRef")) {
+        throw new Error(`Invalid argument types for function - expected: (string | columnRef, string | columnRef), got ${left.type} and ${right.type}`);
     }
 
     const leftValue = processFieldValue(context, left);
