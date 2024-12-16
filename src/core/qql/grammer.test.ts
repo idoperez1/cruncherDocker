@@ -223,10 +223,10 @@ test("support for regex command with column", () => {
   });
 })
 
-test("support for orderBy command", () => {
+test("support for sort command", () => {
   const parser = new QQLParser();
 
-  const lexer = QQLLexer.tokenize(`hello world | orderBy column1`);
+  const lexer = QQLLexer.tokenize(`hello world | sort column1`);
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
@@ -234,7 +234,7 @@ test("support for orderBy command", () => {
     search: ["hello", "world"],
     pipeline: [
       {
-        type: "orderBy",
+        type: "sort",
         columns: [
           { name: "column1", order: "asc" }
         ]
@@ -243,10 +243,10 @@ test("support for orderBy command", () => {
   });
 })
 
-test("support for orderBy desc command", () => {
+test("support for sort desc command", () => {
   const parser = new QQLParser();
 
-  const lexer = QQLLexer.tokenize(`hello world | orderBy column1 desc`);
+  const lexer = QQLLexer.tokenize(`hello world | sort column1 desc`);
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
@@ -254,7 +254,7 @@ test("support for orderBy desc command", () => {
     search: ["hello", "world"],
     pipeline: [
       {
-        type: "orderBy",
+        type: "sort",
         columns: [
           { name: "column1", order: "desc" }
         ]
@@ -263,10 +263,10 @@ test("support for orderBy desc command", () => {
   });
 })
 
-test("support for orderBy desc multiple", () => {
+test("support for sort desc multiple", () => {
   const parser = new QQLParser();
 
-  const lexer = QQLLexer.tokenize(`hello world | orderBy column1 desc, column2 asc`);
+  const lexer = QQLLexer.tokenize(`hello world | sort column1 desc, column2 asc`);
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
@@ -274,7 +274,7 @@ test("support for orderBy desc multiple", () => {
     search: ["hello", "world"],
     pipeline: [
       {
-        type: "orderBy",
+        type: "sort",
         columns: [
           { name: "column1", order: "desc" },
           { name: "column2", order: "asc" }
@@ -302,9 +302,12 @@ test("support for where command function", () => {
             type: "unitExpression",
             value: {
               args: [
-                "column1",
+                {
+                  type: "columnRef",
+                  columnName: "column1",
+                },
               ],
-              function: "isNotNull",
+              functionName: "isNotNull",
               type: "functionExpression",
             }
           },
@@ -335,9 +338,15 @@ test.each([
           left: {
             type: "unitExpression",
             value: {
-              left: "column1",
+              left: {
+                type: "columnRef",
+                columnName: "column1"
+              },
               operator: "==",
-              right: "1",
+              right: {
+                type: "number",
+                value: 1,
+              },
               type: "comparisonExpression",
             },
           },
@@ -348,9 +357,15 @@ test.each([
               left: {
                 type: "unitExpression",
                 value: {
-                  left: "column2",
+                  left: {
+                    type: "columnRef",
+                    columnName: "column2",
+                  },
                   operator: "==",
-                  right: "2",
+                  right: {
+                    type: "number",
+                    value: 2,
+                  },
                   type: "comparisonExpression",
                 },
               },
@@ -433,13 +448,19 @@ test.each([
           left: {
             type: "unitExpression",
             value: {
-              left: "column1",
+              left: {
+                type: "columnRef",
+                columnName: "column1",
+              },
               operator: operator,
-              right: "1",
+              right: {
+                type: "number",
+                value: 1,
+              },
               type: "comparisonExpression",
             },
           },
-          right: undefined, 
+          right: undefined,
         },
       },
     ],

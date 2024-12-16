@@ -6,6 +6,7 @@ import { Suggestion } from "~components/ui/editor/AutoCompleter";
 import { Editor as EditorComponent } from "~components/ui/editor/Editor";
 import { getPopperRoot } from "./shadowUtils";
 import { SUPPORTED_FUNCTIONS as SUPPORTED_AGG_FUNCTIONS } from "./pipelineEngine/stats";
+import { SUPPORTED_BOOLEAN_FUNCTIONS } from "./pipelineEngine/logicalExpression";
 
 export const queryEditorAtom = atom<HTMLTextAreaElement | null>(null);
 
@@ -84,6 +85,15 @@ export const Editor = ({ value, onChange }: EditorProps) => {
             })
           );
           break;
+        case "booleanFunction":
+          SUPPORTED_BOOLEAN_FUNCTIONS.forEach((func) =>
+            results.push({
+              type: "function",
+              value: func,
+              fromPosition: suggestion.fromPosition,
+              toPosition: suggestion.toPosition,
+            })
+          );
       }
     }
     return results;

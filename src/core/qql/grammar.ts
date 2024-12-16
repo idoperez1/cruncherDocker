@@ -1,7 +1,7 @@
 import { createToken, CustomPatternMatcherFunc, EmbeddedActionsParser, IToken, Lexer, tokenMatcher, TokenType } from "chevrotain";
 
 const Identifier = createToken({ name: "Identifier", pattern: /[0-9\w][0-9\w\-]*/ });
-const Integer = createToken({ name: "Integer", pattern: /0|[1-9]\d*/ });
+const Integer = createToken({ name: "Integer", pattern: /0|[1-9]\d*(?!\w)/ });
 const WhiteSpace = createToken({
   name: "WhiteSpace",
   pattern: /\s+/,
@@ -84,11 +84,11 @@ const RegexPattern = createToken({ name: "RegexPattern", pattern: /`(?:[^\\`]|\\
 
 const RegexParamField = createToken({ name: "RegexParamField", pattern: matchKeywordOfCommand(Regex, /^(field)/), longer_alt: Identifier, line_breaks: false });
 
-// OrderBy specific
-const OrderBy = createToken({ name: "OrderBy", pattern: matchCommand(/^(orderBy)/), longer_alt: Identifier, line_breaks: false });
+// sort specific
+const Sort = createToken({ name: "OrderBy", pattern: matchCommand(/^(sort)/), longer_alt: Identifier, line_breaks: false });
 
-const Asc = createToken({ name: "Asc", pattern: matchKeywordOfCommand(OrderBy, /^(asc)/), longer_alt: Identifier, line_breaks: false });
-const Desc = createToken({ name: "Desc", pattern: matchKeywordOfCommand(OrderBy, /^(desc)/), longer_alt: Identifier, line_breaks: false });
+const Asc = createToken({ name: "Asc", pattern: matchKeywordOfCommand(Sort, /^(asc)/), longer_alt: Identifier, line_breaks: false });
+const Desc = createToken({ name: "Desc", pattern: matchKeywordOfCommand(Sort, /^(desc)/), longer_alt: Identifier, line_breaks: false });
 
 
 // Where command
@@ -122,6 +122,9 @@ const And = createToken({ name: "BooleanAnd", pattern: matchBooleanExpressionCon
 const Or = createToken({ name: "BooleanOr", pattern: matchBooleanExpressionContext(/^\|\|/), line_breaks: false });
 const Not = createToken({ name: "BooleanNot", pattern: matchBooleanExpressionContext(/^!/), line_breaks: false });
 
+const True = createToken({ name: "True", pattern: matchBooleanExpressionContext(/^true/), line_breaks: false });
+const False = createToken({ name: "False", pattern: matchBooleanExpressionContext(/^false/), line_breaks: false });
+
 
 // note we are placing WhiteSpace first as it is very common thus it will speed up the lexer.
 const allTokens = [
@@ -138,6 +141,8 @@ const allTokens = [
   Or,
   Equal,
   Not,
+  True,
+  False,
   Comma,
   OpenBrackets,
   CloseBrackets,
@@ -149,13 +154,13 @@ const allTokens = [
   By,
   Regex,
   RegexParamField,
-  OrderBy,
+  Sort,
   Asc,
   Desc,
   Where,
 
-  Identifier,
   Integer,
+  Identifier,
 ];
 export const QQLLexer = new Lexer(allTokens); // Quick Query Language
 
@@ -181,6 +186,7 @@ export type HighlightData = {
 export type SuggetionType =
   | { type: "column" }
   | { type: "function" }
+  | { type: "booleanFunction" }
   | { type: "keywords", keywords: string[] }
   | { type: "params", keywords: string[] };
 
@@ -211,7 +217,13 @@ export type OrExpression = {
 
 export type UnitExpression = {
   type: "unitExpression";
-  value: ComparisonExpression | NotExpression;
+  value: ComparisonExpression | NotExpression | FunctionExpression;
+}
+
+export type FunctionExpression = {
+  type: "functionExpression";
+  functionName: string;
+  args: FactorType[];
 }
 
 export type NotExpression = {
@@ -219,11 +231,33 @@ export type NotExpression = {
   expression: UnitExpression;
 }
 
+export type LiteralString = {
+  type: "string";
+  value: string;
+}
+
+export type LiteralNumber = {
+  type: "number";
+  value: number;
+}
+
+export type ColumnRef = {
+  type: "columnRef";
+  columnName: string;
+}
+
+export type LiteralBoolean = {
+  type: "boolean";
+  value: boolean;
+}
+
+export type FactorType = LiteralString | LiteralBoolean | LiteralNumber | ColumnRef;
+
 export type ComparisonExpression = {
   type: "comparisonExpression";
-  left: string | number; // TODO: support for column name
+  left: FactorType; // TODO: support for column name
   operator: string;
-  right: string | number; // TODO: support for column name
+  right: FactorType; // TODO: support for column name
 }
 
 
@@ -352,20 +386,20 @@ export class QQLParser extends EmbeddedActionsParser {
   private pipelineCommand = this.RULE("pipelineCommand", () => {
     this.addAutoCompleteType({
       type: "keywords",
-      keywords: ["table", "stats", "regex", "orderBy"],
+      keywords: ["table", "stats", "regex", "sort", "where"],
     }).closeAfter1();
 
     const resp = this.OR<
       | ReturnType<typeof this.table>
       | ReturnType<typeof this.statsCommand>
       | ReturnType<typeof this.regex>
-      | ReturnType<typeof this.orderBy>
+      | ReturnType<typeof this.sort>
       | ReturnType<typeof this.where>
     >([
       { ALT: () => this.SUBRULE(this.table) },
       { ALT: () => this.SUBRULE(this.statsCommand) },
       { ALT: () => this.SUBRULE(this.regex) },
-      { ALT: () => this.SUBRULE(this.orderBy) },
+      { ALT: () => this.SUBRULE(this.sort) },
       { ALT: () => this.SUBRULE(this.where) },
     ]);
 
@@ -393,8 +427,18 @@ export class QQLParser extends EmbeddedActionsParser {
       this.addHighlightData("keyword", token);
     });
 
+    // allow autocomplete for column names
+    const columnAutoComplete = this.addAutoCompleteType({
+      type: "column",
+    });
+    const functionAutoComplete = this.addAutoCompleteType({
+      type: "booleanFunction",
+    });
+
     const expression = this.SUBRULE(this.logicalExpression);
 
+    functionAutoComplete.close();
+    columnAutoComplete.close();
 
     return {
       type: "where",
@@ -482,9 +526,10 @@ export class QQLParser extends EmbeddedActionsParser {
     } as const;
   });
 
-  private functionExpression = this.RULE("functionExpression", () => {
+  private functionExpression = this.RULE("functionExpression", (): FunctionExpression => {
     const args: ReturnType<typeof this.functionArgs>[] = [];
     const functionName = this.CONSUME(Identifier);
+    this.addHighlightData("booleanFunction", functionName);
     this.CONSUME(OpenBrackets);
     this.MANY_SEP({
       SEP: Comma,
@@ -496,7 +541,7 @@ export class QQLParser extends EmbeddedActionsParser {
 
     return {
       type: "functionExpression",
-      function: functionName.image,
+      functionName: functionName.image,
       args: args,
     } as const;
   });
@@ -505,21 +550,43 @@ export class QQLParser extends EmbeddedActionsParser {
     return this.OR({
       DEF: [
         { ALT: () => this.SUBRULE(this.logicalExpression) },
-        { ALT: () => this.SUBRULE(this.doubleQuotedString) },
-        { ALT: () => this.SUBRULE(this.integer) },
-        { ALT: () => this.SUBRULE(this.columnName) },
+        { ALT: () => this.SUBRULE(this.factor) },
       ],
     })
   });
 
+  private factor = this.RULE("factor", (): FactorType => {
+    return this.OR([
+      {
+        ALT: (): ColumnRef => ({
+          type: "columnRef",
+          columnName: this.SUBRULE(this.columnName)
+        })
+      },
+      {
+        ALT: (): LiteralNumber => ({
+          type: "number",
+          value: this.SUBRULE(this.integer)
+        })
+      },
+      {
+        ALT: (): LiteralString => ({
+          type: "string",
+          value: this.SUBRULE(this.doubleQuotedString)
+        })
+      },
+      {
+        ALT: (): LiteralBoolean => ({
+          type: "boolean",
+          value: this.SUBRULE(this.booleanLiteral)
+        })
+      },
+    ]);
+  });
+
   private comparisonExpression = this.RULE("comparisonExpression", (): ComparisonExpression => {
-    const left = this.OR({
-      DEF: [
-        { ALT: () => this.SUBRULE1(this.columnName) },
-        { ALT: () => this.SUBRULE1(this.integer) },
-        { ALT: () => this.SUBRULE1(this.doubleQuotedString) }
-      ],
-    });
+    const left = this.SUBRULE(this.factor);
+
     const operator = this.OR2([
       { ALT: () => this.CONSUME(IsEqual) },
       { ALT: () => this.CONSUME(NotEqual) },
@@ -528,11 +595,8 @@ export class QQLParser extends EmbeddedActionsParser {
       { ALT: () => this.CONSUME(GreaterThan) },
       { ALT: () => this.CONSUME(LessThan) },
     ]);
-    const right = this.OR3([
-      { ALT: () => this.SUBRULE2(this.columnName) },
-      { ALT: () => this.SUBRULE2(this.integer) },
-      { ALT: () => this.SUBRULE2(this.doubleQuotedString) }
-    ]);
+
+    const right = this.SUBRULE2(this.factor);
 
     return {
       type: "comparisonExpression",
@@ -543,13 +607,13 @@ export class QQLParser extends EmbeddedActionsParser {
   });
 
 
-  private orderBy = this.RULE("orderBy", () => {
-    const token = this.CONSUME(OrderBy);
+  private sort = this.RULE("sort", () => {
+    const token = this.CONSUME(Sort);
     this.ACTION(() => {
       this.addHighlightData("keyword", token);
     });
 
-    const columns: ReturnType<typeof this.orderByRule>[] = [];
+    const columns: ReturnType<typeof this.sortRule>[] = [];
 
     const columnAutocomplete = this.addAutoCompleteType({
       type: "column",
@@ -561,7 +625,7 @@ export class QQLParser extends EmbeddedActionsParser {
         this.addAutoCompleteType({
           type: "column",
         }).closeAfter1();
-        const result = this.SUBRULE(this.orderByRule);
+        const result = this.SUBRULE(this.sortRule);
         columns.push(result);
       },
       SEP: Comma,
@@ -571,12 +635,12 @@ export class QQLParser extends EmbeddedActionsParser {
     columnAutocomplete.close();
 
     return {
-      type: "orderBy",
+      type: "sort",
       columns: columns,
     } as const;
   });
 
-  private orderByRule = this.RULE("orderByRule", () => {
+  private sortRule = this.RULE("sortRule", () => {
     const column = this.SUBRULE(this.columnName);
 
     this.addAutoCompleteType({
@@ -806,6 +870,19 @@ export class QQLParser extends EmbeddedActionsParser {
       this.addHighlightData("string", token);
 
       return JSON.parse(token.image);
+    });
+  });
+
+  private booleanLiteral = this.RULE("booleanLiteral", () => {
+    const token = this.OR([
+      { ALT: () => this.CONSUME(True) },
+      { ALT: () => this.CONSUME(False) },
+    ]);
+
+    return this.ACTION(() => {
+      this.addHighlightData("boolean", token);
+
+      return token.image === "true";
     });
   });
 }

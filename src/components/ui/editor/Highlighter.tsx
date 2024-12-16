@@ -81,6 +81,9 @@ const typeToStyle = (type: string) => {
 
     case "function":
       return { color: "rgb(177, 105, 177)" };
+    
+    case "booleanFunction":
+      return { color: "rgb(177, 177, 105)" };
 
     case "error":
       return { color: "red", textDecoration: "wavy underline red" };

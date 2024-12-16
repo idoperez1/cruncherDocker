@@ -2,7 +2,7 @@ import { Events, Table } from "~core/common/displayTypes";
 import { isNotDefined } from "~core/common/logTypes";
 import { Order } from "~core/qql/grammar";
 
-export const processOrderBy = (data: [Events, Table | undefined], rules: {name: string, order: Order}[]): [Events, Table | undefined] => {
+export const processSort = (data: [Events, Table | undefined], rules: {name: string, order: Order}[]): [Events, Table | undefined] => {
     const [events, table] = data;
     const dataPoints = table ? table.dataPoints : events.data;
 

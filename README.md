@@ -105,6 +105,50 @@ The result would be:
 }
 ```
 
+#### sort
+
+sort command allows you to sort the results by specific column:
+```
+token1 | sort column1
+```
+
+default is ascending - to specify descending use `desc` keyword:
+```
+token1 | sort column1 desc
+```
+
+you can also sort by multiple columns:
+```
+token1 | sort column1, column2 desc
+```
+In this case the first column will be sorted in ascending order - and the second column in descending order.
+
+#### where
+
+where command allows you to filter the results by specific column:
+```
+token1 | where column1 == "some value"
+```
+
+you can also use `!=`, `>`, `<`, `>=`, `<=`, `==` operators.
+
+Moreover, special functions are also available:
+##### string functions
+- `contains` - check if the column contains the specified value
+  - e.g. `| where contains(column1, "some")`
+- `startsWith` - check if the column starts with the specified value
+  - e.g. `| where startsWith(column1, "some")`
+- `endsWith` - check if the column ends with the specified value
+  - e.g. `| where endsWith(column1, "some")`
+- `match` - check if the column matches the specified regex pattern
+  - e.g. `| where match(column1, "^\d+$")`
+
+##### general functions
+- `isNull` - check if the column is null / undefined
+  - e.g. `| where isNull(column1)`
+- `isNotNull` - check if the column is not null / undefined
+  - e.g. `| where isNotNull(column1)`
+
 
 ### Far Future plans
 - [ ] offload calculation to a service worker.
