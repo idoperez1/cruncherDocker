@@ -5,7 +5,7 @@ import { IRecognitionException } from "chevrotain";
 import { Suggestion } from "~components/ui/editor/AutoCompleter";
 import { Editor as EditorComponent } from "~components/ui/editor/Editor";
 import { getPopperRoot } from "./shadowUtils";
-import { SUPPORTED_FUNCTIONS as SUPPORTED_AGG_FUNCTIONS } from "./pipelineEngine/stats";
+import { SUPPORTED_AGG_FUNCTIONS as SUPPORTED_AGG_FUNCTIONS } from "./pipelineEngine/stats";
 import { SUPPORTED_BOOLEAN_FUNCTIONS } from "./pipelineEngine/logicalExpression";
 
 export const queryEditorAtom = atom<HTMLTextAreaElement | null>(null);

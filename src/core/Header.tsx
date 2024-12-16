@@ -4,7 +4,7 @@ import type React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { ProgressBar, ProgressRoot } from "~components/ui/progress";
 
-import { IconButton, MenuSeparator, Stack } from "@chakra-ui/react";
+import { Card, IconButton, MenuSeparator, Stack } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import { Mutex } from "async-mutex";
 import { generateCsv, mkConfig } from "export-to-csv";
@@ -26,7 +26,7 @@ import {
 } from "~components/ui/menu";
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
-import { parse } from "~core/qql";
+import { parse, PipelineItem, QQLLexingError, QQLParserError } from "~core/qql";
 import { QueryProvider } from "./common/interface";
 import {
   asDateField,
@@ -54,6 +54,8 @@ import {
 } from "./store/queryState";
 import { store } from "./store/store";
 import { Timer } from "./Timer";
+import toast from "react-hot-toast";
+import { CloseButton } from "~components/ui/close-button";
 
 const StyledHeader = styled.form`
   display: flex;
@@ -163,6 +165,24 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
     },
   });
 
+  const startProcessingData = (
+    data: ProcessedData[],
+    pipeline: PipelineItem[]
+  ) => {
+    try {
+      const finalData = getPipelineItems(data, pipeline);
+      console.log(finalData);
+      setDataViewModel(finalData);
+    } catch (error) {
+      // check error is of type Error
+      if (!(error instanceof Error)) {
+        throw error;
+      }
+
+      notifyError("Error processing pipeline", error);
+    }
+  };
+
   const doSubmit = async (values: FormValues, isForced: boolean) => {
     if (values.fromTime === undefined) {
       // TODO: return error
@@ -185,75 +205,74 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
     setActualStartTime(fromTime);
     setActualEndTime(toTime);
 
-    const parsedTree = parse(values.searchTerm);
-    let dataForPipelines: ProcessedData[] = [];
-    const cancelToken = abortController.current.signal;
     try {
-      setIsLoading(true);
-      setQueryStartTime(new Date());
-      setQueryEndTime(undefined);
+      const parsedTree = parse(values.searchTerm);
+      let dataForPipelines: ProcessedData[] = [];
+      const cancelToken = abortController.current.signal;
+      try {
+        setIsLoading(true);
+        setQueryStartTime(new Date());
+        setQueryEndTime(undefined);
 
-      const executionQuery = {
-        search: parsedTree.search,
-        start: fromTime,
-        end: toTime,
-      };
+        const executionQuery = {
+          search: parsedTree.search,
+          start: fromTime,
+          end: toTime,
+        };
 
-      if (!isForced && compareExecutions(executionQuery, lastExecutedQuery)) {
-        console.log("using cached data");
-        dataForPipelines = originalData;
-        const finalData = getPipelineItems(
-          dataForPipelines,
-          parsedTree.pipeline
-        );
-        console.log(finalData);
-        setDataViewModel(finalData);
-      } else {
-        try {
-          tree.clear();
-          await controller.query(parsedTree.search, {
-            fromTime: fromTime,
-            toTime: toTime,
-            cancelToken: cancelToken,
-            limit: 100000,
-            onBatchDone: (data) => {
-              dataForPipelines = merge<ProcessedData>(
-                [dataForPipelines, data],
-                compareProcessedData
-              );
-              data.forEach((data) => {
-                const timestamp = asDateField(data.object._time).value;
-                const toAppendTo = tree.get(timestamp) ?? [];
-                toAppendTo.push(data);
-                tree.set(timestamp, toAppendTo);
-              });
+        if (!isForced && compareExecutions(executionQuery, lastExecutedQuery)) {
+          console.log("using cached data");
+          dataForPipelines = originalData;
+          startProcessingData(dataForPipelines, parsedTree.pipeline);
+        } else {
+          try {
+            tree.clear();
+            await controller.query(parsedTree.search, {
+              fromTime: fromTime,
+              toTime: toTime,
+              cancelToken: cancelToken,
+              limit: 100000,
+              onBatchDone: (data) => {
+                dataForPipelines = merge<ProcessedData>(
+                  [dataForPipelines, data],
+                  compareProcessedData
+                );
+                data.forEach((data) => {
+                  const timestamp = asDateField(data.object._time).value;
+                  const toAppendTo = tree.get(timestamp) ?? [];
+                  toAppendTo.push(data);
+                  tree.set(timestamp, toAppendTo);
+                });
 
-              const finalData = getPipelineItems(
-                dataForPipelines,
-                parsedTree.pipeline
-              );
-              console.log(finalData);
-              setDataViewModel(finalData);
-            },
-          });
+                startProcessingData(dataForPipelines, parsedTree.pipeline);
+              },
+            });
 
-          setLastExecutedQuery(executionQuery);
-          setOriginalData(dataForPipelines);
-          setIsQuerySuccess(true);
-        } catch (error) {
-          setIsQuerySuccess(false);
-          console.log(error);
-          if (cancelToken.aborted) {
-            return; // don't continue if the request was aborted
+            setLastExecutedQuery(executionQuery);
+            setOriginalData(dataForPipelines);
+            setIsQuerySuccess(true);
+          } catch (error) {
+            setIsQuerySuccess(false);
+            console.log(error);
+            if (cancelToken.aborted) {
+              return; // don't continue if the request was aborted
+            }
+
+            console.error("Error executing query: ", error);
+            throw error;
           }
-
-          console.error("Error executing query: ", error);
-          throw error;
         }
+      } finally {
+        setIsLoading(false);
+        setQueryEndTime(new Date());
       }
-    } finally {
-      setIsLoading(false);
-      setQueryEndTime(new Date());
+    } catch (error) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
+
+      console.error("Error parsing query: ", error);
+      notifyError("Error parsing query", error);
     }
   };
 
@@ -429,7 +448,7 @@ const downloadFile = (filename: string, data: string, mimeType: string) => {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-}
+};
 
 const MiniButtons = () => {
   const [_eventsView, tableView] = useAtomValue(dataViewModelAtom);
@@ -449,7 +468,7 @@ const MiniButtons = () => {
 
       return result;
     });
-  }
+  };
 
   const getCSVValue = () => {
     const data = dataAsArray();
@@ -461,27 +480,27 @@ const MiniButtons = () => {
     const csvValue = getCSVValue();
     const filename = `data-export-${new Date().toISOString()}.csv`;
     downloadFile(filename, csvValue, "text/csv");
-  }
+  };
 
   const copyCsv = () => {
     const csvValue = getCSVValue();
     navigator.clipboard.writeText(csvValue);
-  }
+  };
 
   const getJson = () => {
     const data = dataAsArray();
 
     return JSON.stringify(data);
-  }
+  };
 
   const copyJson = () => {
     navigator.clipboard.writeText(getJson());
-  }
+  };
 
   const downloadJson = () => {
     const filename = `data-export-${new Date().toISOString()}.json`;
     downloadFile(filename, getJson(), "application/json");
-  }
+  };
 
   return (
     <Stack gap={3} direction="row">
@@ -499,7 +518,11 @@ const MiniButtons = () => {
             <LuClipboardCopy /> Copy CSV
           </MenuItem>
           <MenuSeparator />
-          <MenuItem value="json-download" cursor="pointer" onClick={downloadJson}>
+          <MenuItem
+            value="json-download"
+            cursor="pointer"
+            onClick={downloadJson}
+          >
             <LuDownload /> Download JSON
           </MenuItem>
           <MenuItem value="csv-download" cursor="pointer" onClick={downloadCsv}>
@@ -511,4 +534,53 @@ const MiniButtons = () => {
   );
 };
 
+const notifyError = (message: string, error: Error) => {
+  toast.error(
+    (t) => {
+      let subMessage = error.message;
+      if (error instanceof QQLLexingError) {
+        const errors: string[] = [];
+        error.errors.map((e) => {
+          errors.push(`${e.line}:${e.column} - ${e.message}`);
+        });
+
+        subMessage = errors.join("\n");
+      } else if (error instanceof QQLParserError) {
+        const errors: string[] = [];
+        error.errors.map((e) => {
+          errors.push(`${e.message}`);
+        });
+
+        subMessage = errors.join("\n");
+      }
+
+      console.log("Error message: ", subMessage, error);
+
+      return (
+        <Card.Root
+          pointerEvents={"all"}
+          zIndex={1000}
+          padding="3"
+          backgroundColor={"red.600"}
+        >
+          <Card.Header padding={0}>
+            <Stack direction="row" alignItems={"center"}>
+              <Card.Title>{message}</Card.Title>
+              <CloseButton
+                marginLeft="auto"
+                size="2xs"
+                onClick={() => toast.dismiss(t.id)}
+              />
+            </Stack>
+          </Card.Header>
+          <Card.Body padding={0}>{subMessage}</Card.Body>
+        </Card.Root>
+      );
+    },
+    {
+      position: "bottom-right",
+      duration: 10000,
+    }
+  );
+};
 export default Header;

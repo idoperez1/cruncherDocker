@@ -8,9 +8,9 @@ const assertDataValuesAsNumbers = (input: Field[]): input is (NumberField | unde
     return input.every((value) => value === undefined || value === null || asNumberField(value).errors === undefined);
 }
 
-export const SUPPORTED_FUNCTIONS = ["first", "last", "count", "sum", "avg", "min", "max"] as const;
+export const SUPPORTED_AGG_FUNCTIONS = ["first", "last", "count", "sum", "avg", "min", "max"] as const;
 
-type SupportedFunction = typeof SUPPORTED_FUNCTIONS[number];
+type SupportedAggFunction = typeof SUPPORTED_AGG_FUNCTIONS[number];
 
 // TODO: IMPLEMENT IT MORE EFFICIENTLY!
 export const processStats = (data: [Events, Table | undefined], functions: AggregationFunction[], groupBy: string[] | undefined): [Events, Table | undefined] => {
@@ -56,11 +56,11 @@ export const processStats = (data: [Events, Table | undefined], functions: Aggre
 
             const resultColumnName = getFuncColName(funcDef);
 
-            if (!SUPPORTED_FUNCTIONS.includes(funcDef.function as SupportedFunction)) {
+            if (!SUPPORTED_AGG_FUNCTIONS.includes(funcDef.function as SupportedAggFunction)) {
                 throw new Error(`Function '${funcDef.function}' is not supported`);
             }
 
-            const func = funcDef.function as SupportedFunction;
+            const func = funcDef.function as SupportedAggFunction;
 
             switch (func) {
                 case "first":

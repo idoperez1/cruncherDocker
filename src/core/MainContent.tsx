@@ -17,6 +17,7 @@ import { dataViewModelAtom, eventsAtom } from "./store/queryState";
 import { store } from "./store/store";
 import { TableView } from "./table/TableView";
 import { TimeChart } from "./TimeChart";
+import { Toaster } from "react-hot-toast";
 
 const MainContainer = styled.section`
   flex: 1;
@@ -73,6 +74,17 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
 
   return (
     <MainContainer id="cruncher-inner-root">
+      <Toaster
+        containerStyle={{
+          pointerEvents: "unset",
+        }}
+        toastOptions={{
+          style: {
+            zIndex: 1000,
+          },
+          duration: 10000,
+        }}
+      />
       <Header controller={controller} />
       <Tabs.Root
         lazyMount
@@ -93,7 +105,9 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
           </Tabs.Trigger>
           <Tabs.Trigger value="table" disabled={tableView === undefined}>
             <LuTable /> Table{" "}
-            {tableView && tableView.dataPoints.length > 0 && <Badge>{tableView.dataPoints.length}</Badge>}
+            {tableView && tableView.dataPoints.length > 0 && (
+              <Badge>{tableView.dataPoints.length}</Badge>
+            )}
           </Tabs.Trigger>
           <Tooltip content="TBD Not Implemented yet">
             <Tabs.Trigger value="view" disabled={true}>

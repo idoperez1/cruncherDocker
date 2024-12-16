@@ -1,7 +1,7 @@
 import type { ILexingError, IRecognitionException } from "chevrotain";
 import { QQLLexer, QQLParser } from "./grammar";
 
-class QQLLexingError extends Error {
+export class QQLLexingError extends Error {
   constructor(
     message: string,
     public errors: ILexingError[],
@@ -10,7 +10,7 @@ class QQLLexingError extends Error {
   }
 }
 
-class QQLParserError extends Error {
+export class QQLParserError extends Error {
   constructor(
     message: string,
     public errors: IRecognitionException[],

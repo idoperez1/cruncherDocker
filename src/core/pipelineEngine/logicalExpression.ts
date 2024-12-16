@@ -38,14 +38,21 @@ const processUnitExpression = (unitExpression: UnitExpression, context: Context)
     }
 }
 
-export const SUPPORTED_BOOLEAN_FUNCTIONS = ["contains", "startsWith", "endsWith", "match", "isNull", "isNotNull"] as const;
+export const SUPPORTED_BOOLEAN_FUNCTIONS = [
+    "contains", 
+    "startsWith", 
+    "endsWith", 
+    "match", 
+    "isNull", 
+    "isNotNull",
+] as const;
 export type SupportedBooleanFunction = typeof SUPPORTED_BOOLEAN_FUNCTIONS[number];
 
 
 const processFunctionExpression = (functionExpression: FunctionExpression, context: Context): boolean => {
     const { functionName, args } = functionExpression;
 
-    switch (functionName) {
+    switch (functionName as SupportedBooleanFunction) {
         case "contains":
             return processContainsFunction(args, context);
         case "startsWith":
@@ -60,7 +67,7 @@ const processFunctionExpression = (functionExpression: FunctionExpression, conte
             return processSingleArgFunction(args, context, isNotDefined);
         default:
             console.warn("Unsuported function: ", functionName, args, context);
-            throw new Error("Invalid function name");
+            throw new Error(`Function \`${functionName}\` is not supported!`);
     }
 }
 

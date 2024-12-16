@@ -74,6 +74,7 @@ export const AutoCompleter = ({
           if (keywordFirst !== 0) return keywordFirst;
           const functionFirst = compareTypes(a, b, "function");
           if (functionFirst !== 0) return functionFirst;
+
           return 0;
         }).map((suggestion, index) => (
           <span

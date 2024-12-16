@@ -383,6 +383,15 @@ export class QQLParser extends EmbeddedActionsParser {
     } as const;
   });
 
+  private addBooleanContextSemantics() {
+    this.addAutoCompleteType({
+      type: "column",
+    }).closeAfter1();
+    this.addAutoCompleteType({
+      type: "booleanFunction",
+    }).closeAfter1();
+  }
+
   private pipelineCommand = this.RULE("pipelineCommand", () => {
     this.addAutoCompleteType({
       type: "keywords",
@@ -427,12 +436,7 @@ export class QQLParser extends EmbeddedActionsParser {
       this.addHighlightData("keyword", token);
     });
 
-    this.addAutoCompleteType({
-      type: "column",
-    }).closeAfter1();
-    this.addAutoCompleteType({
-      type: "booleanFunction",
-    }).closeAfter1();
+    this.addBooleanContextSemantics();
 
     const expression = this.SUBRULE(this.logicalExpression);
 
@@ -464,12 +468,7 @@ export class QQLParser extends EmbeddedActionsParser {
       this.addHighlightData("operator", token);
     });
 
-    this.addAutoCompleteType({
-      type: "column",
-    }).closeAfter1();
-    this.addAutoCompleteType({
-      type: "booleanFunction",
-    }).closeAfter1();
+    this.addBooleanContextSemantics();
 
     const right = this.SUBRULE2(this.logicalExpression);
 
@@ -485,13 +484,8 @@ export class QQLParser extends EmbeddedActionsParser {
       this.addHighlightData("operator", token);
     });
 
-    this.addAutoCompleteType({
-      type: "column",
-    }).closeAfter1();
-    this.addAutoCompleteType({
-      type: "booleanFunction",
-    }).closeAfter1();
-    
+    this.addBooleanContextSemantics();
+
     const right = this.SUBRULE2(this.logicalExpression);
 
     return {
