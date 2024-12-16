@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 import root from "react-shadow/emotion";
 import { system } from "./system";
 import datepickerStyle from "react-day-picker/style.css?inline";
-import toastifyStyle from 'react-toastify/dist/ReactToastify.css?inline';
 
 export function Provider(props: ThemeProviderProps) {
   const [shadow, setShadow] = useState<HTMLElement | null>(null);
@@ -41,7 +40,6 @@ export function Provider(props: ThemeProviderProps) {
       {shadow && cache && (
         <EnvironmentProvider value={() => shadow.shadowRoot ?? document}>
           <style type="text/css">{datepickerStyle}</style>
-          <style type="text/css">{toastifyStyle}</style>
           <CacheProvider value={cache}>
             <ChakraProvider value={system}>
               <ThemeProvider {...props} />

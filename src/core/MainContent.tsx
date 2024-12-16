@@ -75,9 +75,6 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
   return (
     <MainContainer id="cruncher-inner-root">
       <Toaster
-        containerStyle={{
-          pointerEvents: "unset",
-        }}
         toastOptions={{
           style: {
             zIndex: 1000,

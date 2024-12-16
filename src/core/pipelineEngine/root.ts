@@ -6,14 +6,20 @@ import { processStats } from "./stats";
 import { processTable } from "./table";
 import { processSort } from "./sort";
 import { processWhere } from "./where";
+import {produce} from "immer"
+
 
 export const getPipelineItems = (data: ProcessedData[], pipeline: PipelineItem[]) => {
     const currentData = {
         type: "events",
-        data: JSON.parse(JSON.stringify(data)), // deep copy
+        data: data,
     } satisfies Events;
 
-    return processPipeline([currentData, undefined], pipeline, 0);
+    const allData = [currentData, undefined] as [Events, Table | undefined];
+
+    return produce(allData, (draft) => {
+        processPipeline(draft, pipeline, 0);
+    })
 }
 
 const processPipeline = (currentData: [Events, Table | undefined], pipeline: PipelineItem[], currentIndex: number) => {

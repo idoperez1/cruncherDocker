@@ -6,7 +6,8 @@ export const processSort = (data: [Events, Table | undefined], rules: {name: str
     const [events, table] = data;
     const dataPoints = table ? table.dataPoints : events.data;
 
-    const resultDataPoints = dataPoints.sort((a, b) => {
+    // mutates inplace
+    dataPoints.sort((a, b) => {
         for (const rule of rules) {
             const aValue = a.object[rule.name];
             const bValue = b.object[rule.name];
@@ -93,10 +94,6 @@ export const processSort = (data: [Events, Table | undefined], rules: {name: str
 
     return [
         events,
-        table && {
-            type: "table",
-            columns: table.columns,
-            dataPoints: resultDataPoints,
-        }
+        table,
     ]
 }

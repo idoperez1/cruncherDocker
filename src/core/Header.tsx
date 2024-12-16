@@ -554,7 +554,7 @@ const notifyError = (message: string, error: Error) => {
         subMessage = errors.join("\n");
       }
 
-      console.log("Error message: ", subMessage, error);
+      console.error(error);
 
       return (
         <Card.Root
