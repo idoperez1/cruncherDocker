@@ -119,7 +119,7 @@ export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ valu
   const { styles, attributes } = usePopper(referenceElement, popperElement, {
     placement: "bottom-start",
     modifiers: [
-      { name: "offset", options: { offset: [pos.left, -70 + pos.top] } },
+      { name: "offset", options: { offset: [pos.left, -100 + pos.top] } },
     ],
   });
 
