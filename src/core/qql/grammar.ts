@@ -427,18 +427,14 @@ export class QQLParser extends EmbeddedActionsParser {
       this.addHighlightData("keyword", token);
     });
 
-    // allow autocomplete for column names
-    const columnAutoComplete = this.addAutoCompleteType({
+    this.addAutoCompleteType({
       type: "column",
-    });
-    const functionAutoComplete = this.addAutoCompleteType({
+    }).closeAfter1();
+    this.addAutoCompleteType({
       type: "booleanFunction",
-    });
+    }).closeAfter1();
 
     const expression = this.SUBRULE(this.logicalExpression);
-
-    functionAutoComplete.close();
-    columnAutoComplete.close();
 
     return {
       type: "where",
@@ -468,6 +464,13 @@ export class QQLParser extends EmbeddedActionsParser {
       this.addHighlightData("operator", token);
     });
 
+    this.addAutoCompleteType({
+      type: "column",
+    }).closeAfter1();
+    this.addAutoCompleteType({
+      type: "booleanFunction",
+    }).closeAfter1();
+
     const right = this.SUBRULE2(this.logicalExpression);
 
     return {
@@ -482,6 +485,13 @@ export class QQLParser extends EmbeddedActionsParser {
       this.addHighlightData("operator", token);
     });
 
+    this.addAutoCompleteType({
+      type: "column",
+    }).closeAfter1();
+    this.addAutoCompleteType({
+      type: "booleanFunction",
+    }).closeAfter1();
+    
     const right = this.SUBRULE2(this.logicalExpression);
 
     return {
@@ -531,6 +541,10 @@ export class QQLParser extends EmbeddedActionsParser {
     const functionName = this.CONSUME(Identifier);
     this.addHighlightData("booleanFunction", functionName);
     this.CONSUME(OpenBrackets);
+
+    const columnAutocomplete = this.addAutoCompleteType({
+      type: "column",
+    });
     this.MANY_SEP({
       SEP: Comma,
       DEF: () => {
@@ -538,6 +552,8 @@ export class QQLParser extends EmbeddedActionsParser {
       },
     });
     this.CONSUME(CloseBrackets);
+
+    columnAutocomplete.close();
 
     return {
       type: "functionExpression",
