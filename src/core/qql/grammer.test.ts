@@ -70,7 +70,31 @@ test("table command", () => {
     pipeline: [
       {
         type: "table",
-        columns: ["column1"],
+        columns: [{
+          column: "column1",
+          alias: undefined,
+        }],
+      },
+    ],
+  });
+});
+
+test("table command - alias", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | table column1 as something`);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+  expect(result).toEqual({
+    search: ["hello", "world"],
+    pipeline: [
+      {
+        type: "table",
+        columns: [{
+          column: "column1",
+          alias: "something",
+        }],
       },
     ],
   });
@@ -102,7 +126,17 @@ test("table command multiple columns", () => {
     pipeline: [
       {
         type: "table",
-        columns: ["column1", "column2", "column3"],
+        columns: [
+          {
+            column: "column1"
+          },
+          {
+            column: "column2"
+          },
+          {
+            column: "column3"
+          },
+        ],
       },
     ],
   });
@@ -121,7 +155,17 @@ test("table command multiple columns no comma", () => {
     pipeline: [
       {
         type: "table",
-        columns: ["column1", "column2", "column3"],
+        columns: [
+          {
+            column: "column1"
+          },
+          {
+            column: "column2"
+          },
+          {
+            column: "column3"
+          },
+        ],
       },
     ],
   });
@@ -154,6 +198,31 @@ test("support for stats command basic", () => {
           {
             function: "count",
             column: undefined,
+          }
+        ],
+        groupBy: undefined,
+      },
+    ],
+  });
+});
+
+
+test("support for stats command alias", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | stats avg(column1) as avg_column1`);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  expect(parser.query()).toEqual({
+    search: ["hello", "world"],
+    pipeline: [
+      {
+        type: "stats",
+        columns: [
+          {
+            function: "avg",
+            column: "column1",
+            alias: "avg_column1",
           }
         ],
         groupBy: undefined,

@@ -29,6 +29,10 @@ export const processStats = (data: [Events, Table | undefined], functions: Aggre
     }
 
     const getFuncColName = (func: AggregationFunction) => {
+        if (func.alias) {
+            return func.alias;
+        }
+
         return func.column ? `${func.function}(${func.column})` : func.function;
     }
 

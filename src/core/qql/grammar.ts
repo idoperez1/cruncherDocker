@@ -54,7 +54,7 @@ const matchCommand = (pattern: RegExp): CustomPatternMatcherFunc => (text, offse
   return execResult;
 }
 
-const matchKeywordOfCommand = (token: TokenType, pattern: RegExp): CustomPatternMatcherFunc => (text, offset, matchedTokens, _groups) => {
+const matchKeywordOfCommand = (token: TokenType | TokenType[], pattern: RegExp): CustomPatternMatcherFunc => (text, offset, matchedTokens, _groups) => {
   const pipeline = extractLastPipeline(matchedTokens);
   if (pipeline.length < 1) {
     return null;
@@ -63,8 +63,14 @@ const matchKeywordOfCommand = (token: TokenType, pattern: RegExp): CustomPattern
   // make sure it's stats command
   const command = pipeline[0];
 
-  if (!tokenMatcher(command, token)) {
-    return null;
+  if (Array.isArray(token)) {
+    if (!token.some((t) => tokenMatcher(command, t))) {
+      return null;
+    }
+  } else {
+    if (!tokenMatcher(command, token)) {
+      return null;
+    }
   }
 
   return pattern.exec(text.substring(offset));
@@ -72,10 +78,12 @@ const matchKeywordOfCommand = (token: TokenType, pattern: RegExp): CustomPattern
 
 // Commands
 const Table = createToken({ name: "Table", pattern: matchCommand(/^table/), longer_alt: Identifier, line_breaks: false });
-const Stats = createToken({ name: "Stats", pattern: matchCommand(/^stats/), longer_alt: Identifier, line_breaks: false });
 
 // Stats specific keywords
+const Stats = createToken({ name: "Stats", pattern: matchCommand(/^stats/), longer_alt: Identifier, line_breaks: false });
 const By = createToken({ name: "By", pattern: matchKeywordOfCommand(Stats, /^(by)(?!\()/), longer_alt: Identifier, line_breaks: false });
+
+const As = createToken({ name: "As", pattern: matchKeywordOfCommand([Table, Stats], /^(as)(?!\()/), longer_alt: Identifier, line_breaks: false });
 
 // Regex specific
 const Regex = createToken({ name: "Regex", pattern: matchCommand(/^regex/), longer_alt: Identifier, line_breaks: false });
@@ -151,13 +159,14 @@ const allTokens = [
   // "keywords" appear before the Identifier
   Table,
   Stats,
-  By,
   Regex,
-  RegexParamField,
   Sort,
+  Where,
+  By,
+  As,
+  RegexParamField,
   Asc,
   Desc,
-  Where,
 
   Integer,
   Identifier,
@@ -196,6 +205,17 @@ export type SuggestionData = {
   toPosition?: number;
   disabled?: boolean;
 } & SuggetionType;
+
+export type TableColumn = {
+  column: string;
+  alias: string | undefined;
+}
+
+export type AggregationFunction = {
+  function: string;
+  column: string | undefined;
+  alias: string | undefined;
+}
 
 export type Order = "asc" | "desc";
 
@@ -723,7 +743,7 @@ export class QQLParser extends EmbeddedActionsParser {
       this.addHighlightData("keyword", token);
     })
 
-    const columns: string[] = [];
+    const columns: TableColumn[] = [];
 
     const autoComplete = this.addAutoCompleteType({
       type: "column",
@@ -732,8 +752,25 @@ export class QQLParser extends EmbeddedActionsParser {
     this.AT_LEAST_ONE({
       DEF: () => {
         const column = this.SUBRULE(this.columnName);
-        this.OPTION(() => this.CONSUME(Comma));
-        columns.push(column);
+        const columnObj: TableColumn = {
+          column: column,
+          alias: undefined,
+        }
+
+        this.addAutoCompleteType({
+          type: "keywords",
+          keywords: ["as"],
+        }, { spacing: 1 }).closeAfter1();
+
+        this.OPTION1(() => {
+          const keyword = this.CONSUME(As);
+          this.addHighlightData("keyword", keyword);
+
+          const alias = this.SUBRULE2(this.columnName);
+          columnObj.alias = alias;
+        });
+        this.OPTION2(() => this.CONSUME(Comma));
+        columns.push(columnObj);
       },
       ERR_MSG: "at least one column name",
     })
@@ -762,13 +799,31 @@ export class QQLParser extends EmbeddedActionsParser {
     }, { spacing: 1 });
     latestFunctionAutoComplete.closeAfter1();
 
-    const columns: ReturnType<typeof this.aggFunctionCall>[] = [];
+    const columns: AggregationFunction[] = [];
     this.AT_LEAST_ONE({
       DEF: () => {
         autoCompleteByKeyword.disable();
         const func = this.SUBRULE(this.aggFunctionCall);
-        this.OPTION(() => this.CONSUME(Comma));
-        columns.push(func);
+        const result: AggregationFunction = {
+          ...func,
+          alias: undefined,
+        }
+
+        this.addAutoCompleteType({
+          type: "keywords",
+          keywords: ["as"],
+        }, { spacing: 1 }).closeAfter1();
+
+        this.OPTION1(() => {
+          const keyword = this.CONSUME(As);
+          this.addHighlightData("keyword", keyword);
+
+          const alias = this.SUBRULE(this.columnName);
+          result.alias = alias;
+        })
+
+        this.OPTION2(() => this.CONSUME(Comma));
+        columns.push(result);
 
         // allow by auto complete only when there is at least one column
         autoCompleteByKeyword.resetStart();
@@ -783,7 +838,7 @@ export class QQLParser extends EmbeddedActionsParser {
     latestFunctionAutoComplete.close();
 
     autoCompleteByKeyword.close(); // close right after the by keyword
-    const groupBy = this.OPTION2(() => {
+    const groupBy = this.OPTION3(() => {
       autoCompleteByKeyword.closeAfter1(); // close right after the by keyword
       return this.SUBRULE(this.groupByClause)
     });
@@ -896,8 +951,6 @@ export class QQLParser extends EmbeddedActionsParser {
     });
   });
 }
-
-export type AggregationFunction = ReturnType<QQLParser["aggFunctionCall"]>;
 
 
 // remove backticks from the string
