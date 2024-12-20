@@ -7,13 +7,99 @@ test("parser hello world", () => {
   const lexer = QQLLexer.tokenize("hello world this is awesome");
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
-  expect(parser.query().search).toEqual([
-    "hello",
-    "world",
-    "this",
-    "is",
-    "awesome",
-  ]);
+  expect(parser.query().search).toEqual({
+    type: "search",
+    left: {
+      type: "searchLiteral",
+      tokens: [
+        "hello",
+        "world",
+        "this",
+        "is",
+        "awesome",
+      ],
+    },
+  });
+});
+
+test("search term with or statements", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize("hello world OR something");
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  expect(parser.query().search).toEqual({
+    type: "search",
+    left: {
+      type: "searchLiteral",
+      tokens: [
+        "hello",
+        "world",
+      ],
+    },
+    right: {
+      type: "or",
+      right: {
+        type: "search",
+        left: {
+          type: "searchLiteral",
+          tokens: ["something"],
+        },
+      }
+    }
+  });
+});
+
+test("search term with or and and statements complex", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize("(hello world OR something) AND (another OR statement)");
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+
+  expect(parser.query().search).toEqual({
+    type: "search",
+    left: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: ["hello", "world"],
+      },
+      right: {
+        type: "or",
+        right: {
+          type: "search",
+          left: {
+            type: "searchLiteral",
+            tokens: ["something"],
+          },
+        },
+      },
+    },
+    right: {
+      type: "and",
+      right: {
+        type: "search",
+        left: {
+          type: "search",
+          left: {
+            type: "searchLiteral",
+            tokens: ["another"],
+          },
+          right: {
+            type: "or",
+            right: {
+              type: "search",
+              left: {
+                type: "searchLiteral",
+                tokens: ["statement"],
+              },
+            },
+          },
+        },
+      },
+    }
+  });
 });
 
 test("string", () => {
@@ -22,7 +108,7 @@ test("string", () => {
   const lexer = QQLLexer.tokenize(`"hello world" token2 token3`);
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
-  expect(parser.query().search).toEqual(["hello world", "token2", "token3"]);
+  expect(parser.query().search).toEqual({ type: "search", left: {type: "searchLiteral", tokens: ["hello world", "token2", "token3"] }});
 });
 
 test("integer", () => {
@@ -31,7 +117,12 @@ test("integer", () => {
   const lexer = QQLLexer.tokenize(`123 token`);
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
-  expect(parser.query().search).toEqual([123, "token"]);
+  expect(parser.query().search).toEqual({
+    type: "search", left: {
+      type: "searchLiteral",
+      tokens: [123, "token"]
+    },
+  });
 });
 
 test("multiple strings", () => {
@@ -40,11 +131,17 @@ test("multiple strings", () => {
   const lexer = QQLLexer.tokenize(`"hello world" token2 "token3 hey there"`);
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
-  expect(parser.query().search).toEqual([
-    "hello world",
-    "token2",
-    "token3 hey there",
-  ]);
+  expect(parser.query().search).toEqual({
+    type: "search",
+    left: {
+      type: "searchLiteral",
+      tokens: [
+        "hello world",
+        "token2",
+        "token3 hey there",
+      ],
+    }
+  });
 });
 
 test("nested strings", () => {
@@ -53,10 +150,16 @@ test("nested strings", () => {
   const lexer = QQLLexer.tokenize(`"hello world \\"nested\\" string" token2`);
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
-  expect(parser.query().search).toEqual([
-    `hello world "nested" string`,
-    "token2",
-  ]);
+  expect(parser.query().search).toEqual({
+    type: "search",
+    left: {
+      type: "searchLiteral",
+      tokens: [
+        `hello world "nested" string`,
+        "token2",
+      ],
+    },
+  });
 });
 
 test("table command", () => {
@@ -66,7 +169,16 @@ test("table command", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   expect(parser.query()).toEqual({
-    search: ["hello", "world"],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
     pipeline: [
       {
         type: "table",
@@ -87,7 +199,16 @@ test("table command - alias", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
-    search: ["hello", "world"],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
     pipeline: [
       {
         type: "table",
@@ -122,7 +243,16 @@ test("table command multiple columns", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   expect(parser.query()).toEqual({
-    search: ["hello", "world"],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
     pipeline: [
       {
         type: "table",
@@ -151,7 +281,16 @@ test("table command multiple columns no comma", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   expect(parser.query()).toEqual({
-    search: ["hello", "world"],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
     pipeline: [
       {
         type: "table",
@@ -178,7 +317,12 @@ test("parsing uuid as string", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   expect(parser.query()).toEqual({
-    search: ["hello", "76e191f8-8ab6-4db7-9895-c1b6d188106c"],
+    search: {
+      type: "search", left: {
+        type: "searchLiteral",
+        tokens: ["hello", "76e191f8-8ab6-4db7-9895-c1b6d188106c"],
+      },
+    },
     pipeline: [],
   });
 })
@@ -190,7 +334,16 @@ test("support for stats command basic", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   expect(parser.query()).toEqual({
-    search: ["hello", "world"],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
     pipeline: [
       {
         type: "stats",
@@ -214,7 +367,16 @@ test("support for stats command alias", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   expect(parser.query()).toEqual({
-    search: ["hello", "world"],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
     pipeline: [
       {
         type: "stats",
@@ -239,7 +401,16 @@ test("support for stats group by", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   expect(parser.query()).toEqual({
-    search: ["hello", "world"],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
     pipeline: [
       {
         type: "stats",
@@ -263,7 +434,16 @@ test("support for regex command", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
-    search: ["hello", "world"],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
     pipeline: [
       {
         type: "regex",
@@ -281,7 +461,16 @@ test("support for regex command with column", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
-    search: ["hello", "world"],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
     pipeline: [
       {
         type: "regex",
@@ -300,7 +489,16 @@ test("support for sort command", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
-    search: ["hello", "world"],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
     pipeline: [
       {
         type: "sort",
@@ -320,7 +518,16 @@ test("support for sort desc command", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
-    search: ["hello", "world"],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
     pipeline: [
       {
         type: "sort",
@@ -340,7 +547,16 @@ test("support for sort desc multiple", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
-    search: ["hello", "world"],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
     pipeline: [
       {
         type: "sort",
@@ -361,7 +577,16 @@ test("support for where command function", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
-    search: ["hello", "world"],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
     pipeline: [
       {
         type: "where",
@@ -398,7 +623,16 @@ test.each([
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
-    search: ["hello", "world"],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
     pipeline: [
       {
         type: "where",
@@ -508,7 +742,16 @@ test.each([
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
-    search: ["hello", "world"],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
     pipeline: [
       {
         type: "where",

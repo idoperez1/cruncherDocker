@@ -2,6 +2,7 @@ import { QueryOptions, QueryProvider } from "~core/common/interface";
 import { asNumberField, Field, ObjectFields } from "~core/common/logTypes";
 import { buildQuery, LIMIT } from "./query";
 import { Frame } from "./types";
+import { Search } from "~core/qql/grammar";
 
 const processField = (field: any): Field => {
     if (typeof field === "number") {
@@ -97,7 +98,7 @@ export class GrafanaController implements QueryProvider {
         private filterExtensions?: string[],
     ) { }
 
-    private _doQuery = async (searchTerm: string[], options: QueryOptions) => {
+    private _doQuery = async (searchTerm: Search, options: QueryOptions) => {
         const query = buildQuery(this.uid, this.filter, searchTerm, options.fromTime, options.toTime, this.filterExtensions);
         console.log(query);
 
@@ -120,7 +121,7 @@ export class GrafanaController implements QueryProvider {
         return getAllObjects(data.results.A.frames);
     }
 
-    private _runAllBatches = async (searchTerm: string[], options: QueryOptions) => {
+    private _runAllBatches = async (searchTerm: Search, options: QueryOptions) => {
         let currentLimit = options.limit;
         while (true) {
             const objects = await this._doQuery(searchTerm, options);
@@ -143,7 +144,7 @@ export class GrafanaController implements QueryProvider {
         }
     }
 
-    query(searchTerm: string[], options: QueryOptions): Promise<void> {
+    query(searchTerm: Search, options: QueryOptions): Promise<void> {
         return this._runAllBatches(searchTerm, options);
     }
 

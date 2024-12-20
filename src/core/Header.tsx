@@ -56,6 +56,8 @@ import { store } from "./store/store";
 import { Timer } from "./Timer";
 import toast from "react-hot-toast";
 import { CloseButton } from "~components/ui/close-button";
+import equal from "fast-deep-equal";
+import { Search } from "./qql/grammar";
 
 const StyledHeader = styled.form`
   display: flex;
@@ -92,24 +94,11 @@ type FormValues = {
 };
 
 type QueryExecutionHistory = {
-  search: string[];
+  search: Search;
   start: FullDate;
   end: FullDate;
 };
 
-const compareQueries = (query1: string[], query2: string[]) => {
-  if (query1.length !== query2.length) {
-    return false;
-  }
-
-  for (let i = 0; i < query1.length; i++) {
-    if (query1[i] !== query2[i]) {
-      return false;
-    }
-  }
-
-  return true;
-};
 
 const compareExecutions = (
   exec1: QueryExecutionHistory,
@@ -119,7 +108,7 @@ const compareExecutions = (
     return false;
   }
 
-  if (!compareQueries(exec1.search, exec2.search)) {
+  if (!equal(exec1.search, exec2.search)) {
     return false;
   }
 

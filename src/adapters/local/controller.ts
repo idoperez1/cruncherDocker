@@ -1,5 +1,6 @@
 import { QueryOptions, QueryProvider } from "~core/common/interface";
 import { asNumberField, Field, ObjectFields, ProcessedData } from "~core/common/logTypes";
+import { Search, SearchAND, SearchLiteral, SearchOR } from "~core/qql/grammar";
 
 const tagsOptions = ["nice", "developer", "trash collector"];
 const data = [
@@ -86,19 +87,89 @@ const processField = (field: any): Field => {
     };
 }
 
+type SearchCallback = (item: string) => boolean;
+
+const buildSearchAndCallback = (leftCallback: SearchCallback, search: SearchAND) => {
+    return (item: string) => {
+        const leftRes = leftCallback(item);
+        if (!leftRes) {
+            return false;
+        }
+        
+        const rightRes = buildSearchCallback(search.right)(item);
+
+        return rightRes;
+    }
+}
+
+const buildSearchOrCallback = (leftCallback: SearchCallback, search: SearchOR) => {
+    return (item: string) => {
+        const leftRes = leftCallback(item);
+        if (leftRes) {
+            return true;
+        }
+        
+        const rightRes = buildSearchCallback(search.right)(item);
+
+        return rightRes;
+    }
+}
+
+const buildSearchLiteralCallback = (searchLiteral: SearchLiteral) => {
+    if (searchLiteral.tokens.length === 0) {
+        return () => true;
+    }
+
+    return (searchTerm: string) => searchLiteral.tokens.every((token) => {
+        return searchTerm.includes(String(token));
+    });
+}
+
+const buildSearchCallback = (searchTerm: Search) => {
+    const left = searchTerm.left;
+    const right = searchTerm.right;
+
+    let leftCallback: SearchCallback;
+    switch (left.type) {
+        case "search":
+            leftCallback = buildSearchCallback(left);
+            break;
+        case "searchLiteral":
+            leftCallback = buildSearchLiteralCallback(left);
+            break;
+    }
+
+    if (!right) {
+        return leftCallback;
+    }
+
+    let rightCallback: SearchCallback;
+    switch (right.type) {
+        case "and":
+            rightCallback = buildSearchAndCallback(leftCallback, right);
+            break;
+        case "or":
+            rightCallback = buildSearchOrCallback(leftCallback, right);
+            break;
+    }
+
+    return rightCallback;
+} 
+
 // Used for testing purposes
 export const MockController = {
-    query: async (searchTerm: string[], options: QueryOptions): Promise<void> => {
+    query: async (searchTerm: Search, options: QueryOptions): Promise<void> => {
+        const searchCallback = buildSearchCallback(searchTerm);
         return new Promise((resolve, reject) => {
             // filter using the search term
+            const itemToMessage = (item: typeof data[number]) => {
+                return `Name: ${item.name}, Age: ${item.age}, Address: ${item.address}, Tags: ${item.tags.join(", ")}`;
+            }
             const filteredData = data.filter((item) => {
-                if (searchTerm.length === 0) {
-                    return true;
-                }
-
-                return searchTerm.some((term) => {
-                    return item.name.includes(term) || item.address.includes(term) || item.tags.some((tag) => tag.includes(term));
-                });
+                const message = itemToMessage(item);
+                return [item.name, item.address, message, ...item.tags].some((field) => {
+                    return searchCallback(field);
+                })
             });
 
             const fromTime = options.fromTime;
@@ -125,7 +196,7 @@ export const MockController = {
 
                 return {
                     object: fields,
-                    message: `Name: ${item.name}, Age: ${item.age}, Address: ${item.address}, Tags: ${item.tags.join(", ")}`,
+                    message: itemToMessage(item),
                 };
             });
 

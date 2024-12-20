@@ -50,6 +50,9 @@ importers:
       export-to-csv:
         specifier: ^1.4.0
         version: 1.4.0
+      fast-deep-equal:
+        specifier: ^3.1.3
+        version: 3.1.3
       immer:
         specifier: ^10.1.1
         version: 10.1.1
@@ -95,6 +98,9 @@ importers:
       recharts:
         specifier: ^2.15.0
         version: 2.15.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      regex-escape:
+        specifier: ^3.4.10
+        version: 3.4.10
       sorted-btree:
         specifier: ^1.8.1
         version: 1.8.1
@@ -123,6 +129,9 @@ importers:
       '@types/react-dom':
         specifier: ^18.3.1
         version: 18.3.2
+      '@types/regex-escape':
+        specifier: ^3.4.1
+        version: 3.4.1
       '@vitejs/plugin-react':
         specifier: ^4.3.4
         version: 4.3.4(vite@6.0.3(@types/node@22.10.1)(less@4.2.1))
@@ -968,6 +977,9 @@ packages:
 
   '@types/react@18.3.14':
     resolution: {integrity: sha512-NzahNKvjNhVjuPBQ+2G7WlxstQ+47kXZNHlUvFakDViuIEfGY926GqhMueQFZ7woG+sPiQKlF36XfrIUVSUfFg==}
+
+  '@types/regex-escape@3.4.1':
+    resolution: {integrity: sha512-aQihdLwAzyST0/LTidv76ZKtltWbea61FprvpMHbqUToUpdZrSYUqPb3ToojMW2a29JfoJXBxtO6K5py4o8uwA==}
 
   '@types/semver@7.5.8':
     resolution: {integrity: sha512-I8EUhyrgfLrcTkzV3TSsGyl1tSuPrEDzr0yd5m90UgNxQkyDXULk3b6MlQqTCpZpNtWe1K0hzclnZkTcLBe2UQ==}
@@ -2339,6 +2351,9 @@ packages:
   regenerator-runtime@0.14.1:
     resolution: {integrity: sha512-dYnhHh0nJoMfnkZs6GmmhFknAGRrLznOu5nc9ML+EJxGvrx6H7teuevqVqCuPcPK//3eDrrjQhehXVx9cnkGdw==}
 
+  regex-escape@3.4.10:
+    resolution: {integrity: sha512-qEqf7uzW+iYcKNLMDFnMkghhQBnGdivT6KqVQyKsyjSWnoFyooXVnxrw9dtv3AFLnD6VBGXxtZGAQNFGFTnCqA==}
+
   require-from-string@2.0.2:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
@@ -3596,6 +3611,8 @@ snapshots:
     dependencies:
       '@types/prop-types': 15.7.14
       csstype: 3.1.3
+
+  '@types/regex-escape@3.4.1': {}
 
   '@types/semver@7.5.8': {}
 
@@ -5358,6 +5375,8 @@ snapshots:
       victory-vendor: 36.9.2
 
   regenerator-runtime@0.14.1: {}
+
+  regex-escape@3.4.10: {}
 
   require-from-string@2.0.2: {}
 

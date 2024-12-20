@@ -19,14 +19,20 @@ const CloseBrackets = createToken({ name: "CloseBrackets", pattern: /\)/ });
 const Equal = createToken({ name: "Equal", pattern: /=/ });
 
 const extractLastPipeline = (matchedTokens: IToken[]) => {
+  let pipeRecognized = false;
   const result: IToken[] = [];
   for (let i = matchedTokens.length - 1; i >= 0; i--) {
     const token = matchedTokens[i];
     if (tokenMatcher(token, Pipe)) {
+      pipeRecognized = true;
       break;
     }
 
     result.unshift(token);
+  }
+
+  if (!pipeRecognized) {
+    return [];
   }
 
   return result;
@@ -52,6 +58,15 @@ const matchCommand = (pattern: RegExp): CustomPatternMatcherFunc => (text, offse
   const textSubstring = text.substring(offset);
   const execResult = pattern.exec(textSubstring);
   return execResult;
+}
+
+const matchKeywordOfSearch = (pattern: RegExp): CustomPatternMatcherFunc => (text, offset, matchedTokens, _groups) => {
+  const pipeline = extractLastPipeline(matchedTokens);
+  if (pipeline.length > 1) { // if there is a pipeline then it's not a search
+    return null;
+  }
+
+  return pattern.exec(text.substring(offset));
 }
 
 const matchKeywordOfCommand = (token: TokenType | TokenType[], pattern: RegExp): CustomPatternMatcherFunc => (text, offset, matchedTokens, _groups) => {
@@ -101,6 +116,9 @@ const Desc = createToken({ name: "Desc", pattern: matchKeywordOfCommand(Sort, /^
 
 // Where command
 const Where = createToken({ name: "Where", pattern: matchCommand(/^where/), longer_alt: Identifier, line_breaks: false });
+
+const SearchOR = createToken({ name: "SearchOR", pattern: matchKeywordOfSearch(/^OR/), longer_alt: Identifier, line_breaks: false });
+const SearchAND = createToken({ name: "SearchAND", pattern: matchKeywordOfSearch(/^AND/), longer_alt: Identifier, line_breaks: false });
 
 const matchBooleanExpressionContext = (pattern: RegExp): CustomPatternMatcherFunc => (text, offset, matchedTokens, _groups) => {
   const pipeline = extractLastPipeline(matchedTokens);
@@ -168,6 +186,10 @@ const allTokens = [
   Asc,
   Desc,
 
+  // search keywords
+  SearchOR,
+  SearchAND,
+
   Integer,
   Identifier,
 ];
@@ -205,6 +227,29 @@ export type SuggestionData = {
   toPosition?: number;
   disabled?: boolean;
 } & SuggetionType;
+
+// --------------------- Custom Grammar Types ---------------------
+
+export type Search = {
+  type: "search";
+  left: SearchLiteral | Search;
+  right: SearchAND | SearchOR | undefined;
+}
+
+export type SearchLiteral = {
+  type: "searchLiteral";
+  tokens: (string | number)[];
+}
+
+export type SearchAND = {
+  type: "and";
+  right: Search;
+}
+
+export type SearchOR = {
+  type: "or";
+  right: Search;
+}
 
 export type TableColumn = {
   column: string;
@@ -398,7 +443,7 @@ export class QQLParser extends EmbeddedActionsParser {
     });
 
     return {
-      search: search.search,
+      search: search,
       pipeline: pipeline,
     } as const;
   });
@@ -435,8 +480,70 @@ export class QQLParser extends EmbeddedActionsParser {
     return resp;
   });
 
-  private search = this.RULE("search", () => {
-    const tokens: string[] = [];
+  private search = this.RULE("search", (): Search => {
+    const parentRule = this.SUBRULE(this.searchFactor);
+    const tail = this.OPTION<
+      | SearchOR
+      | SearchAND
+    >(() => {
+      return this.OR([
+        { ALT: () => this.SUBRULE(this.searchAndStatement) },
+        { ALT: () => this.SUBRULE(this.searchOrStatement) },
+      ]);
+    });
+
+    return {
+      type: "search",
+      left: parentRule,
+      right: tail,
+    } as const;
+  });
+
+  private searchFactor = this.RULE("searchFactor", () => {
+    return this.OR<
+      | Search
+      | SearchLiteral
+    >([
+      { ALT: () => this.SUBRULE(this.searchParenthesis) },
+      { ALT: () => this.SUBRULE(this.searchLiteral) },
+    ]);
+  });
+
+  private searchParenthesis = this.RULE("searchParenthesis", () => {
+    this.CONSUME(OpenBrackets);
+    const search = this.SUBRULE(this.search);
+    this.CONSUME(CloseBrackets);
+
+    return search;
+  });
+
+  private searchAndStatement = this.RULE("searchAndStatement", (): SearchAND => {
+    const token = this.CONSUME(SearchAND);
+    this.ACTION(() => {
+      this.addHighlightData("operator", token);
+    });
+
+    return {
+      type: "and",
+      right: this.SUBRULE(this.search),
+    };
+  });
+
+  private searchOrStatement = this.RULE("searchOrStatement", (): SearchOR => {
+    const token = this.CONSUME(SearchOR);
+    this.ACTION(() => {
+      this.addHighlightData("operator", token);
+    });
+
+    return {
+      type: "or",
+      right: this.SUBRULE(this.search),
+    };
+  });
+
+
+  private searchLiteral = this.RULE("searchLiteral", (): SearchLiteral => {
+    const tokens: (string | number)[] = [];
     this.MANY(() => {
       const token = this.OR([
         { ALT: () => this.SUBRULE(this.doubleQuotedString) },
@@ -447,7 +554,10 @@ export class QQLParser extends EmbeddedActionsParser {
       tokens.push(token);
     });
 
-    return { search: tokens };
+    return {
+      type: "searchLiteral",
+      tokens: tokens,
+    };
   });
 
   private where = this.RULE("where", () => {
