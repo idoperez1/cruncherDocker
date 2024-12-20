@@ -83,9 +83,9 @@ const escapeBackslash = (str: string) => {
 }
 
 const composeLabelFilter = (filter: GrafanaLabelFilter[], controllerParams: ControllerIndexParam[]) => {
-  const filterByKey: Record<string, string> = {};
+  const filters: string[] = [];
   filter.forEach((f) => {
-    filterByKey[f.key] = `${f.key}${f.operator}"${f.value}"`;
+    filters.push(`${f.key}${f.operator}"${f.value}"`);
   });
 
   controllerParams.forEach((param) => {
@@ -101,10 +101,10 @@ const composeLabelFilter = (filter: GrafanaLabelFilter[], controllerParams: Cont
         throw new Error(`Invalid operator - ${param.operator}`);
     }
 
-    filterByKey[param.name] = `${param.name}${operator}"${escapeQuotes(escapeBackslash(param.value))}"`;
+    filters.push(`${param.name}${operator}"${escapeQuotes(escapeBackslash(param.value))}"`);
   });
 
-  return `{ ${Object.values(filterByKey).join(", ")} }`;
+  return `{ ${filters.join(", ")} }`;
 };
 
 const buildExpression = (baseFilter: GrafanaLabelFilter[], controllerParams: ControllerIndexParam[], search: Search, filterExtensions?: string[]) => {
