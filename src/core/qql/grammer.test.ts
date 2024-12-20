@@ -169,6 +169,7 @@ test("table command", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   expect(parser.query()).toEqual({
+    controllerParams: [],
     search: {
       type: "search",
       left: {
@@ -199,6 +200,7 @@ test("table command - alias", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
+    controllerParams: [],
     search: {
       type: "search",
       left: {
@@ -243,6 +245,7 @@ test("table command multiple columns", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   expect(parser.query()).toEqual({
+    controllerParams: [],
     search: {
       type: "search",
       left: {
@@ -281,6 +284,7 @@ test("table command multiple columns no comma", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   expect(parser.query()).toEqual({
+    controllerParams: [],
     search: {
       type: "search",
       left: {
@@ -317,6 +321,7 @@ test("parsing uuid as string", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   expect(parser.query()).toEqual({
+    controllerParams: [],
     search: {
       type: "search", left: {
         type: "searchLiteral",
@@ -334,6 +339,7 @@ test("support for stats command basic", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   expect(parser.query()).toEqual({
+    controllerParams: [],
     search: {
       type: "search",
       left: {
@@ -367,6 +373,7 @@ test("support for stats command alias", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   expect(parser.query()).toEqual({
+    controllerParams: [],
     search: {
       type: "search",
       left: {
@@ -401,6 +408,7 @@ test("support for stats group by", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   expect(parser.query()).toEqual({
+    controllerParams: [],
     search: {
       type: "search",
       left: {
@@ -434,6 +442,7 @@ test("support for regex command", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
+    controllerParams: [],
     search: {
       type: "search",
       left: {
@@ -461,6 +470,7 @@ test("support for regex command with column", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
+    controllerParams: [],
     search: {
       type: "search",
       left: {
@@ -489,6 +499,7 @@ test("support for sort command", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
+    controllerParams: [],
     search: {
       type: "search",
       left: {
@@ -518,6 +529,7 @@ test("support for sort desc command", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
+    controllerParams: [],
     search: {
       type: "search",
       left: {
@@ -547,6 +559,7 @@ test("support for sort desc multiple", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
+    controllerParams: [],
     search: {
       type: "search",
       left: {
@@ -567,6 +580,33 @@ test("support for sort desc multiple", () => {
       },
     ],
   });
+});
+
+test("support controller params", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`param1=\`abc\` param2=\`def\` third!=\`something\` hello world`);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+  expect(result).toEqual({
+    controllerParams: [
+      { name: "param1", value: "abc", type: "controllerIndexParam", operator: "=" },
+      { name: "param2", value: "def", type: "controllerIndexParam", operator: "=" },
+      { name: "third", value: "something", type: "controllerIndexParam", operator: "!=" },
+    ],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
+    pipeline: [],
+  });
 })
 
 test("support for where command function", () => {
@@ -577,6 +617,7 @@ test("support for where command function", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
+    controllerParams: [],
     search: {
       type: "search",
       left: {
@@ -623,6 +664,7 @@ test.each([
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
+    controllerParams: [],
     search: {
       type: "search",
       left: {
@@ -742,6 +784,7 @@ test.each([
   parser.input = lexer.tokens;
   const result = parser.query();
   expect(result).toEqual({
+    controllerParams: [],
     search: {
       type: "search",
       left: {

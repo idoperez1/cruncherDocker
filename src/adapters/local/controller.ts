@@ -1,6 +1,6 @@
 import { QueryOptions, QueryProvider } from "~core/common/interface";
 import { asNumberField, Field, ObjectFields, ProcessedData } from "~core/common/logTypes";
-import { Search, SearchAND, SearchLiteral, SearchOR } from "~core/qql/grammar";
+import { ControllerIndexParam, Search, SearchAND, SearchLiteral, SearchOR } from "~core/qql/grammar";
 
 const tagsOptions = ["nice", "developer", "trash collector"];
 const data = [
@@ -158,7 +158,11 @@ const buildSearchCallback = (searchTerm: Search) => {
 
 // Used for testing purposes
 export const MockController = {
-    query: async (searchTerm: Search, options: QueryOptions): Promise<void> => {
+    query: async (contollerParams: ControllerIndexParam[], searchTerm: Search, options: QueryOptions): Promise<void> => {
+        if (contollerParams.length > 0) {
+            throw new Error("Controller params not supported");
+        }
+        
         const searchCallback = buildSearchCallback(searchTerm);
         return new Promise((resolve, reject) => {
             // filter using the search term

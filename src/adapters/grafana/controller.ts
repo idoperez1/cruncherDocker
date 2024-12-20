@@ -1,8 +1,8 @@
 import { QueryOptions, QueryProvider } from "~core/common/interface";
 import { asNumberField, Field, ObjectFields } from "~core/common/logTypes";
 import { buildQuery, LIMIT } from "./query";
-import { Frame } from "./types";
-import { Search } from "~core/qql/grammar";
+import { Frame, GrafanaLabelFilter } from "./types";
+import { ControllerIndexParam, Search } from "~core/qql/grammar";
 
 const processField = (field: any): Field => {
     if (typeof field === "number") {
@@ -94,12 +94,12 @@ export class GrafanaController implements QueryProvider {
     constructor(
         private url: string,
         private uid: string,
-        private filter: string,
+        private filter: GrafanaLabelFilter[],
         private filterExtensions?: string[],
     ) { }
 
-    private _doQuery = async (searchTerm: Search, options: QueryOptions) => {
-        const query = buildQuery(this.uid, this.filter, searchTerm, options.fromTime, options.toTime, this.filterExtensions);
+    private _doQuery = async (controllerParams: ControllerIndexParam[], searchTerm: Search, options: QueryOptions) => {
+        const query = buildQuery(this.uid, this.filter, controllerParams, searchTerm, options.fromTime, options.toTime, this.filterExtensions);
         console.log(query);
 
         const url = `${this.url}/api/ds/query?ds_type=loki&requestId=explore_gsx_1`;
@@ -121,10 +121,10 @@ export class GrafanaController implements QueryProvider {
         return getAllObjects(data.results.A.frames);
     }
 
-    private _runAllBatches = async (searchTerm: Search, options: QueryOptions) => {
+    private _runAllBatches = async (controllerParams: ControllerIndexParam[], searchTerm: Search, options: QueryOptions) => {
         let currentLimit = options.limit;
         while (true) {
-            const objects = await this._doQuery(searchTerm, options);
+            const objects = await this._doQuery(controllerParams, searchTerm, options);
             console.log("batch retrieved", objects.length);
             options.onBatchDone(objects);
             currentLimit -= objects.length;
@@ -144,8 +144,8 @@ export class GrafanaController implements QueryProvider {
         }
     }
 
-    query(searchTerm: Search, options: QueryOptions): Promise<void> {
-        return this._runAllBatches(searchTerm, options);
+    query(contollerParams: ControllerIndexParam[], searchTerm: Search, options: QueryOptions): Promise<void> {
+        return this._runAllBatches(contollerParams, searchTerm, options);
     }
 
 }

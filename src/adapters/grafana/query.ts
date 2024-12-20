@@ -1,6 +1,7 @@
-import { Search, SearchAND, SearchLiteral, SearchOR } from "~core/qql/grammar";
+import { ControllerIndexParam, Search, SearchAND, SearchLiteral, SearchOR } from "~core/qql/grammar";
 
 import regexEscape from "regex-escape";
+import { GrafanaLabelFilter } from "./types";
 
 export const LIMIT = 5000;
 
@@ -81,9 +82,34 @@ const escapeBackslash = (str: string) => {
   return str.replace(/\\/g, "\\\\");
 }
 
-const buildExpression = (baseFilter: string, search: Search, filterExtensions?: string[]) => {
+const composeLabelFilter = (filter: GrafanaLabelFilter[], controllerParams: ControllerIndexParam[]) => {
+  const filterByKey: Record<string, string> = {};
+  filter.forEach((f) => {
+    filterByKey[f.key] = `${f.key}${f.operator}"${f.value}"`;
+  });
+
+  controllerParams.forEach((param) => {
+    let operator = "=~";
+    switch (param.operator) {
+      case "=":
+        operator = "=~";
+        break;
+      case "!=":
+        operator = "!~";
+        break;
+      default:
+        throw new Error(`Invalid operator - ${param.operator}`);
+    }
+
+    filterByKey[param.name] = `${param.name}${operator}"${escapeQuotes(escapeBackslash(param.value))}"`;
+  });
+
+  return `{ ${Object.values(filterByKey).join(", ")} }`;
+};
+
+const buildExpression = (baseFilter: GrafanaLabelFilter[], controllerParams: ControllerIndexParam[], search: Search, filterExtensions?: string[]) => {
   const terms = [
-    baseFilter,
+    composeLabelFilter(baseFilter, controllerParams),
   ];
 
   const pattern = buildSearchPattern(search);
@@ -92,9 +118,6 @@ const buildExpression = (baseFilter: string, search: Search, filterExtensions?: 
   console.log("fullPattern", fullPattern);
 
   terms.push(`|~ "${fullPattern}"`);
-  // search.forEach((term) => {
-  //   terms.push(`|= \`${term}\``);
-  // });
 
   terms.push(
     "| json",
@@ -107,12 +130,12 @@ const buildExpression = (baseFilter: string, search: Search, filterExtensions?: 
   return terms.join("\n");
 };
 
-export const buildQuery = (uid: string, baseFilter: string, search: Search, fromTime: Date, toTime: Date, filterExtensions?: string[]) => {
+export const buildQuery = (uid: string, baseFilter: GrafanaLabelFilter[], controllerParams: ControllerIndexParam[], search: Search, fromTime: Date, toTime: Date, filterExtensions?: string[]) => {
   return {
     queries: [
       {
         refId: "A",
-        expr: buildExpression(baseFilter, search, filterExtensions),
+        expr: buildExpression(baseFilter, controllerParams, search, filterExtensions),
         queryType: "range",
         datasource: {
           type: "loki",

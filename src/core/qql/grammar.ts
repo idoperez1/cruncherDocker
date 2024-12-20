@@ -119,6 +119,7 @@ const Where = createToken({ name: "Where", pattern: matchCommand(/^where/), long
 
 const SearchOR = createToken({ name: "SearchOR", pattern: matchKeywordOfSearch(/^OR/), longer_alt: Identifier, line_breaks: false });
 const SearchAND = createToken({ name: "SearchAND", pattern: matchKeywordOfSearch(/^AND/), longer_alt: Identifier, line_breaks: false });
+const SearchParamNotEqual = createToken({ name: "SearchParamNotEqual", pattern: matchKeywordOfSearch(/^!=/), line_breaks: false });
 
 const matchBooleanExpressionContext = (pattern: RegExp): CustomPatternMatcherFunc => (text, offset, matchedTokens, _groups) => {
   const pipeline = extractLastPipeline(matchedTokens);
@@ -157,6 +158,8 @@ const allTokens = [
   WhiteSpace,
   DoubleQoutedString,
   RegexPattern,
+
+  // Boolean context
   GreaterThanEqual,
   LessThanEqual,
   GreaterThan,
@@ -169,6 +172,8 @@ const allTokens = [
   Not,
   True,
   False,
+
+  // Syntax Tokens
   Comma,
   OpenBrackets,
   CloseBrackets,
@@ -187,6 +192,7 @@ const allTokens = [
   Desc,
 
   // search keywords
+  SearchParamNotEqual,
   SearchOR,
   SearchAND,
 
@@ -230,6 +236,12 @@ export type SuggestionData = {
 
 // --------------------- Custom Grammar Types ---------------------
 
+export type ControllerIndexParam = {
+  type: "controllerIndexParam";
+  name: string;
+  value: string;
+  operator: string;
+}
 export type Search = {
   type: "search";
   left: SearchLiteral | Search;
@@ -433,16 +445,24 @@ export class QQLParser extends EmbeddedActionsParser {
   }
 
   public query = this.RULE("query", () => {
+    const controllerParams: ControllerIndexParam[] = [];
+
+    this.MANY1(() => {
+      const controllerParam = this.SUBRULE(this.controllerParam);
+      controllerParams.push(controllerParam);
+    });
+
     const search = this.SUBRULE(this.search, { ARGS: [false] });
     const pipeline: ReturnType<typeof this.pipelineCommand>[] = [];
 
-    this.MANY(() => {
+    this.MANY2(() => {
       this.CONSUME(Pipe);
       const pipelineItem = this.SUBRULE(this.pipelineCommand);
       pipeline.push(pipelineItem);
     });
 
     return {
+      controllerParams: controllerParams,
       search: search,
       pipeline: pipeline,
     } as const;
@@ -483,11 +503,6 @@ export class QQLParser extends EmbeddedActionsParser {
   private search = this.RULE("search", (isRequired?: boolean): Search => {
     const parentRule = this.SUBRULE(this.searchFactor, { ARGS: [isRequired] });
 
-    this.addAutoCompleteType({
-      type: "keywords",
-      keywords: ["AND", "OR"],
-    }).closeAfter1();
-
     const tail = this.OPTION<
       | SearchOR
       | SearchAND
@@ -505,13 +520,36 @@ export class QQLParser extends EmbeddedActionsParser {
     } as const;
   });
 
+  private controllerParam = this.RULE("controllerParam", (): ControllerIndexParam => {
+    const token = this.CONSUME(Identifier);
+    this.ACTION(() => {
+      this.addHighlightData("param", token);
+    });
+
+    const operator = this.OR<IToken>({
+      DEF: [
+        { ALT: () => this.CONSUME(SearchParamNotEqual) },
+        { ALT: () => this.CONSUME(Equal) },
+      ]
+    });
+
+    const value = this.SUBRULE(this.regexString);
+
+    return {
+      type: "controllerIndexParam",
+      name: token.image,
+      value: value,
+      operator: operator.image,
+    } as const;
+  });
+
   private searchFactor = this.RULE("searchFactor", (isRequired?: boolean) => {
     return this.OR<
       | Search
       | SearchLiteral
     >([
       { ALT: () => this.SUBRULE(this.searchParenthesis) },
-      { ALT: () => this.SUBRULE(this.searchLiteral, {ARGS: [isRequired]}) },
+      { ALT: () => this.SUBRULE(this.searchLiteral, { ARGS: [isRequired] }) },
     ]);
   });
 
@@ -557,12 +595,7 @@ export class QQLParser extends EmbeddedActionsParser {
           GATE: () => !isRequired,
           ALT: () => {
             this.MANY(() => {
-              const token = this.OR1([
-                { ALT: () => this.SUBRULE1(this.doubleQuotedString) },
-                { ALT: () => this.SUBRULE1(this.identifier) },
-                { ALT: () => this.SUBRULE1(this.integer) },
-              ]);
-
+              const token = this.SUBRULE1(this.literalSearchTerm);
               tokens.push(token);
             });
           }
@@ -571,12 +604,7 @@ export class QQLParser extends EmbeddedActionsParser {
           GATE: () => isRequired,
           ALT: () => {
             this.AT_LEAST_ONE(() => {
-              const token = this.OR2([
-                { ALT: () => this.SUBRULE2(this.doubleQuotedString) },
-                { ALT: () => this.SUBRULE2(this.identifier) },
-                { ALT: () => this.SUBRULE2(this.integer) },
-              ]);
-
+              const token = this.SUBRULE2(this.literalSearchTerm);
               tokens.push(token);
             });
           }
@@ -589,6 +617,17 @@ export class QQLParser extends EmbeddedActionsParser {
       type: "searchLiteral",
       tokens: tokens,
     };
+  });
+
+  private literalSearchTerm = this.RULE("literalSearchTerm", () => {
+    return this.OR<
+      | string
+      | number
+    >([
+      { ALT: () => this.SUBRULE(this.doubleQuotedString) },
+      { ALT: () => this.SUBRULE(this.integer) },
+      { ALT: () => this.SUBRULE(this.identifier) },
+    ]);
   });
 
   private where = this.RULE("where", () => {
@@ -865,15 +904,12 @@ export class QQLParser extends EmbeddedActionsParser {
       columnSelected = column;
     })
 
-    const pattern = this.CONSUME(RegexPattern);
-    this.ACTION(() => {
-      this.addHighlightData("regex", pattern);
-    });
+    const pattern = this.SUBRULE(this.regexString);
 
     return this.ACTION(() => ({
       type: "regex",
       columnSelected: columnSelected,
-      pattern: unqouteBacktick(pattern.image),
+      pattern: pattern,
     } as const));
   });
 
@@ -1044,6 +1080,15 @@ export class QQLParser extends EmbeddedActionsParser {
     });
 
     return column.image;
+  });
+
+  private regexString = this.RULE("regexString", () => {
+    const token = this.CONSUME(RegexPattern);
+    this.addHighlightData("regex", token);
+
+    return this.ACTION(() => {
+      return unqouteBacktick(token.image);
+    });
   });
 
 

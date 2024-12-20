@@ -216,7 +216,7 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
         } else {
           try {
             tree.clear();
-            await controller.query(parsedTree.search, {
+            await controller.query(parsedTree.controllerParams, parsedTree.search, {
               fromTime: fromTime,
               toTime: toTime,
               cancelToken: cancelToken,

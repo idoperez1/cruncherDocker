@@ -1,4 +1,4 @@
-import { Search } from "~core/qql/grammar";
+import { ControllerIndexParam, Search } from "~core/qql/grammar";
 import { ProcessedData } from "./logTypes";
 
 export type QueryOptions = {
@@ -10,5 +10,5 @@ export type QueryOptions = {
 }
 
 export interface QueryProvider {
-    query(searchTerm: Search, queryOptions: QueryOptions): Promise<void>;
+    query(params: ControllerIndexParam[], searchTerm: Search, queryOptions: QueryOptions): Promise<void>;
 }
