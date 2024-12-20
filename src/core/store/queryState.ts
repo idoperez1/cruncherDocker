@@ -1,7 +1,7 @@
 import { scaleLinear } from 'd3-scale';
 import { atom } from 'jotai';
+import { DisplayResults, Events } from '~core/common/displayTypes';
 import { asDateField, ProcessedData } from '~core/common/logTypes';
-import { Events, Table } from '~core/common/displayTypes';
 import { allData } from '~core/qql';
 import { actualEndTimeAtom, actualStartTimeAtom } from './dateState';
 
@@ -9,38 +9,41 @@ export const availableControllerParamsAtom = atom<Record<string, string[]>>({});
 export const searchQueryAtom = atom(''); // search query
 
 export const queryDataAtom = atom((get) => {
-    const searchQuery = get(searchQueryAtom);
-    return allData(searchQuery);
+  const searchQuery = get(searchQueryAtom);
+  return allData(searchQuery);
 });
 
 export const originalDataAtom = atom<ProcessedData[]>([]);
-export const dataViewModelAtom = atom<[Events, Table | undefined]>([
-    {
-        type: "events",
-        data: []
+export const dataViewModelAtom = atom<DisplayResults>(
+  {
+    events: {
+      type: "events",
+      data: [],
     },
-    undefined,
-]);
+    table: undefined,
+    view: undefined,
+  },
+);
 
 export const eventsAtom = atom<Events>((get) => {
-    return get(dataViewModelAtom)[0];
+  return get(dataViewModelAtom).events;
 })
 
 export const availableColumnsAtom = atom((get) => {
-    const events = get(eventsAtom);
-    const data = events.data;
-    if (!data.length) {
-        return [];
+  const events = get(eventsAtom);
+  const data = events.data;
+  if (!data.length) {
+    return [];
+  }
+
+  const columns = new Set<string>();
+  data.forEach((dataPoint) => {
+    for (const key in dataPoint.object) {
+      columns.add(key);
     }
+  });
 
-    const columns = new Set<string>();
-    data.forEach((dataPoint) => {
-        for (const key in dataPoint.object) {
-            columns.add(key);
-        }
-    });
-
-    return Array.from(columns);
+  return Array.from(columns);
 });
 
 
@@ -48,46 +51,46 @@ export const scaleAtom = atom((get) => {
   const selectedStartTime = get(actualStartTimeAtom);
   const selectedEndTime = get(actualEndTimeAtom);
 
-    if (!selectedStartTime || !selectedEndTime) {
-      return;
-    }
+  if (!selectedStartTime || !selectedEndTime) {
+    return;
+  }
 
-    return scaleLinear().domain([
-      selectedStartTime.getTime(),
-      selectedEndTime.getTime(),
-    ]);
+  return scaleLinear().domain([
+    selectedStartTime.getTime(),
+    selectedEndTime.getTime(),
+  ]);
 });
 
 export const dataBucketsAtom = atom((get) => {
-    const scale = get(scaleAtom);
-    if (!scale) {
-      return [];
+  const scale = get(scaleAtom);
+  if (!scale) {
+    return [];
+  }
+
+
+  const buckets: Record<number, number> = {};
+  const ticks = scale.ticks(100);
+
+  const data = get(eventsAtom).data;
+
+  data.forEach((object) => {
+    // round timestamp to the nearest tick
+    const timestamp = ticks.reduce((prev, curr) => {
+      const thisTimestamp = asDateField(object.object._time).value;
+
+      return Math.abs(curr - thisTimestamp) < Math.abs(prev - thisTimestamp)
+        ? curr
+        : prev;
+    });
+    if (!buckets[timestamp]) {
+      buckets[timestamp] = 0;
     }
 
-    
-    const buckets: Record<number, number> = {};
-    const ticks = scale.ticks(100);
+    buckets[timestamp] += 1;
+  });
 
-    const data = get(eventsAtom).data;
-
-    data.forEach((object) => {
-      // round timestamp to the nearest tick
-      const timestamp = ticks.reduce((prev, curr) => {
-        const thisTimestamp = asDateField(object.object._time).value;
-
-        return Math.abs(curr - thisTimestamp) < Math.abs(prev - thisTimestamp)
-          ? curr
-          : prev;
-      });
-      if (!buckets[timestamp]) {
-        buckets[timestamp] = 0;
-      }
-
-      buckets[timestamp] += 1;
-    });
-
-    return Object.entries(buckets).map(([timestamp, count]) => ({
-      timestamp: parseInt(timestamp),
-      count,
-    }));
+  return Object.entries(buckets).map(([timestamp, count]) => ({
+    timestamp: parseInt(timestamp),
+    count,
+  }));
 });

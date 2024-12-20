@@ -96,9 +96,7 @@ const Table = createToken({ name: "Table", pattern: matchCommand(/^table/), long
 
 // Stats specific keywords
 const Stats = createToken({ name: "Stats", pattern: matchCommand(/^stats/), longer_alt: Identifier, line_breaks: false });
-const By = createToken({ name: "By", pattern: matchKeywordOfCommand(Stats, /^(by)(?!\()/), longer_alt: Identifier, line_breaks: false });
 
-const As = createToken({ name: "As", pattern: matchKeywordOfCommand([Table, Stats], /^(as)(?!\()/), longer_alt: Identifier, line_breaks: false });
 
 // Regex specific
 const Regex = createToken({ name: "Regex", pattern: matchCommand(/^regex/), longer_alt: Identifier, line_breaks: false });
@@ -120,6 +118,16 @@ const Where = createToken({ name: "Where", pattern: matchCommand(/^where/), long
 const SearchOR = createToken({ name: "SearchOR", pattern: matchKeywordOfSearch(/^OR/), longer_alt: Identifier, line_breaks: false });
 const SearchAND = createToken({ name: "SearchAND", pattern: matchKeywordOfSearch(/^AND/), longer_alt: Identifier, line_breaks: false });
 const SearchParamNotEqual = createToken({ name: "SearchParamNotEqual", pattern: matchKeywordOfSearch(/^!=/), line_breaks: false });
+
+
+// Timechart command
+const TimeChart = createToken({ name: "TimeChart", pattern: matchCommand(/^timechart/), longer_alt: Identifier, line_breaks: false });
+const Span = createToken({ name: "Span", pattern: matchKeywordOfCommand(TimeChart, /^span/), longer_alt: Identifier, line_breaks: false });
+const TimeColumn = createToken({ name: "TimeColumn", pattern: matchKeywordOfCommand(TimeChart, /^timeCol/), longer_alt: Identifier, line_breaks: false });
+const MaxGroups = createToken({ name: "MaxGroups", pattern: matchKeywordOfCommand(TimeChart, /^maxGroups/), longer_alt: Identifier, line_breaks: false });
+
+const By = createToken({ name: "By", pattern: matchKeywordOfCommand([Stats, TimeChart], /^(by)(?!\()/), longer_alt: Identifier, line_breaks: false });
+const As = createToken({ name: "As", pattern: matchKeywordOfCommand([Table, Stats, TimeChart], /^(as)(?!\()/), longer_alt: Identifier, line_breaks: false });
 
 const matchBooleanExpressionContext = (pattern: RegExp): CustomPatternMatcherFunc => (text, offset, matchedTokens, _groups) => {
   const pipeline = extractLastPipeline(matchedTokens);
@@ -185,11 +193,15 @@ const allTokens = [
   Regex,
   Sort,
   Where,
+  TimeChart,
   By,
   As,
   RegexParamField,
   Asc,
   Desc,
+  Span,
+  TimeColumn,
+  MaxGroups,
 
   // search keywords
   SearchParamNotEqual,
@@ -505,7 +517,7 @@ export class QQLParser extends EmbeddedActionsParser {
   private pipelineCommand = this.RULE("pipelineCommand", () => {
     this.addAutoCompleteType({
       type: "keywords",
-      keywords: ["table", "stats", "regex", "sort", "where"],
+      keywords: ["table", "stats", "regex", "sort", "where", "timechart"],
     }).closeAfter1();
 
     const resp = this.OR<
@@ -514,12 +526,14 @@ export class QQLParser extends EmbeddedActionsParser {
       | ReturnType<typeof this.regex>
       | ReturnType<typeof this.sort>
       | ReturnType<typeof this.where>
+      | ReturnType<typeof this.timeChart>
     >([
       { ALT: () => this.SUBRULE(this.table) },
       { ALT: () => this.SUBRULE(this.statsCommand) },
       { ALT: () => this.SUBRULE(this.regex) },
       { ALT: () => this.SUBRULE(this.sort) },
       { ALT: () => this.SUBRULE(this.where) },
+      { ALT: () => this.SUBRULE(this.timeChart) },
     ]);
 
     return resp;
@@ -543,6 +557,110 @@ export class QQLParser extends EmbeddedActionsParser {
       left: parentRule,
       right: tail,
     } as const;
+  });
+
+  private timeChart = this.RULE("timeChart", () => {
+    const token = this.CONSUME(TimeChart);
+    this.ACTION(() => {
+      this.addHighlightData("keyword", token);
+    });
+    const gates = {
+      hasSpan: false,
+      hasTimeColumn: false,
+    }
+
+    const params = {
+      span: undefined as string | undefined,
+      timeColumn: undefined as string | undefined,
+      maxGroups: undefined as number | undefined,
+    }
+
+    this.MANY(() => {
+      const keywordsLeft: Record<string, boolean> = {
+        span: true,
+        timeCol: true,
+        maxGroups: true,
+      };
+
+      if (gates.hasSpan) {
+        delete keywordsLeft.span;
+      }
+      if (gates.hasTimeColumn) {
+        delete keywordsLeft.timeCol;
+      }
+      if (params.maxGroups) {
+        delete keywordsLeft.maxGroups
+      }
+
+      this.addAutoCompleteType({
+        type: "params",
+        keywords: Object.keys(keywordsLeft),
+      }).closeAfter1();
+      this.OR([
+        {
+          ALT: () => {
+            params.span = this.SUBRULE(this.timechartSpan);
+          },
+          GATE: () => !params.span
+        },
+        {
+          ALT: () => {
+            params.timeColumn = this.SUBRULE(this.timechartTimeColumn)
+          },
+          GATE: () => !params.timeColumn
+        },
+        {
+          GATE: () => !params.maxGroups,
+          ALT: () => {
+            this.CONSUME(MaxGroups);
+            this.CONSUME(Equal);
+
+            this.addAutoCompleteType({
+              type: "column",
+            }).closeAfter1();
+
+            params.maxGroups = this.SUBRULE(this.integer);
+          }
+        }
+      ])
+    });
+
+    return {
+      type: "timechart",
+      ...this.addAggregationSyntax(),
+      params: params,
+    } as const;
+  });
+
+  private timechartSpan = this.RULE("timechartSpan", () => {
+    const token = this.CONSUME(Span);
+    this.ACTION(() => {
+      this.addHighlightData("param", token);
+    });
+
+    this.CONSUME(Equal);
+
+    const timerange = this.CONSUME(Identifier);
+    this.ACTION(() => {
+      this.addHighlightData("time", timerange);
+    })
+
+    return timerange.image;
+  });
+
+  private timechartTimeColumn = this.RULE("timechartTimeColumn", () => {
+    const token = this.CONSUME(TimeColumn);
+    this.ACTION(() => {
+      this.addHighlightData("param", token);
+    });
+
+    this.CONSUME(Equal);
+
+    this.addAutoCompleteType({
+      type: "column"
+    }).closeAfter1();
+
+    return this.SUBRULE(this.columnName);
   });
 
   private controllerParam = this.RULE("controllerParam", (): ControllerIndexParam => {
@@ -998,6 +1116,13 @@ export class QQLParser extends EmbeddedActionsParser {
       this.addHighlightData("keyword", token);
     })
 
+    return {
+      type: "stats",
+      ...this.addAggregationSyntax(),
+    } as const;
+  });
+
+  private addAggregationSyntax = () => {
     const autoCompleteByKeyword = this.addAutoCompleteType({
       type: "keywords",
       keywords: ["by"],
@@ -1053,11 +1178,10 @@ export class QQLParser extends EmbeddedActionsParser {
     });
 
     return {
-      type: "stats",
       columns: columns,
       groupBy: groupBy,
-    } as const;
-  });
+    };
+  }
 
   private groupByClause = this.RULE("groupByClause", () => {
     const token = this.CONSUME(By);
@@ -1170,6 +1294,7 @@ export class QQLParser extends EmbeddedActionsParser {
   });
 }
 
+export type TimeChartParams = ReturnType<QQLParser["timeChart"]>["params"];
 
 // remove backticks from the string
 // if backtick is escaped, then keep it

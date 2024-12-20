@@ -18,6 +18,7 @@ import { store } from "./store/store";
 import { TableView } from "./table/TableView";
 import { TimeChart } from "./TimeChart";
 import { Toaster } from "react-hot-toast";
+import { ViewChart } from "./view/ViewChart";
 
 const MainContainer = styled.section`
   flex: 1;
@@ -34,8 +35,7 @@ type MainContentProps = {
 const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
   const [selectedTab, setSelectedTab] = useState<string | null>("logs");
   const events = useAtomValue(eventsAtom);
-  const dataViewModel = useAtomValue(dataViewModelAtom);
-  const [, tableView] = dataViewModel ?? [undefined, undefined];
+  const {table: tableView, view: viewChart} = useAtomValue(dataViewModelAtom);
 
   const editor = useAtomValue(queryEditorAtom);
 
@@ -107,7 +107,7 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
             )}
           </Tabs.Trigger>
           <Tooltip content="TBD Not Implemented yet">
-            <Tabs.Trigger value="view" disabled={true}>
+            <Tabs.Trigger value="view" disabled={viewChart === undefined}>
               <LuChartArea /> View
             </Tabs.Trigger>
           </Tooltip>
@@ -135,6 +135,9 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
               dataPoints={tableView.dataPoints}
             />
           )}
+        </Tabs.Content>
+        <Tabs.Content value="view" minH="0" flex={1}>
+          <ViewChart/>
         </Tabs.Content>
       </Tabs.Root>
       <div

@@ -11,6 +11,21 @@ export type Table = {
     dataPoints: ProcessedData[],
 }
 
+export type View = {
+    type: "view",
+    data: ProcessedData[],
+    XAxis: string,
+    YAxis: string[],
+    allBuckets: (string | number)[],
+}
+
 export type DataFormatType =
     | Events
     | Table
+
+
+export type DisplayResults = {
+    events: Events;
+    table: Table | undefined;
+    view: View | undefined;
+}

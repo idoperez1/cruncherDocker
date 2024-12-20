@@ -582,6 +582,76 @@ test("support for sort desc multiple", () => {
   });
 });
 
+test("support timechart command", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | timechart count()`);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+  expect(result).toEqual({
+    controllerParams: [],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: ["hello", "world"],
+      },
+    },
+    pipeline: [
+      {
+        type: "timechart",
+        params: {
+          span: undefined,
+          timeCol: undefined,
+        },
+        columns: [
+          {
+            function: "count",
+            column: undefined,
+          }
+        ],
+        groupBy: undefined,
+      },
+    ],
+  });
+});
+
+test("support timechart group by", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | timechart count() by customer, status`);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+  expect(result).toEqual({
+    controllerParams: [],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: ["hello", "world"],
+      },
+    },
+    pipeline: [
+      {
+        type: "timechart",
+        params: {
+          span: undefined,
+          timeCol: undefined,
+        },
+        columns: [
+          {
+            function: "count",
+            column: undefined,
+          }
+        ],
+        groupBy: ["customer", "status"],
+      },
+    ],
+  });
+});
+
 test("support controller params", () => {
   const parser = new QQLParser();
 

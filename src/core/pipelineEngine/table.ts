@@ -1,10 +1,10 @@
-import { Events, Table } from "~core/common/displayTypes";
+import { DisplayResults } from "~core/common/displayTypes";
 import { ProcessedData } from "~core/common/logTypes";
 import { TableColumn } from "~core/qql/grammar";
 
 
-export const processTable = (data: [Events, Table | undefined], columns: TableColumn[]): [Events, Table | undefined] => {
-    const [events, table] = data;
+export const processTable = (data: DisplayResults, columns: TableColumn[]): DisplayResults => {
+    const {events, table} = data;
     const dataPoints = table ? table.dataPoints : events.data;
 
     const newColumns: string[] = [];
@@ -29,9 +29,13 @@ export const processTable = (data: [Events, Table | undefined], columns: TableCo
         resultDataPoints.push(newDataPoint);
     }
 
-    return [events, {
-        type: "table",
-        columns: newColumns,
-        dataPoints: resultDataPoints,
-    }];
+    return {
+        events,
+        table: {
+            type: "table",
+            columns: newColumns,
+            dataPoints: resultDataPoints,
+        },
+        view: undefined,
+    }
 }

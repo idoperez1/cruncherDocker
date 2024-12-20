@@ -1,10 +1,10 @@
-import { Events, Table } from "~core/common/displayTypes";
+import { DisplayResults } from "~core/common/displayTypes";
 import { asDisplayString, asStringFieldOrUndefined, ProcessedData } from "~core/common/logTypes";
 
 
 
-export const processRegex = (data: [Events, Table | undefined], regex: RegExp, column: string | undefined): [Events, Table | undefined] => {
-    const [events, table] = data;
+export const processRegex = (data: DisplayResults, regex: RegExp, column: string | undefined): DisplayResults => {
+    const {events, table} = data;
     const dataPoints = table ? table.dataPoints : events.data;
 
     const resultDataPoints: ProcessedData[] = [];
@@ -33,12 +33,13 @@ export const processRegex = (data: [Events, Table | undefined], regex: RegExp, c
         resultDataPoints.push(dataPoint);
     });
 
-    return [
+    return {
         events,
-        table && {
+        table: table && {
             type: "table",
             columns: [...table.columns, ...addedColumns],
             dataPoints: resultDataPoints,
-        }
-    ]
+        },
+        view: undefined,
+    }
 }

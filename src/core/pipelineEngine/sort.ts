@@ -1,9 +1,9 @@
-import { Events, Table } from "~core/common/displayTypes";
+import { DisplayResults } from "~core/common/displayTypes";
 import { isNotDefined } from "~core/common/logTypes";
 import { Order } from "~core/qql/grammar";
 
-export const processSort = (data: [Events, Table | undefined], rules: {name: string, order: Order}[]): [Events, Table | undefined] => {
-    const [events, table] = data;
+export const processSort = (data: DisplayResults, rules: {name: string, order: Order}[]): DisplayResults => {
+    const {events, table} = data;
     const dataPoints = table ? table.dataPoints : events.data;
 
     // mutates inplace
@@ -92,8 +92,9 @@ export const processSort = (data: [Events, Table | undefined], rules: {name: str
         return 0;
     });
 
-    return [
+    return {
         events,
         table,
-    ]
+        view: undefined,
+    }
 }

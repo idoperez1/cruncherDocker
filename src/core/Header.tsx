@@ -163,10 +163,12 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
 
   const startProcessingData = (
     data: ProcessedData[],
-    pipeline: PipelineItem[]
+    pipeline: PipelineItem[],
+    startTime: Date,
+    endTime: Date
   ) => {
     try {
-      const finalData = getPipelineItems(data, pipeline);
+      const finalData = getPipelineItems(data, pipeline, startTime, endTime);
       console.log(finalData);
       setDataViewModel(finalData);
     } catch (error) {
@@ -226,7 +228,7 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
         if (!isForced && compareExecutions(executionQuery, lastExecutedQuery)) {
           console.log("using cached data");
           dataForPipelines = originalData;
-          startProcessingData(dataForPipelines, parsedTree.pipeline);
+          startProcessingData(dataForPipelines, parsedTree.pipeline, fromTime, toTime);
         } else {
           try {
             tree.clear();
@@ -247,7 +249,7 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
                   tree.set(timestamp, toAppendTo);
                 });
 
-                startProcessingData(dataForPipelines, parsedTree.pipeline);
+                startProcessingData(dataForPipelines, parsedTree.pipeline, fromTime, toTime);
               },
             });
 
@@ -454,7 +456,7 @@ const downloadFile = (filename: string, data: string, mimeType: string) => {
 };
 
 const MiniButtons = () => {
-  const [_eventsView, tableView] = useAtomValue(dataViewModelAtom);
+  const {table: tableView} = useAtomValue(dataViewModelAtom);
 
   const isDisabled = tableView === undefined;
 
@@ -538,6 +540,7 @@ const MiniButtons = () => {
 };
 
 const notifyError = (message: string, error: Error) => {
+  console.error(message, error);
   toast.error(
     (t) => {
       let subMessage = error.message;

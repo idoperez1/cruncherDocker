@@ -43,13 +43,20 @@ export type BooleanField = {
   value: boolean;
 } & FieldWithError;
 
-export type Field =
+export type HashableField =
   | NumberField
   | StringField
-  | DateField
+  | DateField;
+
+export type FieldMust =
+  | HashableField
+  | BooleanField
   | ArrayField
   | ObjectField
-  | BooleanField
+  ;
+
+export type Field =
+  | FieldMust
   | undefined | null;
 
 
@@ -173,4 +180,28 @@ export const compareProcessedData = (a: ProcessedData, b: ProcessedData): number
 
 export const isNotDefined = (field: Field): field is null | undefined => {
   return field === undefined || field === null;
+}
+
+export const isHashableField = (field: Field): field is HashableField => {
+  return field?.type === "number" || field?.type === "string" || field?.type === "date";
+}
+
+export const toJsonObject = (data: ProcessedData) => {
+  const result: Record<string, string | number | boolean | null | undefined> = {};
+  for (const key in data.object) {
+    if (isNotDefined(data.object[key])) {
+      result[key] = data.object[key];
+      continue;
+    }
+
+    const field = data.object[key];
+    if (field.type === "object" || field.type === "array") {
+      result[key] = asJson(field);
+      continue;
+    }
+
+    result[key] = field.value;
+  }
+
+  return result;
 }

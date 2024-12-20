@@ -1,10 +1,10 @@
-import { Events, Table } from "~core/common/displayTypes";
+import { DisplayResults, Events, Table } from "~core/common/displayTypes";
 import { LogicalExpression } from "~core/qql/grammar";
 import { processLogicalExpression } from "./logicalExpression";
 
 
-export const processWhere = (data: [Events, Table | undefined], logicalExpression: LogicalExpression): [Events, Table | undefined] => {
-    const [events, table] = data;
+export const processWhere = (data: DisplayResults, logicalExpression: LogicalExpression): DisplayResults => {
+    const {events, table} = data;
 
     const newEvents: Events = {
         type: "events",
@@ -17,5 +17,9 @@ export const processWhere = (data: [Events, Table | undefined], logicalExpressio
         dataPoints: table.dataPoints.filter((processedData) => processLogicalExpression(logicalExpression, { data: processedData })),
     };
 
-    return [newEvents, newTable];
+    return {
+        events: newEvents,
+        table: newTable,
+        view: undefined,
+    }
 }
