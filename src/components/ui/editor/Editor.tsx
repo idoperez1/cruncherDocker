@@ -99,6 +99,8 @@ export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ valu
   useEffect(() => {
     if (!referenceElement || !ref) return;
 
+    referenceElement.setAttribute("spellcheck", "false");
+
     if (typeof ref === "function") {
       ref(referenceElement);
     } else {

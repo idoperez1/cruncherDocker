@@ -612,14 +612,7 @@ export class QQLParser extends EmbeddedActionsParser {
         {
           GATE: () => !params.maxGroups,
           ALT: () => {
-            this.CONSUME(MaxGroups);
-            this.CONSUME(Equal);
-
-            this.addAutoCompleteType({
-              type: "column",
-            }).closeAfter1();
-
-            params.maxGroups = this.SUBRULE(this.integer);
+            params.maxGroups = this.SUBRULE(this.timechartMaxGroups);
           }
         }
       ])
@@ -646,6 +639,17 @@ export class QQLParser extends EmbeddedActionsParser {
     })
 
     return timerange.image;
+  });
+  
+  private timechartMaxGroups = this.RULE("timechartMaxGroups", () => {
+    const token = this.CONSUME(MaxGroups);
+    this.ACTION(() => {
+      this.addHighlightData("param", token);
+    });
+
+    this.CONSUME(Equal);
+
+    return this.SUBRULE(this.integer);
   });
 
   private timechartTimeColumn = this.RULE("timechartTimeColumn", () => {
