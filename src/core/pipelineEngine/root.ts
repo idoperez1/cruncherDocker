@@ -6,7 +6,7 @@ import { processStats } from "./stats";
 import { processTable } from "./table";
 import { processSort } from "./sort";
 import { processWhere } from "./where";
-import {produce} from "immer"
+import {produce} from "immer";
 
 
 export const getPipelineItems = (data: ProcessedData[], pipeline: PipelineItem[]) => {
@@ -21,7 +21,7 @@ export const getPipelineItems = (data: ProcessedData[], pipeline: PipelineItem[]
         const res = processPipeline(draft, pipeline, 0);
         draft[0] = res[0];
         draft[1] = res[1];
-    })
+    });
 }
 
 const processPipeline = (currentData: [Events, Table | undefined], pipeline: PipelineItem[], currentIndex: number) => {

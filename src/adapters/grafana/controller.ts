@@ -1,5 +1,5 @@
 import { QueryOptions, QueryProvider } from "~core/common/interface";
-import { asNumberField, Field, ObjectFields } from "~core/common/logTypes";
+import { asNumberField, Field, ObjectFields, ProcessedData } from "~core/common/logTypes";
 import { buildQuery, LIMIT } from "./query";
 import { Frame, GrafanaLabelFilter } from "./types";
 import { ControllerIndexParam, Search } from "~core/qql/grammar";
@@ -31,7 +31,7 @@ const processField = (field: any): Field => {
     };
 }
 
-const getAllObjects = (frames: Frame[]) => {
+const getAllObjects = (frames: Frame[]): ProcessedData[] => {
     const objects = frames.map((frame) => frame.data.values[0]).flat();
     const timestamps = frames.map((frame) => frame.data.values[1]).flat();
     const messages = frames.map((frame) => frame.data.values[2]).flat();

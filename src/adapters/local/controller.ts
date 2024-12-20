@@ -2,7 +2,7 @@ import { QueryOptions, QueryProvider } from "~core/common/interface";
 import { asNumberField, Field, ObjectFields, ProcessedData } from "~core/common/logTypes";
 import { ControllerIndexParam, Search, SearchAND, SearchLiteral, SearchOR } from "~core/qql/grammar";
 
-const tagsOptions = ["nice", "developer", "trash collector"];
+const tagsOptions = ["nice", "developer", "collector"];
 const data = [
     {
         key: "1",
