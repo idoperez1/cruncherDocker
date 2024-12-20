@@ -87,7 +87,7 @@ const buildExpression = (baseFilter: string, search: Search, filterExtensions?: 
   const fullPattern = escapeBackticks(pattern);
   console.log("fullPattern", fullPattern);
 
-  terms.push(`|=~ \`${fullPattern}\``);
+  terms.push(`|~ \`${fullPattern}\``);
   // search.forEach((term) => {
   //   terms.push(`|= \`${term}\``);
   // });
