@@ -433,7 +433,7 @@ export class QQLParser extends EmbeddedActionsParser {
   }
 
   public query = this.RULE("query", () => {
-    const search = this.SUBRULE(this.search);
+    const search = this.SUBRULE(this.search, { ARGS: [false] });
     const pipeline: ReturnType<typeof this.pipelineCommand>[] = [];
 
     this.MANY(() => {
@@ -480,8 +480,14 @@ export class QQLParser extends EmbeddedActionsParser {
     return resp;
   });
 
-  private search = this.RULE("search", (): Search => {
-    const parentRule = this.SUBRULE(this.searchFactor);
+  private search = this.RULE("search", (isRequired?: boolean): Search => {
+    const parentRule = this.SUBRULE(this.searchFactor, { ARGS: [isRequired] });
+
+    this.addAutoCompleteType({
+      type: "keywords",
+      keywords: ["AND", "OR"],
+    }).closeAfter1();
+
     const tail = this.OPTION<
       | SearchOR
       | SearchAND
@@ -499,13 +505,13 @@ export class QQLParser extends EmbeddedActionsParser {
     } as const;
   });
 
-  private searchFactor = this.RULE("searchFactor", () => {
+  private searchFactor = this.RULE("searchFactor", (isRequired?: boolean) => {
     return this.OR<
       | Search
       | SearchLiteral
     >([
       { ALT: () => this.SUBRULE(this.searchParenthesis) },
-      { ALT: () => this.SUBRULE(this.searchLiteral) },
+      { ALT: () => this.SUBRULE(this.searchLiteral, {ARGS: [isRequired]}) },
     ]);
   });
 
@@ -520,7 +526,7 @@ export class QQLParser extends EmbeddedActionsParser {
   private searchAndStatement = this.RULE("searchAndStatement", (): SearchAND => {
     const token = this.CONSUME(SearchAND);
     this.ACTION(() => {
-      this.addHighlightData("operator", token);
+      this.addHighlightData("keyword", token);
     });
 
     return {
@@ -532,7 +538,7 @@ export class QQLParser extends EmbeddedActionsParser {
   private searchOrStatement = this.RULE("searchOrStatement", (): SearchOR => {
     const token = this.CONSUME(SearchOR);
     this.ACTION(() => {
-      this.addHighlightData("operator", token);
+      this.addHighlightData("keyword", token);
     });
 
     return {
@@ -542,17 +548,42 @@ export class QQLParser extends EmbeddedActionsParser {
   });
 
 
-  private searchLiteral = this.RULE("searchLiteral", (): SearchLiteral => {
+  private searchLiteral = this.RULE("searchLiteral", (required?: boolean): SearchLiteral => {
     const tokens: (string | number)[] = [];
-    this.MANY(() => {
-      const token = this.OR([
-        { ALT: () => this.SUBRULE(this.doubleQuotedString) },
-        { ALT: () => this.SUBRULE(this.identifier) },
-        { ALT: () => this.SUBRULE(this.integer) },
-      ]);
+    const isRequired = required ?? true;
+    this.OR({
+      DEF: [
+        {
+          GATE: () => !isRequired,
+          ALT: () => {
+            this.MANY(() => {
+              const token = this.OR1([
+                { ALT: () => this.SUBRULE1(this.doubleQuotedString) },
+                { ALT: () => this.SUBRULE1(this.identifier) },
+                { ALT: () => this.SUBRULE1(this.integer) },
+              ]);
 
-      tokens.push(token);
-    });
+              tokens.push(token);
+            });
+          }
+        },
+        {
+          GATE: () => isRequired,
+          ALT: () => {
+            this.AT_LEAST_ONE(() => {
+              const token = this.OR2([
+                { ALT: () => this.SUBRULE2(this.doubleQuotedString) },
+                { ALT: () => this.SUBRULE2(this.identifier) },
+                { ALT: () => this.SUBRULE2(this.integer) },
+              ]);
+
+              tokens.push(token);
+            });
+          }
+        },
+      ],
+      ERR_MSG: "at least one search token",
+    })
 
     return {
       type: "searchLiteral",

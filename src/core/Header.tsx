@@ -543,8 +543,6 @@ const notifyError = (message: string, error: Error) => {
         subMessage = errors.join("\n");
       }
 
-      console.error(error);
-
       return (
         <Card.Root
           pointerEvents={"all"}
