@@ -24,7 +24,7 @@ const buildSearchOrPattern = (leftPattern: SearchPattern, search: SearchOR) => {
 
   const rightRes = buildSearchPattern(search.right);
 
-  return `${leftRes}|${rightRes}`;
+  return `(?:${leftRes}|${rightRes})`;
 }
 
 const buildSearchLiteralCallback = (searchLiteral: SearchLiteral) => {
@@ -73,8 +73,12 @@ const buildSearchPattern = (searchTerm: Search) => {
   return rightCallback;
 }
 
-const escapeBackticks = (str: string) => {
-  return str.replace(/`/g, "\\`");
+const escapeQuotes = (str: string) => {
+  return str.replace(/"/g, "\"");
+}
+
+const escapeBackslash = (str: string) => {
+  return str.replace(/\\/g, "\\\\");
 }
 
 const buildExpression = (baseFilter: string, search: Search, filterExtensions?: string[]) => {
@@ -84,10 +88,10 @@ const buildExpression = (baseFilter: string, search: Search, filterExtensions?: 
 
   const pattern = buildSearchPattern(search);
 
-  const fullPattern = escapeBackticks(pattern);
+  const fullPattern = escapeQuotes(escapeBackslash(pattern));
   console.log("fullPattern", fullPattern);
 
-  terms.push(`|~ \`${fullPattern}\``);
+  terms.push(`|~ "${fullPattern}"`);
   // search.forEach((term) => {
   //   terms.push(`|= \`${term}\``);
   // });
