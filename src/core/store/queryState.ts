@@ -5,6 +5,7 @@ import { Events, Table } from '~core/common/displayTypes';
 import { allData } from '~core/qql';
 import { actualEndTimeAtom, actualStartTimeAtom } from './dateState';
 
+export const availableControllerParamsAtom = atom<Record<string, string[]>>({});
 export const searchQueryAtom = atom(''); // search query
 
 export const queryDataAtom = atom((get) => {

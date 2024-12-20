@@ -224,4 +224,7 @@ export const MockController = {
             });
         });
     },
+    getControllerParams(): Promise<Record<string, string[]>> {
+        return Promise.resolve({});
+    },
 } satisfies QueryProvider;

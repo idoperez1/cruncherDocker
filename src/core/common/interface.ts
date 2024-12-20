@@ -10,5 +10,6 @@ export type QueryOptions = {
 }
 
 export interface QueryProvider {
+    getControllerParams(): Promise<Record<string, string[]>>;
     query(params: ControllerIndexParam[], searchTerm: Search, queryOptions: QueryOptions): Promise<void>;
 }

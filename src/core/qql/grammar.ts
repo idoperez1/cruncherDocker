@@ -224,6 +224,8 @@ export type SuggetionType =
   | { type: "column" }
   | { type: "function" }
   | { type: "booleanFunction" }
+  | { type: "controllerParam" }
+  | { type: "paramValue", key: string }
   | { type: "keywords", keywords: string[] }
   | { type: "params", keywords: string[] };
 
@@ -400,6 +402,14 @@ export class QQLParser extends EmbeddedActionsParser {
           obj.toPosition = this.getNextPos() + 1;
         })
       },
+      closePreviousEnd: () => {
+        this.ACTION(() => {
+          if (!obj) {
+            return
+          }
+          obj.toPosition = this.LA(0).endOffset;
+        });
+      },
       close: () => {
         this.ACTION(() => {
           if (!obj) {
@@ -447,10 +457,25 @@ export class QQLParser extends EmbeddedActionsParser {
   public query = this.RULE("query", () => {
     const controllerParams: ControllerIndexParam[] = [];
 
+    let controllerParamsAutoComplete = this.addAutoCompleteType({
+      type: "controllerParam",
+    });
+
+    controllerParamsAutoComplete.closeAfter1();
+
     this.MANY1(() => {
       const controllerParam = this.SUBRULE(this.controllerParam);
+
+      controllerParamsAutoComplete = this.addAutoCompleteType({
+        type: "controllerParam",
+      });
+
+      controllerParamsAutoComplete.closeAfter1();
+
       controllerParams.push(controllerParam);
     });
+
+    controllerParamsAutoComplete.close();
 
     const search = this.SUBRULE(this.search, { ARGS: [false] });
     const pipeline: ReturnType<typeof this.pipelineCommand>[] = [];
@@ -533,7 +558,14 @@ export class QQLParser extends EmbeddedActionsParser {
       ]
     });
 
+    const autoCompleteValue = this.addAutoCompleteType({
+      type: "paramValue",
+      key: token.image,
+    });
+
     const value = this.SUBRULE(this.regexString);
+
+    autoCompleteValue.closePreviousEnd();
 
     return {
       type: "controllerIndexParam",

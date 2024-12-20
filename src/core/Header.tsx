@@ -9,7 +9,7 @@ import { css } from "@emotion/react";
 import { Mutex } from "async-mutex";
 import { generateCsv, mkConfig } from "export-to-csv";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CiExport } from "react-icons/ci";
 import {
   LuClipboardCopy,
@@ -48,6 +48,7 @@ import {
   startFullDateAtom,
 } from "./store/dateState";
 import {
+  availableControllerParamsAtom,
   dataViewModelAtom,
   originalDataAtom,
   searchQueryAtom,
@@ -57,7 +58,7 @@ import { Timer } from "./Timer";
 import toast from "react-hot-toast";
 import { CloseButton } from "~components/ui/close-button";
 import equal from "fast-deep-equal";
-import { Search } from "./qql/grammar";
+import { ControllerIndexParam, Search } from "./qql/grammar";
 
 const StyledHeader = styled.form`
   display: flex;
@@ -94,6 +95,7 @@ type FormValues = {
 };
 
 type QueryExecutionHistory = {
+  params: ControllerIndexParam[];
   search: Search;
   start: FullDate;
   end: FullDate;
@@ -105,6 +107,10 @@ const compareExecutions = (
   exec2: QueryExecutionHistory | undefined
 ) => {
   if (exec2 === undefined) {
+    return false;
+  }
+
+  if (!equal(exec1.params, exec2.params)) {
     return false;
   }
 
@@ -132,6 +138,7 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
     useState<QueryExecutionHistory>();
 
   const [searchValue, setSearchValue] = useAtom(searchQueryAtom);
+  const setAvailableControllerParams = useSetAtom(availableControllerParamsAtom);
   const selectedStartTime = useAtomValue(startFullDateAtom);
   const selectedEndTime = useAtomValue(endFullDateAtom);
 
@@ -172,6 +179,12 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
     }
   };
 
+  useEffect(() => {
+    controller.getControllerParams().then((value) => {
+      setAvailableControllerParams(value);
+    });
+  }, []);
+
   const doSubmit = async (values: FormValues, isForced: boolean) => {
     if (values.fromTime === undefined) {
       // TODO: return error
@@ -207,6 +220,7 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
           search: parsedTree.search,
           start: fromTime,
           end: toTime,
+          params: parsedTree.controllerParams,
         };
 
         if (!isForced && compareExecutions(executionQuery, lastExecutedQuery)) {

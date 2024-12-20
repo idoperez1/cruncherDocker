@@ -121,6 +121,34 @@ export class GrafanaController implements QueryProvider {
         return getAllObjects(data.results.A.frames);
     }
 
+    private _getLabels = async () => {
+        const url = `${this.url}/api/datasources/uid/${this.uid}/resources/labels`;
+        const response = await fetch(url);
+        const resp = await response.json();
+        return resp.data as string[];
+    }
+
+    private _getLabelValues = async (label: string) => {
+        const url = `${this.url}/api/datasources/uid/${this.uid}/resources/label/${label}/values`;
+        const response = await fetch(url);
+        const resp = await response.json();
+        return resp.data as string[];
+    };
+
+    private _getControllerParams = async () => {
+        const labels = await this._getLabels();
+        const resp: Record<string, string[]> = {};
+        const promises = labels.map((label) => {
+            return this._getLabelValues(label).then((values) => {
+                resp[label] = values;
+            });
+        });
+
+        await Promise.all(promises);
+
+        return resp;
+    }
+
     private _runAllBatches = async (controllerParams: ControllerIndexParam[], searchTerm: Search, options: QueryOptions) => {
         let currentLimit = options.limit;
         while (true) {
@@ -148,4 +176,7 @@ export class GrafanaController implements QueryProvider {
         return this._runAllBatches(contollerParams, searchTerm, options);
     }
 
+    getControllerParams(): Promise<Record<string, string[]>> {
+        return this._getControllerParams(); 
+    }
 }

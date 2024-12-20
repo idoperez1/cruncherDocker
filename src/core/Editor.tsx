@@ -1,5 +1,9 @@
 import { atom, useAtomValue, useSetAtom } from "jotai";
-import { availableColumnsAtom, queryDataAtom } from "./store/queryState";
+import {
+  availableColumnsAtom,
+  availableControllerParamsAtom,
+  queryDataAtom,
+} from "./store/queryState";
 import { useMemo } from "react";
 import { IRecognitionException } from "chevrotain";
 import { Suggestion } from "~components/ui/editor/AutoCompleter";
@@ -19,6 +23,7 @@ export const Editor = ({ value, onChange }: EditorProps) => {
   const availableColumns = useAtomValue(availableColumnsAtom);
   const data = useAtomValue(queryDataAtom);
   const setQueryEditor = useSetAtom(queryEditorAtom);
+  const availableControllerParams = useAtomValue(availableControllerParamsAtom);
   const highlightData = useMemo(() => {
     const errorHighlightData = data.parserError.map(
       (error: IRecognitionException) => {
@@ -94,6 +99,32 @@ export const Editor = ({ value, onChange }: EditorProps) => {
               toPosition: suggestion.toPosition,
             })
           );
+          break;
+        case "controllerParam":
+          Object.keys(availableControllerParams).forEach((param) =>
+            results.push({
+              type: "param",
+              value: param,
+              fromPosition: suggestion.fromPosition,
+              toPosition: suggestion.toPosition,
+            })
+          );
+          break;
+        case "paramValue":
+          const paramValues = availableControllerParams[suggestion.key];
+          if (!paramValues) {
+            continue;
+          }
+
+          paramValues.forEach((value) =>
+            results.push({
+              type: "variable",
+              value: value,
+              fromPosition: suggestion.fromPosition,
+              toPosition: suggestion.toPosition,
+            })
+          );
+          break;
       }
     }
     return results;

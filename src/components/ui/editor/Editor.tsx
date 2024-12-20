@@ -133,7 +133,7 @@ export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ valu
     const lastSpace = text.lastIndexOf(" ");
     let word = text.slice(lastSpace + 1, cursorPosition);
     // trim everything before special characters [a-zA-Z0-9_]
-    const specialCharIndex = word.search(/[^a-zA-Z0-9_]/);
+    const specialCharIndex = lastIndexOfRegex(word, /[^a-zA-Z0-9_\-]/);
     if (specialCharIndex !== -1) {
       word = word.slice(specialCharIndex + 1);
     }
@@ -289,3 +289,16 @@ export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ valu
   );
 });
 
+
+
+const lastIndexOfRegex = (word: string, regex: RegExp): number => {
+  var match = word.search(regex);
+  if (match === -1) return -1;
+  
+  const nextWord = word.slice(match + 1);
+  if (regex.test(nextWord)) {
+    return match + lastIndexOfRegex(nextWord, regex) + 1;
+  }
+
+  return match;
+}
