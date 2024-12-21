@@ -26,8 +26,8 @@ const MainContainer = styled.section`
   flex-direction: column;
   min-height: 0;
   background-color: rgb(17, 18, 23);
-  scrollbar-gutter: stable;
-  overflow: auto;
+  /* scrollbar-gutter: stable; */
+  overflow: hidden;
 `;
 
 type MainContentProps = {
