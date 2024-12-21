@@ -1,15 +1,14 @@
-import { produce, setAutoFreeze } from "immer";
+import { produce } from "immer";
 import { DisplayResults, Events } from "~core/common/displayTypes";
 import { ProcessedData } from "~core/common/logTypes";
 import { PipelineItem } from "~core/qql";
+import { processEval } from "./eval";
 import { processRegex } from "./regex";
 import { processSort } from "./sort";
 import { processStats } from "./stats";
 import { processTable } from "./table";
-import { processWhere } from "./where";
 import { processTimeChart } from "./timechart";
-import { processEval } from "./eval";
-import { measureTime } from "~core/utils";
+import { processWhere } from "./where";
 
 export const getPipelineItems = (data: ProcessedData[], pipeline: PipelineItem[], startTime: Date, endTime: Date) => {
     const currentData = {
