@@ -169,7 +169,6 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
   ) => {
     try {
       const finalData = getPipelineItems(data, pipeline, startTime, endTime);
-      console.log(finalData);
       setDataViewModel(finalData);
     } catch (error) {
       // check error is of type Error
@@ -248,6 +247,8 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
                   toAppendTo.push(data);
                   tree.set(timestamp, toAppendTo);
                 });
+
+                setOriginalData(dataForPipelines);
 
                 startProcessingData(dataForPipelines, parsedTree.pipeline, fromTime, toTime);
               },

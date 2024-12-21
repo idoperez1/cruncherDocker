@@ -170,9 +170,6 @@ export const bucketData = (
     const processedData: ProcessedData[] = [];
     const columns = new Set([bucketName]);
     const aggregatedColumns = new Set<string>();
-    console.log("Type", bucketType)
-    const startTime = Date.now();
-    console.log("Start time", startTime);
     for (const [bucketValue, bucketData] of buckets.entries()) {
         const aggregatedData = aggregateData(bucketData, functions, groupBy);
         aggregatedData.data.forEach((dataPoint) => {
@@ -187,9 +184,6 @@ export const bucketData = (
         aggregatedData.columns.forEach((column) => columns.add(column));
         aggregatedData.aggregatedColumns.forEach((column) => aggregatedColumns.add(column));
     }
-
-    console.log("End time", Date.now());
-    console.log("Time taken", Date.now() - startTime);
 
     // dedupe columns - but keep the order
     const uniqueColumns = Array.from(columns);

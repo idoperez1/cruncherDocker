@@ -1,4 +1,4 @@
-import { produce } from "immer";
+import { produce, setAutoFreeze } from "immer";
 import { DisplayResults, Events } from "~core/common/displayTypes";
 import { ProcessedData } from "~core/common/logTypes";
 import { PipelineItem } from "~core/qql";
@@ -9,7 +9,7 @@ import { processTable } from "./table";
 import { processWhere } from "./where";
 import { processTimeChart } from "./timechart";
 import { processEval } from "./eval";
-
+import { measureTime } from "~core/utils";
 
 export const getPipelineItems = (data: ProcessedData[], pipeline: PipelineItem[], startTime: Date, endTime: Date) => {
     const currentData = {
@@ -23,12 +23,23 @@ export const getPipelineItems = (data: ProcessedData[], pipeline: PipelineItem[]
         view: undefined,
     };
 
-    return produce(allData, (draft) => {
-        const res = processPipeline(draft, pipeline, 0, startTime, endTime);
-        draft.events = res.events;
-        draft.table = res.table;
-        draft.view = res.view;
-    });
+    const pipelineStart = new Date();
+    console.log("[Pipeline] Start time: ", pipelineStart);
+    try {
+        const result = produce(allData, (draft) => {
+            const res = processPipeline(draft, pipeline, 0, startTime, endTime);
+            draft.events = res.events;
+            draft.table = res.table;
+            draft.view = res.view;
+        });
+        console.log("[Pipeline] Result: ", result);
+
+        return result;
+    } finally {
+        const pipelineEnd = new Date();
+        console.log("[Pipeline] End time: ", pipelineEnd);
+        console.log("[Pipeline] Time taken: ", pipelineEnd.getTime() - pipelineStart.getTime());
+    }
 }
 
 const processPipeline = (currentData: DisplayResults, pipeline: PipelineItem[], currentIndex: number, startTime: Date, endTime: Date) => {
