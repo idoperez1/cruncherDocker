@@ -575,27 +575,28 @@ export class QQLParser extends EmbeddedActionsParser {
       maxGroups: undefined as number | undefined,
     }
 
+    const keywordsLeft: Record<string, boolean> = {
+      span: true,
+      timeCol: true,
+      maxGroups: true,
+    };
+
+    if (gates.hasSpan) {
+      delete keywordsLeft.span;
+    }
+    if (gates.hasTimeColumn) {
+      delete keywordsLeft.timeCol;
+    }
+    if (params.maxGroups) {
+      delete keywordsLeft.maxGroups
+    }
+
+    this.addAutoCompleteType({
+      type: "params",
+      keywords: Object.keys(keywordsLeft),
+    }).closeAfter1();
+
     this.MANY(() => {
-      const keywordsLeft: Record<string, boolean> = {
-        span: true,
-        timeCol: true,
-        maxGroups: true,
-      };
-
-      if (gates.hasSpan) {
-        delete keywordsLeft.span;
-      }
-      if (gates.hasTimeColumn) {
-        delete keywordsLeft.timeCol;
-      }
-      if (params.maxGroups) {
-        delete keywordsLeft.maxGroups
-      }
-
-      this.addAutoCompleteType({
-        type: "params",
-        keywords: Object.keys(keywordsLeft),
-      }).closeAfter1();
       this.OR([
         {
           ALT: () => {
@@ -616,6 +617,21 @@ export class QQLParser extends EmbeddedActionsParser {
           }
         }
       ])
+
+      if (gates.hasSpan) {
+        delete keywordsLeft.span;
+      }
+      if (gates.hasTimeColumn) {
+        delete keywordsLeft.timeCol;
+      }
+      if (params.maxGroups) {
+        delete keywordsLeft.maxGroups
+      }
+
+      this.addAutoCompleteType({
+        type: "params",
+        keywords: Object.keys(keywordsLeft),
+      }).closeAfter1();
     });
 
     return {
@@ -640,7 +656,7 @@ export class QQLParser extends EmbeddedActionsParser {
 
     return timerange.image;
   });
-  
+
   private timechartMaxGroups = this.RULE("timechartMaxGroups", () => {
     const token = this.CONSUME(MaxGroups);
     this.ACTION(() => {

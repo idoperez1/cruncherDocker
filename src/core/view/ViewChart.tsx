@@ -115,9 +115,9 @@ const CustomTooltip = ({
   if (active && payload && payload.length) {
     return (
       <Card.Root>
-        <Card.Body padding={2}>
+        <Card.Body padding={2}> 
           <p className="label">{formatDataTimeShort(label)}</p>
-          {payload.map((item) => (
+          {payload.slice(0, 10).map((item) => (
             <p key={item.dataKey} className="intro">
               {item.dataKey} : {item.value}
             </p>
