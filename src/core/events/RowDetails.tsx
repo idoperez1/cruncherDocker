@@ -18,7 +18,7 @@ import { isIndexOpen, openIndexesAtom } from "./state";
 import { useAtom } from "jotai";
 import { store } from "~core/store/store";
 
-import {VscSymbolArray, VscSymbolClass, VscSymbolNumeric, VscSymbolString} from "react-icons/vsc";
+import {VscSymbolArray, VscSymbolBoolean, VscSymbolClass, VscSymbolNumeric, VscSymbolString} from "react-icons/vsc";
 import {CiCalendarDate} from "react-icons/ci";
 import {GrStatusUnknown} from "react-icons/gr";
 
@@ -68,6 +68,8 @@ const getRowIcon = (row: Field) => {
       return <VscSymbolClass />
     case "date":
       return <CiCalendarDate />
+    case "boolean":
+      return <VscSymbolBoolean />
     
     default:
       return <GrStatusUnknown />

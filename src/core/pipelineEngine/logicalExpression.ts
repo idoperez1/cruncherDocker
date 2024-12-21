@@ -1,8 +1,8 @@
-import { Field, isNotDefined, ProcessedData } from "~core/common/logTypes";
-import { AndExpression, ComparisonExpression, FactorType, FunctionExpression, LogicalExpression, NotExpression, OrExpression, UnitExpression } from "~core/qql/grammar";
+import { BooleanField, Field, isNotDefined, NumberField, ProcessedData, StringField } from "~core/common/logTypes";
+import { AndExpression, ColumnRef, ComparisonExpression, FactorType, FunctionArg, FunctionExpression, LiteralBoolean, LiteralNumber, LiteralString, LogicalExpression, NotExpression, OrExpression, RegexLiteral, UnitExpression } from "~core/qql/grammar";
 
 
-type Context = {
+export type Context = {
     data: ProcessedData;
 }
 
@@ -27,15 +27,25 @@ export const processLogicalExpression = (logicalExpression: LogicalExpression, c
 const processUnitExpression = (unitExpression: UnitExpression, context: Context): boolean => {
     const { value } = unitExpression;
     switch (value.type) {
+        case "logicalExpression":
+            return processLogicalExpression(value, context);
         case "comparisonExpression":
             return processComparisonExpression(value, context);
         case "notExpression":
             return processNotExpression(value, context);
         case "functionExpression":
-            return processFunctionExpression(value, context);
+            if (!isBooleanFunction(value.functionName)) {
+                throw new Error(`Function \`${value.functionName}\` is not supported in this context!`);
+            }
+
+            return processBooleanFunctionExpression(value, context);
         default:
             throw new Error("Invalid unit expression type");
     }
+}
+
+export const isBooleanFunction = (functionName: string): functionName is SupportedBooleanFunction => {
+    return SUPPORTED_BOOLEAN_FUNCTIONS.includes(functionName as any);
 }
 
 export const SUPPORTED_BOOLEAN_FUNCTIONS = [
@@ -49,7 +59,7 @@ export const SUPPORTED_BOOLEAN_FUNCTIONS = [
 export type SupportedBooleanFunction = typeof SUPPORTED_BOOLEAN_FUNCTIONS[number];
 
 
-const processFunctionExpression = (functionExpression: FunctionExpression, context: Context): boolean => {
+export const processBooleanFunctionExpression = (functionExpression: FunctionExpression, context: Context): boolean => {
     const { functionName, args } = functionExpression;
 
     switch (functionName as SupportedBooleanFunction) {
@@ -71,7 +81,7 @@ const processFunctionExpression = (functionExpression: FunctionExpression, conte
     }
 }
 
-const processSingleArgFunction = (args: FactorType[], context: Context, func: (a: Field) => boolean): boolean => {
+const processSingleArgFunction = (args: FunctionArg[], context: Context, func: (a: Field) => boolean): boolean => {
     if (args.length !== 1) {
         throw new Error("Invalid number of arguments for function - expected exactly 1");
     }
@@ -82,47 +92,67 @@ const processSingleArgFunction = (args: FactorType[], context: Context, func: (a
     return func(argValue);
 }
 
-const processStringFunction = (args: FactorType[], context: Context, func: (a: string, b: string) => boolean): boolean => {
-    if (args.length !== 2) {
-        throw new Error("Invalid number of arguments for function - expected exactly 2");
-    }
-
+const processStringFunction = (args: FunctionArg[], context: Context, func: (a: string, b: string) => boolean): boolean => {
+    assertFunctionSignature(args, ["string", "string"]);
     const [left, right] = args;
-    if ((left.type !== "string" && left.type !== "columnRef") || (right.type !== "string" && right.type !== "columnRef")) {
-        throw new Error(`Invalid argument types for function - expected: (string | columnRef, string | columnRef), got ${left.type} and ${right.type}`);
-    }
-
+    assertArgOfTypeString(left)
+    assertArgOfTypeString(right)
+    
     const leftValue = processFieldValue(context, left);
     const rightValue = processFieldValue(context, right);
-
-    if (isNotDefined(leftValue) || isNotDefined(rightValue)) {
-        return false;
-    }
-
-    if (leftValue.type !== "string" || rightValue.type !== "string") {
-        return false;
-    }
 
     return func(leftValue.value, rightValue.value);
 }
 
-const matches = (args: FactorType[], context: Context): boolean => {
-    return processStringFunction(args, context, (a, b) => {
-        const regex = new RegExp(b);
-        return regex.test(a);
-    });
+function assertArgOfTypeRegex(arg: FunctionArg): asserts arg is RegexLiteral {
+    if (arg.type !== "regex") {
+        throw new Error("Expected a regex argument");
+    }
 }
 
+function assertArgOfTypeString(arg: FunctionArg): asserts arg is LiteralString {
+    if (arg.type !== "string") {
+        throw new Error("Expected a string argument");
+    }
+}
 
-const processStartsWithFunction = (args: FactorType[], context: Context): boolean => {
+const assertFunctionSignature = (args: FunctionArg[], expectedArgTypes: string[]): void => {
+    if (args.length !== expectedArgTypes.length) {
+        throw new Error(`Invalid number of arguments for function - expected ${expectedArgTypes.length}`);
+    }
+
+    const got: string[] = [];
+    for (const arg of args) {
+        got.push(arg.type);
+    }
+
+    if (got.join(",") !== expectedArgTypes.join(",")) {
+        throw new Error(`Invalid argument types for function - expected: (${expectedArgTypes.join(",")}), got (${got.join(",")})`);
+    }
+}
+
+const matches = (args: FunctionArg[], context: Context): boolean => {
+    assertFunctionSignature(args, ["string", "regex"]);
+    const [left, right] = args;
+    assertArgOfTypeString(left);
+    assertArgOfTypeRegex(right);
+
+    const leftValue = processFieldValue(context, left);
+    const rightValue = processFieldValue(context, right);
+    
+    const regex = new RegExp(rightValue.value);
+    return regex.test(leftValue.value);
+}
+
+const processStartsWithFunction = (args: FunctionArg[], context: Context): boolean => {
     return processStringFunction(args, context, (a, b) => a.startsWith(b));
 }
 
-const processEndsWithFunction = (args: FactorType[], context: Context): boolean => {
+const processEndsWithFunction = (args: FunctionArg[], context: Context): boolean => {
     return processStringFunction(args, context, (a, b) => a.endsWith(b));
 }
 
-const processContainsFunction = (args: FactorType[], context: Context): boolean => {
+const processContainsFunction = (args: FunctionArg[], context: Context): boolean => {
     return processStringFunction(args, context, (a, b) => a.includes(b));
 }
 
@@ -168,7 +198,34 @@ const handleValueIsUndefined = (fieldValue: Field, operator: string) => {
     }
 }
 
-const processFieldValue = (context: Context, field: FactorType): Field => {
+function processFieldValue(context: Context, field: LiteralString): StringField;
+function processFieldValue(context: Context, field: LiteralNumber): NumberField;
+function processFieldValue(context: Context, field: RegexLiteral): StringField;
+function processFieldValue(context: Context, field: ColumnRef): Field;
+function processFieldValue(context: Context, field: LiteralBoolean): BooleanField;
+function processFieldValue(context: Context, field: LogicalExpression): BooleanField;
+function processFieldValue(context: Context, field: FunctionArg): Field;
+
+function processFieldValue(context: Context, field: FunctionArg): Field {
+    switch (field.type) {
+        case "regex":
+            return {
+                type: "string",
+                value: field.pattern,
+            };
+
+        case "logicalExpression":
+            return {
+                type: "boolean",
+                value: processLogicalExpression(field, context),
+            };
+
+        default:
+            return processFactor(field, context);
+    }
+}
+
+export function processFactor(field: FactorType, context: Context): Field {
     switch (field.type) {
         case "number":
             return {
@@ -182,12 +239,13 @@ const processFieldValue = (context: Context, field: FactorType): Field => {
             };
         case "columnRef":
             return context.data.object[field.columnName];
-
+        
         case "boolean":
             return {
                 type: "boolean",
                 value: field.value,
             };
+
         default:
             throw new Error("Invalid field type");
     }

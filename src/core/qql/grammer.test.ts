@@ -108,7 +108,7 @@ test("string", () => {
   const lexer = QQLLexer.tokenize(`"hello world" token2 token3`);
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
-  expect(parser.query().search).toEqual({ type: "search", left: {type: "searchLiteral", tokens: ["hello world", "token2", "token3"] }});
+  expect(parser.query().search).toEqual({ type: "search", left: { type: "searchLiteral", tokens: ["hello world", "token2", "token3"] } });
 });
 
 test("integer", () => {
@@ -612,6 +612,268 @@ test("support timechart command", () => {
           }
         ],
         groupBy: undefined,
+      },
+    ],
+  });
+});
+
+test("support eval assignment", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | eval column1 = column2`);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+
+  expect(result).toEqual({
+    controllerParams: [],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: ["hello", "world"],
+      },
+    },
+    pipeline: [
+      {
+        type: "eval",
+        variableName: "column1",
+        expression: {
+          type: "calcExpression",
+          left: {
+            type: "calcTerm",
+            left: {
+              type: "calculateUnit",
+              value: {
+                type: "columnRef",
+                columnName: "column2",
+              },
+            },
+          },
+        }
+      },
+    ],
+  });
+});
+
+test("support eval calculation", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | eval column1 = column2 + 1`);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+
+  expect(result).toEqual({
+    controllerParams: [],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: ["hello", "world"],
+      },
+    },
+    pipeline: [
+      {
+        type: "eval",
+        variableName: "column1",
+        expression: {
+          type: "calcExpression",
+          left: {
+            type: "calcTerm",
+            left: {
+              type: "calculateUnit",
+              value: {
+                type: "columnRef",
+                columnName: "column2",
+              },
+            },
+          },
+          tail: [
+            {
+              type: "calcAction",
+              operator: "+",
+              right: {
+                type: "calcTerm",
+                left: {
+                  type: "calculateUnit",
+                  value: {
+                    type: "number",
+                    value: 1,
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+    ],
+  });
+});
+
+test("support eval calculation with multiple operators", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | eval column1 = column2 + 1 - 2 * 3 / 4`);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+
+  expect(result).toEqual({
+    controllerParams: [],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: ["hello", "world"],
+      },
+    },
+    pipeline: [
+      {
+        type: "eval",
+        variableName: "column1",
+        expression: {
+          type: "calcExpression",
+          left: {
+            type: "calcTerm",
+            left: {
+              type: "calculateUnit",
+              value: {
+                type: "columnRef",
+                columnName: "column2",
+              },
+            },
+          },
+          tail: [
+            {
+              type: "calcAction",
+              operator: "+",
+              right: {
+                type: "calcTerm",
+                left: {
+                  type: "calculateUnit",
+                  value: {
+                    type: "number",
+                    value: 1,
+                  },
+                },
+              },
+            },
+            {
+              type: "calcAction",
+              operator: "-",
+              right: {
+                type: "calcTerm",
+                left: {
+                  type: "calculateUnit",
+                  value: {
+                    type: "number",
+                    value: 2,
+                  },
+                },
+                tail: [
+                  {
+                    type: "calcTermAction",
+                    operator: "*",
+                    right: {
+                      type: "calculateUnit",
+                      value: {
+                        type: "number",
+                        value: 3,
+                      },
+                    },
+                  },
+                  {
+                    type: "calcTermAction",
+                    operator: "/",
+                    right: {
+                      type: "calculateUnit",
+                      value: {
+                        type: "number",
+                        value: 4,
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }
+      },
+    ],
+  });
+});
+
+test("support eval command", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | eval column1 = if(column2 == 1, 1, 0)`);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+
+  expect(result).toEqual({
+    controllerParams: [],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: ["hello", "world"],
+      },
+    },
+    pipeline: [
+      {
+        type: "eval",
+        variableName: "column1",
+        expression: {
+          type: "functionExpression",
+          functionName: "if",
+          condition: {
+            type: "logicalExpression",
+            left: {
+              type: "unitExpression",
+              value: {
+                left: {
+                  type: "columnRef",
+                  columnName: "column2",
+                },
+                operator: "==",
+                right: {
+                  type: "number",
+                  value: 1,
+                },
+                type: "comparisonExpression",
+              },
+            },
+            right: undefined,
+          },
+          then: {
+            type: "calcExpression",
+            left: {
+              type: "calcTerm",
+              left: {
+                type: "calculateUnit",
+                value: {
+                  type: "number",
+                  value: 1,
+                },
+              },
+            },
+          },
+          else: {
+            type: "calcExpression",
+            left: {
+              type: "calcTerm",
+              left: {
+                type: "calculateUnit",
+                value: {
+                  type: "number",
+                  value: 0,
+                },
+              },
+            },
+          },
+        },
       },
     ],
   });

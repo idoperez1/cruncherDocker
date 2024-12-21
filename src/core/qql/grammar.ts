@@ -69,23 +69,25 @@ const matchKeywordOfSearch = (pattern: RegExp): CustomPatternMatcherFunc => (tex
   return pattern.exec(text.substring(offset));
 }
 
-const matchKeywordOfCommand = (token: TokenType | TokenType[], pattern: RegExp): CustomPatternMatcherFunc => (text, offset, matchedTokens, _groups) => {
+const isMatchingCommand = (token: TokenType | TokenType[], matchedTokens: IToken[]) => {
   const pipeline = extractLastPipeline(matchedTokens);
   if (pipeline.length < 1) {
-    return null;
+    return false;
   }
 
   // make sure it's stats command
   const command = pipeline[0];
 
   if (Array.isArray(token)) {
-    if (!token.some((t) => tokenMatcher(command, t))) {
-      return null;
-    }
-  } else {
-    if (!tokenMatcher(command, token)) {
-      return null;
-    }
+    return token.some((t) => tokenMatcher(command, t));
+  }
+
+  return tokenMatcher(command, token);
+}
+
+const matchKeywordOfCommand = (token: TokenType | TokenType[], pattern: RegExp): CustomPatternMatcherFunc => (text, offset, matchedTokens, _groups) => {
+  if (!isMatchingCommand(token, matchedTokens)) {
+    return null;
   }
 
   return pattern.exec(text.substring(offset));
@@ -120,6 +122,11 @@ const SearchAND = createToken({ name: "SearchAND", pattern: matchKeywordOfSearch
 const SearchParamNotEqual = createToken({ name: "SearchParamNotEqual", pattern: matchKeywordOfSearch(/^!=/), line_breaks: false });
 
 
+// Eval command
+const Eval = createToken({ name: "Eval", pattern: matchCommand(/^eval/), longer_alt: Identifier, line_breaks: false });
+const Case = createToken({ name: "Case", pattern: matchKeywordOfCommand(Eval, /^case/), longer_alt: Identifier, line_breaks: false });
+const If = createToken({ name: "If", pattern: matchKeywordOfCommand(Eval, /^if/), longer_alt: Identifier, line_breaks: false });
+
 // Timechart command
 const TimeChart = createToken({ name: "TimeChart", pattern: matchCommand(/^timechart/), longer_alt: Identifier, line_breaks: false });
 const Span = createToken({ name: "Span", pattern: matchKeywordOfCommand(TimeChart, /^span/), longer_alt: Identifier, line_breaks: false });
@@ -130,20 +137,18 @@ const By = createToken({ name: "By", pattern: matchKeywordOfCommand([Stats, Time
 const As = createToken({ name: "As", pattern: matchKeywordOfCommand([Table, Stats, TimeChart], /^(as)(?!\()/), longer_alt: Identifier, line_breaks: false });
 
 const matchBooleanExpressionContext = (pattern: RegExp): CustomPatternMatcherFunc => (text, offset, matchedTokens, _groups) => {
-  const pipeline = extractLastPipeline(matchedTokens);
-  if (pipeline.length < 1) {
-    return null;
-  }
-
-  // make sure it's stats command
-  const command = pipeline[0];
-
-  if (!tokenMatcher(command, Where)) {
+  if (!isMatchingCommand([Where, Eval], matchedTokens)) {
     return null;
   }
 
   return pattern.exec(text.substring(offset));
 }
+
+
+const Plus = createToken({ name: "Plus", pattern: matchBooleanExpressionContext(/^\+/), line_breaks: false });
+const Minus = createToken({ name: "Minus", pattern: matchBooleanExpressionContext(/^\-/), line_breaks: false });
+const Divide = createToken({ name: "Divide", pattern: matchBooleanExpressionContext(/^\//), line_breaks: false });
+const Multiply = createToken({ name: "Multiply", pattern: matchBooleanExpressionContext(/^\*/), line_breaks: false });
 
 
 // TODO: those should be lexed only in boolean context
@@ -180,6 +185,10 @@ const allTokens = [
   Not,
   True,
   False,
+  Plus,
+  Minus,
+  Multiply,
+  Divide,
 
   // Syntax Tokens
   Comma,
@@ -194,6 +203,7 @@ const allTokens = [
   Sort,
   Where,
   TimeChart,
+  Eval,
   By,
   As,
   RegexParamField,
@@ -202,6 +212,8 @@ const allTokens = [
   Span,
   TimeColumn,
   MaxGroups,
+  Case,
+  If,
 
   // search keywords
   SearchParamNotEqual,
@@ -308,13 +320,15 @@ export type OrExpression = {
 
 export type UnitExpression = {
   type: "unitExpression";
-  value: ComparisonExpression | NotExpression | FunctionExpression;
+  value: ComparisonExpression | NotExpression | FunctionExpression | LogicalExpression;
 }
+
+export type FunctionArg = FactorType | RegexLiteral | LogicalExpression;
 
 export type FunctionExpression = {
   type: "functionExpression";
   functionName: string;
-  args: FactorType[];
+  args: FunctionArg[];
 }
 
 export type NotExpression = {
@@ -342,6 +356,12 @@ export type LiteralBoolean = {
   value: boolean;
 }
 
+export type RegexLiteral = {
+  type: "regex";
+  pattern: string;
+}
+
+
 export type FactorType = LiteralString | LiteralBoolean | LiteralNumber | ColumnRef;
 
 export type ComparisonExpression = {
@@ -349,6 +369,67 @@ export type ComparisonExpression = {
   left: FactorType; // TODO: support for column name
   operator: string;
   right: FactorType; // TODO: support for column name
+}
+
+
+// Eval Specific
+export type EvalCaseThen = {
+  type: "functionExpression";
+  functionName: "caseThen";
+  expression: LogicalExpression;
+  truethy: EvalFunctionArg;
+}
+
+export type EvalFunctionArg = FactorType | LogicalExpression | EvalFunction | CalcExpression | FunctionExpression;
+
+export type EvalCaseFunction = {
+  type: "functionExpression";
+  functionName: "case";
+  cases: EvalCaseThen[];
+  elseCase: EvalFunctionArg | undefined;
+}
+
+export type EvalIfFunction = {
+  type: "functionExpression";
+  functionName: "if";
+  condition: LogicalExpression;
+  then: EvalFunctionArg;
+  else: EvalFunctionArg | undefined;
+}
+
+
+export type EvalFunction =
+  | EvalCaseFunction
+  | EvalIfFunction
+  ;
+
+export type CalculateUnit = {
+  type: "calculateUnit";
+  value: FactorType | CalcExpression;
+}
+
+export type CalcTerm = {
+  type: "calcTerm";
+  left: CalculateUnit;
+  tail: CalcTermAction[] | undefined;
+}
+
+export type CalcTermAction = {
+  type: "calcTermAction";
+  operator: string;
+  right: CalculateUnit;
+}
+
+export type CalcExpression = {
+  type: "calcExpression";
+  left: CalcTerm;
+  tail: CalcAction[] | undefined;
+}
+
+export type CalcAction = {
+  type: "calcAction";
+  operator: string;
+  right: CalcTerm;
 }
 
 
@@ -517,7 +598,7 @@ export class QQLParser extends EmbeddedActionsParser {
   private pipelineCommand = this.RULE("pipelineCommand", () => {
     this.addAutoCompleteType({
       type: "keywords",
-      keywords: ["table", "stats", "regex", "sort", "where", "timechart"],
+      keywords: ["table", "stats", "regex", "sort", "where", "timechart", "eval"],
     }).closeAfter1();
 
     const resp = this.OR<
@@ -527,6 +608,7 @@ export class QQLParser extends EmbeddedActionsParser {
       | ReturnType<typeof this.sort>
       | ReturnType<typeof this.where>
       | ReturnType<typeof this.timeChart>
+      | ReturnType<typeof this.evalCommand>
     >([
       { ALT: () => this.SUBRULE(this.table) },
       { ALT: () => this.SUBRULE(this.statsCommand) },
@@ -534,6 +616,7 @@ export class QQLParser extends EmbeddedActionsParser {
       { ALT: () => this.SUBRULE(this.sort) },
       { ALT: () => this.SUBRULE(this.where) },
       { ALT: () => this.SUBRULE(this.timeChart) },
+      { ALT: () => this.SUBRULE(this.evalCommand) },
     ]);
 
     return resp;
@@ -681,6 +764,125 @@ export class QQLParser extends EmbeddedActionsParser {
     }).closeAfter1();
 
     return this.SUBRULE(this.columnName);
+  });
+
+  private evalCommand = this.RULE("evalCommand", () => {
+    const token = this.CONSUME(Eval);
+    this.ACTION(() => {
+      this.addHighlightData("keyword", token);
+    });
+
+    const variableName = this.CONSUME(Identifier);
+    this.ACTION(() => {
+      this.addHighlightData("column", variableName);
+    });
+    this.CONSUME(Equal);
+
+    const expression = this.SUBRULE(this.evalFunctionArg);
+
+    return {
+      type: "eval",
+      variableName: variableName.image,
+      expression: expression,
+    } as const;
+  });
+
+  private evalFunction = this.RULE("evalFunction", (): EvalFunction => {
+    return this.OR<EvalFunction>([
+      { ALT: () => this.SUBRULE(this.evalCaseFunction) },
+      { ALT: () => this.SUBRULE(this.evalIfFunction) },
+    ]);
+  });
+
+  private evalIfFunction = this.RULE("evalIfFunction", (): EvalIfFunction => {
+    const token = this.CONSUME(If);
+    this.ACTION(() => {
+      this.addHighlightData("function", token);
+    });
+
+    this.CONSUME(OpenBrackets);
+
+    const condition = this.SUBRULE(this.logicalExpression);
+    this.CONSUME1(Comma);
+
+    const then = this.SUBRULE1(this.evalFunctionArg);
+    this.CONSUME2(Comma);
+
+    const elseCase = this.OPTION(() => {
+      return this.SUBRULE2(this.evalFunctionArg);
+    });
+
+    this.CONSUME(CloseBrackets);
+
+    return {
+      type: "functionExpression",
+      functionName: "if",
+      condition: condition,
+      then: then,
+      else: elseCase,
+    } as const
+  });
+
+  private evalCaseFunction = this.RULE("evalCaseFunction", (): EvalCaseFunction => {
+    const token = this.CONSUME(Case);
+    this.ACTION(() => {
+      this.addHighlightData("function", token);
+    });
+
+    this.CONSUME(OpenBrackets);
+
+    const cases: EvalCaseThen[] = [];
+    const firstCase = this.SUBRULE(this.evalCaseStatement);
+    cases.push(firstCase);
+
+    this.MANY({
+      DEF: () => {
+        this.CONSUME1(Comma);
+        const caseRule = this.SUBRULE2(this.evalCaseStatement);
+        cases.push(caseRule);
+      }
+    });
+
+    const elseCase = this.OPTION(() => {
+      this.CONSUME2(Comma);
+      return this.SUBRULE(this.evalFunctionArg);
+    });
+
+    this.CONSUME(CloseBrackets);
+
+    return {
+      type: "functionExpression",
+      functionName: "case",
+      cases: cases,
+      elseCase: elseCase,
+    } as const;
+  });
+
+  private evalCaseStatement = this.RULE("evalCaseStatement", (): EvalCaseThen => {
+    const expression = this.SUBRULE(this.logicalExpression);
+    this.CONSUME(Comma);
+    const truethy = this.SUBRULE(this.evalFunctionArg);
+
+    return {
+      type: "functionExpression",
+      functionName: "caseThen",
+      expression: expression,
+      truethy: truethy,
+    }
+  });
+
+  private evalFunctionArg = this.RULE("evalFunctionArg", (): EvalFunctionArg => {
+    const arg = this.OR<EvalFunctionArg>({
+      DEF: [
+        { ALT: () => this.SUBRULE(this.functionExpression) },
+        { ALT: () => this.SUBRULE(this.calcExpression) },
+        { ALT: () => this.SUBRULE(this.logicalExpression) },
+        { ALT: () => this.SUBRULE(this.evalFunction) },
+      ],
+      IGNORE_AMBIGUITIES: true, // TODO: think about this - collision between grammar of evalFunction and logicalExpression
+    })
+
+    return arg;
   });
 
   private controllerParam = this.RULE("controllerParam", (): ControllerIndexParam => {
@@ -873,12 +1075,19 @@ export class QQLParser extends EmbeddedActionsParser {
   });
 
   private unitExpression = this.RULE("unitExpression", (): UnitExpression => {
-    const result = this.OR([
-      { ALT: () => this.SUBRULE(this.comparisonExpression) },
-      { ALT: () => this.SUBRULE(this.notExpression) },
-      { ALT: () => this.SUBRULE(this.functionExpression) },
-      { ALT: () => this.SUBRULE(this.parenthesisExpression) },
-    ])
+    const result = this.OR<
+      | ComparisonExpression
+      | NotExpression
+      | FunctionExpression
+      | LogicalExpression
+    >({
+      DEF: [
+        { ALT: () => this.SUBRULE(this.comparisonExpression) },
+        { ALT: () => this.SUBRULE(this.notExpression) },
+        { ALT: () => this.SUBRULE(this.functionExpression) },
+        { ALT: () => this.SUBRULE(this.parenthesisExpression) },
+      ],
+    })
 
     return {
       type: "unitExpression",
@@ -903,7 +1112,7 @@ export class QQLParser extends EmbeddedActionsParser {
   private functionExpression = this.RULE("functionExpression", (): FunctionExpression => {
     const args: ReturnType<typeof this.functionArgs>[] = [];
     const functionName = this.CONSUME(Identifier);
-    this.addHighlightData("booleanFunction", functionName);
+    this.addHighlightData("function", functionName);
     this.CONSUME(OpenBrackets);
 
     const columnAutocomplete = this.addAutoCompleteType({
@@ -926,11 +1135,12 @@ export class QQLParser extends EmbeddedActionsParser {
     } as const;
   });
 
-  private functionArgs = this.RULE("functionArgs", () => {
-    return this.OR({
+  private functionArgs = this.RULE("functionArgs", (): FunctionArg => {
+    return this.OR<FunctionArg>({
       DEF: [
         { ALT: () => this.SUBRULE(this.logicalExpression) },
         { ALT: () => this.SUBRULE(this.factor) },
+        { ALT: () => this.SUBRULE(this.regexLiteral) },
       ],
     })
   });
@@ -962,6 +1172,86 @@ export class QQLParser extends EmbeddedActionsParser {
         })
       },
     ]);
+  });
+
+  private calcExpression = this.RULE("calcExpression", (): CalcExpression => {
+    const left = this.SUBRULE(this.calcTermExpression);
+    let tail: CalcAction[] | undefined = undefined;
+
+    this.MANY(() => {
+      const operator = this.OR([
+        { ALT: () => this.CONSUME(Plus) },
+        { ALT: () => this.CONSUME(Minus) },
+      ]);
+
+      const right = this.SUBRULE1(this.calcTermExpression);
+
+      if (!tail) {
+        tail = [];
+      }
+
+      tail.push({
+        type: "calcAction",
+        operator: operator.image,
+        right: right,
+      });
+    });
+
+    return {
+      type: "calcExpression",
+      left: left,
+      tail: tail,
+    } as const;
+  });
+
+  private calcTermExpression = this.RULE("calcTermExpression", (): CalcTerm => {
+    const left = this.SUBRULE(this.calculateUnit);
+    let tail: CalcTermAction[] | undefined = undefined;
+
+    this.MANY(() => {
+      const operator = this.OR([
+        { ALT: () => this.CONSUME(Multiply) },
+        { ALT: () => this.CONSUME(Divide) },
+      ]);
+
+      const right = this.SUBRULE1(this.calculateUnit);
+
+      if (!tail) {
+        tail = [];
+      }
+
+      tail.push({
+        type: "calcTermAction",
+        operator: operator.image,
+        right: right,
+      });
+    })
+
+    return {
+      type: "calcTerm",
+      left: left,
+      tail: tail,
+    }
+  });
+  
+  private calculateUnit = this.RULE("calculateUnit", (): CalculateUnit => {
+    const value = this.OR<CalculateUnit["value"]>([
+      { ALT: () => this.SUBRULE(this.parathesisCalculateExpression) },
+      { ALT: () => this.SUBRULE(this.factor) },
+    ]);
+
+    return {
+      type: "calculateUnit",
+      value: value,
+    } as const;
+  });
+
+  private parathesisCalculateExpression = this.RULE("parathesisCalculateExpression", (): CalcExpression => {
+    this.CONSUME(OpenBrackets);
+    const expression = this.SUBRULE(this.calcExpression);
+    this.CONSUME(CloseBrackets);
+
+    return expression;
   });
 
   private comparisonExpression = this.RULE("comparisonExpression", (): ComparisonExpression => {
@@ -1256,6 +1546,15 @@ export class QQLParser extends EmbeddedActionsParser {
     });
 
     return column.image;
+  });
+
+  private regexLiteral = this.RULE("regexLiteral", (): RegexLiteral => {
+    const pattern = this.SUBRULE(this.regexString);
+
+    return {
+      type: "regex",
+      pattern: pattern,
+    } as const;
   });
 
   private regexString = this.RULE("regexString", () => {

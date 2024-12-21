@@ -8,6 +8,7 @@ import { processStats } from "./stats";
 import { processTable } from "./table";
 import { processWhere } from "./where";
 import { processTimeChart } from "./timechart";
+import { processEval } from "./eval";
 
 
 export const getPipelineItems = (data: ProcessedData[], pipeline: PipelineItem[], startTime: Date, endTime: Date) => {
@@ -50,6 +51,8 @@ const processPipeline = (currentData: DisplayResults, pipeline: PipelineItem[], 
             return processPipeline(processWhere(currentData, currentPipeline.expression), pipeline, currentIndex + 1, startTime, endTime);
         case "timechart":
             return processPipeline(processTimeChart(currentData, currentPipeline.columns, currentPipeline.groupBy, startTime, endTime, currentPipeline.params), pipeline, currentIndex + 1, startTime, endTime);
+        case "eval":
+            return processPipeline(processEval(currentData, currentPipeline.variableName, currentPipeline.expression), pipeline, currentIndex + 1, startTime, endTime);
         default:
             // @ts-expect-error - this should never happen
             throw new Error(`Pipeline type '${currentPipeline.type}' not implemented`);

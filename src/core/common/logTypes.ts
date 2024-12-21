@@ -96,6 +96,10 @@ export const asNumberFieldOrUndefined = (field: Field): NumberField | undefined 
   return undefined;
 }
 
+export const isNumberField = (field: Field): field is NumberField => {
+  return field?.type === "number" || (typeof field?.value === "number");
+}
+
 export const asNumberField = (field: Field): NumberField => {
   const result = asNumberFieldOrUndefined(field);
   if (!result) {

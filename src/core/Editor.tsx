@@ -1,16 +1,18 @@
+import { IRecognitionException } from "chevrotain";
 import { atom, useAtomValue, useSetAtom } from "jotai";
+import { useMemo } from "react";
+import { Suggestion } from "~components/ui/editor/AutoCompleter";
+import { Editor as EditorComponent } from "~components/ui/editor/Editor";
+import { HighlightData } from "~components/ui/editor/Highlighter";
+import { SUPPORTED_AGG_FUNCTIONS } from "./pipelineEngine/aggregateData";
+import { isBooleanFunction, SUPPORTED_BOOLEAN_FUNCTIONS } from "./pipelineEngine/logicalExpression";
+import { HighlightData as ParserHighlightData } from "./qql/grammar";
+import { getPopperRoot } from "./shadowUtils";
 import {
   availableColumnsAtom,
   availableControllerParamsAtom,
   queryDataAtom,
 } from "./store/queryState";
-import { useMemo } from "react";
-import { IRecognitionException } from "chevrotain";
-import { Suggestion } from "~components/ui/editor/AutoCompleter";
-import { Editor as EditorComponent } from "~components/ui/editor/Editor";
-import { getPopperRoot } from "./shadowUtils";
-import { SUPPORTED_AGG_FUNCTIONS as SUPPORTED_AGG_FUNCTIONS } from "./pipelineEngine/aggregateData";
-import { SUPPORTED_BOOLEAN_FUNCTIONS } from "./pipelineEngine/logicalExpression";
 
 export const queryEditorAtom = atom<HTMLTextAreaElement | null>(null);
 
@@ -19,12 +21,28 @@ export type EditorProps = {
   onChange: (value: string) => void;
 };
 
+const translateHighlightData = (value: string, parserHighlightData: ParserHighlightData): HighlightData => {
+  const { startOffset, endOffset } = parserHighlightData.token;
+  // get word
+  const word = value.slice(startOffset, (endOffset ?? startOffset) + 1);
+  if (isBooleanFunction(word)) {
+    return {
+      type: "booleanFunction",
+      token: {
+        startOffset,
+        endOffset,
+      },
+    };
+  }
+  return parserHighlightData;
+};
+
 export const Editor = ({ value, onChange }: EditorProps) => {
   const availableColumns = useAtomValue(availableColumnsAtom);
   const data = useAtomValue(queryDataAtom);
   const setQueryEditor = useSetAtom(queryEditorAtom);
   const availableControllerParams = useAtomValue(availableControllerParamsAtom);
-  const highlightData = useMemo(() => {
+  const highlightData = useMemo<HighlightData[]>(() => {
     const errorHighlightData = data.parserError.map(
       (error: IRecognitionException) => {
         return {
@@ -37,8 +55,11 @@ export const Editor = ({ value, onChange }: EditorProps) => {
         };
       }
     );
-    return [...data.highlight, ...errorHighlightData];
-  }, [data]);
+
+    const processedHighlightData = data.highlight.map((highlight) => translateHighlightData(value, highlight));
+
+    return [...processedHighlightData, ...errorHighlightData];
+  }, [value, data]);
 
   const suggestions = useMemo(() => {
     const results: Suggestion[] = [];
