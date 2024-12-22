@@ -1,6 +1,6 @@
 import { BooleanField, Field, isNotDefined, NumberField, ProcessedData, StringField } from "~core/common/logTypes";
 import { AndExpression, ColumnRef, ComparisonExpression, FactorType, FunctionArg, FunctionExpression, LiteralBoolean, LiteralNumber, LiteralString, LogicalExpression, NotExpression, OrExpression, RegexLiteral, UnitExpression } from "~core/qql/grammar";
-
+import { product } from "~core/utils";
 
 export type Context = {
     data: ProcessedData;
@@ -93,7 +93,7 @@ const processSingleArgFunction = (args: FunctionArg[], context: Context, func: (
 }
 
 const processStringFunction = (args: FunctionArg[], context: Context, func: (a: string, b: string) => boolean): boolean => {
-    assertFunctionSignature(args, ["string", "string"]);
+    assertFunctionSignature(args, ["string|columnRef", "string|columnRef"]);
     const [left, right] = args;
     assertArgOfTypeString(left)
     assertArgOfTypeString(right)
@@ -111,7 +111,7 @@ function assertArgOfTypeRegex(arg: FunctionArg): asserts arg is RegexLiteral {
 }
 
 function assertArgOfTypeString(arg: FunctionArg): asserts arg is LiteralString {
-    if (arg.type !== "string") {
+    if (arg.type !== "string" && arg.type !== "columnRef") {
         throw new Error("Expected a string argument");
     }
 }
@@ -126,13 +126,24 @@ const assertFunctionSignature = (args: FunctionArg[], expectedArgTypes: string[]
         got.push(arg.type);
     }
 
-    if (got.join(",") !== expectedArgTypes.join(",")) {
-        throw new Error(`Invalid argument types for function - expected: (${expectedArgTypes.join(",")}), got (${got.join(",")})`);
+    const possibilities: string[][] = [];
+    expectedArgTypes.forEach((expectedArgType) => {
+        const possibleTypes = expectedArgType.split("|");
+        possibilities.push(possibleTypes);
+    });
+
+    const combinations = product(possibilities);
+    for (const combination of combinations) {
+        if (combination.join(",") === got.join(",")) { // has a match!
+            return;
+        }
     }
+
+    throw new Error(`Invalid argument types for function - expected: (${expectedArgTypes.join(",")}), got (${got.join(",")})`);
 }
 
 const matches = (args: FunctionArg[], context: Context): boolean => {
-    assertFunctionSignature(args, ["string", "regex"]);
+    assertFunctionSignature(args, ["string|columnRef", "regex"]);
     const [left, right] = args;
     assertArgOfTypeString(left);
     assertArgOfTypeRegex(right);
