@@ -89,7 +89,7 @@ export const AutoCompleter = ({
             `}
             key={index}
           >
-            {getSuggestionIcon(suggestion)}
+            <span css={css`flex-shrink: 0;`}>{getSuggestionIcon(suggestion)}</span>
             {suggestion.value}
           </span>
         ))}

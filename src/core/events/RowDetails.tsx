@@ -121,8 +121,12 @@ export const RowDetail: React.FC<DataRowProps> = ({ rowKey, rowValue }) => {
           gap: 5px;
         `}
       >
-        {getRowIcon(rowValue)}
-        {asDisplayString(rowValue)}
+        <span>{getRowIcon(rowValue)}</span>
+        <span css={css`
+          white-space: pre-wrap;
+          word-break: break-all;
+          line-height: 1.5;
+        `}>{asDisplayString(rowValue)}</span>
       </div>
       {/* <PopoverRoot
                       size="sm"

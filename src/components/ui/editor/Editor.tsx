@@ -215,12 +215,17 @@ export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ valu
           position: "relative",
         }}
         onKeyDown={(e) => {
+          // TODO move it to shortcuts system
           // if key is esc - close completer
           if (e.key === "Escape") {
             setIsCompleterOpen(false);
           }
           if (e.key === " " && e.ctrlKey) {
             setIsCompleterOpen(true);
+          }
+          // if key is Tab - disable default behavior
+          if (e.key === "Tab") {
+            e.preventDefault();
           }
 
           if (isCompleterOpen && filteredSuggestions.length > 0) {
@@ -235,6 +240,11 @@ export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ valu
 
             if (e.key === "Enter") {
               e.preventDefault();
+              acceptCompletion();
+            }
+
+            // if key is Tab - accept completion
+            if (e.key === "Tab") {
               acceptCompletion();
             }
 
@@ -258,7 +268,12 @@ export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ valu
         onChange={(e) => {
           if (!referenceElement) return;
 
-          const isCharAdded = e.target.value.length > value.length;
+          // check if char is in not \n
+          const selectionStart = e.currentTarget.selectionStart;
+          const char = e.target.value[selectionStart - 1]; // this is the char that was added
+
+          const isCharAdded = e.target.value.length > value.length && !["\n", " "].includes(char);
+
           onChange(e.target.value);
           setCursorPosition(e.currentTarget.selectionStart);
           setIsCompleterOpen(isCharAdded);
