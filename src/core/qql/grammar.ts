@@ -161,9 +161,14 @@ const IsEqual = createToken({ name: "IsEqual", pattern: matchBooleanExpressionCo
 const And = createToken({ name: "BooleanAnd", pattern: matchBooleanExpressionContext(/^&&/), line_breaks: false });
 const Or = createToken({ name: "BooleanOr", pattern: matchBooleanExpressionContext(/^\|\|/), line_breaks: false });
 const Not = createToken({ name: "BooleanNot", pattern: matchBooleanExpressionContext(/^!/), line_breaks: false });
+const In = createToken({ name: "In", pattern: matchBooleanExpressionContext(/^in/), line_breaks: false });
 
 const True = createToken({ name: "True", pattern: matchBooleanExpressionContext(/^true/), line_breaks: false });
 const False = createToken({ name: "False", pattern: matchBooleanExpressionContext(/^false/), line_breaks: false });
+
+
+const LeftSquareBracket = createToken({ name: "LeftSquareBracket", pattern: matchBooleanExpressionContext(/^\[/) });
+const RightSquareBracket = createToken({ name: "RightSquareBracket", pattern:  matchBooleanExpressionContext(/^\]/) });
 
 
 // note we are placing WhiteSpace first as it is very common thus it will speed up the lexer.
@@ -189,12 +194,15 @@ const allTokens = [
   Minus,
   Multiply,
   Divide,
+  In,
 
   // Syntax Tokens
   Comma,
   OpenBrackets,
   CloseBrackets,
   Pipe,
+  LeftSquareBracket,
+  RightSquareBracket,
 
   // "keywords" appear before the Identifier
   Table,
@@ -320,7 +328,7 @@ export type OrExpression = {
 
 export type UnitExpression = {
   type: "unitExpression";
-  value: ComparisonExpression | NotExpression | FunctionExpression | LogicalExpression;
+  value: InArrayExpression | ComparisonExpression | NotExpression | FunctionExpression | LogicalExpression;
 }
 
 export type FunctionArg = FactorType | RegexLiteral | LogicalExpression;
@@ -329,6 +337,12 @@ export type FunctionExpression = {
   type: "functionExpression";
   functionName: string;
   args: FunctionArg[];
+}
+
+export type InArrayExpression = {
+  type: "inArrayExpression";
+  left: FactorType;
+  right: FactorType[];
 }
 
 export type NotExpression = {
@@ -1075,13 +1089,9 @@ export class QQLParser extends EmbeddedActionsParser {
   });
 
   private unitExpression = this.RULE("unitExpression", (): UnitExpression => {
-    const result = this.OR<
-      | ComparisonExpression
-      | NotExpression
-      | FunctionExpression
-      | LogicalExpression
-    >({
+    const result = this.OR<UnitExpression["value"]>({
       DEF: [
+        { ALT: () => this.SUBRULE(this.inArrayStatement) },
         { ALT: () => this.SUBRULE(this.comparisonExpression) },
         { ALT: () => this.SUBRULE(this.notExpression) },
         { ALT: () => this.SUBRULE(this.functionExpression) },
@@ -1252,6 +1262,35 @@ export class QQLParser extends EmbeddedActionsParser {
     this.CONSUME(CloseBrackets);
 
     return expression;
+  });
+
+  private inArrayStatement = this.RULE("inArrayStatement", (): InArrayExpression => {
+    const left = this.SUBRULE1(this.factor);
+
+    const token = this.CONSUME(In);
+    this.ACTION(() => {
+      this.addHighlightData("keyword", token);
+    });
+
+    this.CONSUME(LeftSquareBracket);
+
+    const values: FactorType[] = [];
+
+    this.MANY_SEP({
+      SEP: Comma,
+      DEF: () => {
+        const value = this.SUBRULE2(this.factor);
+        values.push(value);
+      },
+    });
+
+    this.CONSUME(RightSquareBracket);
+
+    return {
+      type: "inArrayExpression",
+      left: left,
+      right: values,
+    } as const;
   });
 
   private comparisonExpression = this.RULE("comparisonExpression", (): ComparisonExpression => {

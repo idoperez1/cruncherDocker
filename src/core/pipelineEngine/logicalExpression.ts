@@ -1,5 +1,5 @@
 import { BooleanField, Field, isNotDefined, NumberField, ProcessedData, StringField } from "~core/common/logTypes";
-import { AndExpression, ColumnRef, ComparisonExpression, FactorType, FunctionArg, FunctionExpression, LiteralBoolean, LiteralNumber, LiteralString, LogicalExpression, NotExpression, OrExpression, RegexLiteral, UnitExpression } from "~core/qql/grammar";
+import { AndExpression, ColumnRef, ComparisonExpression, FactorType, FunctionArg, FunctionExpression, InArrayExpression, LiteralBoolean, LiteralNumber, LiteralString, LogicalExpression, NotExpression, OrExpression, RegexLiteral, UnitExpression } from "~core/qql/grammar";
 import { product } from "~core/utils";
 
 export type Context = {
@@ -39,9 +39,20 @@ const processUnitExpression = (unitExpression: UnitExpression, context: Context)
             }
 
             return processBooleanFunctionExpression(value, context);
+        case "inArrayExpression":
+            return processInArrayExpression(value, context);
+
         default:
             throw new Error("Invalid unit expression type");
     }
+}
+
+export const processInArrayExpression = (inArrayExpression: InArrayExpression, context: Context): boolean => {
+    const { left, right } = inArrayExpression;
+    const leftValue = processFieldValue(context, left);
+    const rightValues = right.map((r) => processFieldValue(context, r));
+
+    return rightValues.some((rightValue) => leftValue?.value === rightValue?.value);
 }
 
 export const isBooleanFunction = (functionName: string): functionName is SupportedBooleanFunction => {
