@@ -14,7 +14,7 @@ import DataLog from "./events/DataLog";
 import Header from "./Header";
 import { globalShortcuts } from "./keymaps";
 import {
-  lastQueryAtom,
+  isLoadingAtom,
   runQuery,
   setup,
 } from "./search";
@@ -112,7 +112,7 @@ const MainContentInner: React.FC<MainContentProps> = ({
       : undefined;
 
     const lastExecutedQueryUnsubscriber = callbacks?.onQueryExecuted
-      ? store.sub(lastQueryAtom, () => {
+      ? store.sub(isLoadingAtom, () => {
           const currStartDate = store.get(startFullDateAtom)!; // it's impossible to be undefined
           const currEndDate = store.get(endFullDateAtom)!; // it's impossible to be undefined
           const currQuery = store.get(searchQueryAtom);
