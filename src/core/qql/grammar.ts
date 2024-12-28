@@ -167,8 +167,8 @@ const True = createToken({ name: "True", pattern: matchBooleanExpressionContext(
 const False = createToken({ name: "False", pattern: matchBooleanExpressionContext(/^false/), line_breaks: false });
 
 
-const LeftSquareBracket = createToken({ name: "LeftSquareBracket", pattern: matchBooleanExpressionContext(/^\[/) });
-const RightSquareBracket = createToken({ name: "RightSquareBracket", pattern:  matchBooleanExpressionContext(/^\]/) });
+const LeftSquareBracket = createToken({ name: "LeftSquareBracket", pattern: matchBooleanExpressionContext(/^\[/), line_breaks: false });
+const RightSquareBracket = createToken({ name: "RightSquareBracket", pattern:  matchBooleanExpressionContext(/^\]/), line_breaks: false });
 
 
 // note we are placing WhiteSpace first as it is very common thus it will speed up the lexer.

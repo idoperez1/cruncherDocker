@@ -3,6 +3,7 @@ import { css } from "@emotion/react";
 import styled from "@emotion/styled";
 import { Provider as JotaiProvider, useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
+import { Toaster } from "react-hot-toast";
 import { LuChartArea, LuLogs, LuTable } from "react-icons/lu";
 import { Provider } from "~components/ui/provider";
 import { Tooltip } from "~components/ui/tooltip";
@@ -12,12 +13,25 @@ import { queryEditorAtom } from "./Editor";
 import DataLog from "./events/DataLog";
 import Header from "./Header";
 import { globalShortcuts } from "./keymaps";
+import {
+  lastQueryAtom,
+  runQuery,
+  setup,
+} from "./search";
 import { getCruncherRoot } from "./shadowUtils";
-import { dataViewModelAtom, eventsAtom } from "./store/queryState";
+import {
+  endFullDateAtom,
+  FullDate,
+  startFullDateAtom,
+} from "./store/dateState";
+import {
+  dataViewModelAtom,
+  eventsAtom,
+  searchQueryAtom,
+} from "./store/queryState";
 import { store } from "./store/store";
 import { TableView } from "./table/TableView";
 import { TimeChart } from "./TimeChart";
-import { Toaster } from "react-hot-toast";
 import { ViewChart } from "./view/ViewChart";
 
 const MainContainer = styled.section`
@@ -30,16 +44,114 @@ const MainContainer = styled.section`
   overflow: hidden;
 `;
 
+type QueryExecuted = {
+  query: string;
+  startTime: FullDate;
+  endTime: FullDate;
+}
+
 type MainContentProps = {
   controller: QueryProvider;
+  initialStartTime?: FullDate;
+  initialEndTime?: FullDate;
+  initialQuery?: string;
+
+  callbacks?: {
+    onQueryChange?: (query: string) => void;
+    onStartDateSelectChange?: (start: FullDate | undefined) => void;
+    onEndDateSelectChange?: (end: FullDate | undefined) => void;
+    onQueryExecuted?: (query: QueryExecuted) => void;
+  };
 };
 
-const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
+const MainContentInner: React.FC<MainContentProps> = ({
+  controller,
+  initialStartTime,
+  initialEndTime,
+  initialQuery,
+  callbacks,
+}) => {
   const [selectedTab, setSelectedTab] = useState<string | null>("logs");
   const events = useAtomValue(eventsAtom);
-  const {table: tableView, view: viewChart} = useAtomValue(dataViewModelAtom);
+  const { table: tableView, view: viewChart } = useAtomValue(dataViewModelAtom);
 
   const editor = useAtomValue(queryEditorAtom);
+
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    if (initialStartTime !== undefined) {
+      store.set(startFullDateAtom, initialStartTime);
+    }
+
+    if (initialEndTime !== undefined) {
+      store.set(endFullDateAtom, initialEndTime);
+    }
+
+    if (initialQuery !== undefined) {
+      store.set(searchQueryAtom, initialQuery);
+    }
+
+    const searchQueryUnsubscriber = callbacks?.onQueryChange
+      ? store.sub(searchQueryAtom, () => {
+          const currValue = store.get(searchQueryAtom);
+          callbacks.onQueryChange?.(currValue);
+        })
+      : undefined;
+    const startDateUnsubscriber = callbacks?.onStartDateSelectChange
+      ? store.sub(startFullDateAtom, () => {
+          const currValue = store.get(startFullDateAtom);
+          callbacks.onStartDateSelectChange?.(currValue);
+        })
+      : undefined;
+    const endDateUnsubscriber = callbacks?.onEndDateSelectChange
+      ? store.sub(endFullDateAtom, () => {
+          const currValue = store.get(endFullDateAtom);
+          callbacks.onEndDateSelectChange?.(currValue);
+        })
+      : undefined;
+
+    const lastExecutedQueryUnsubscriber = callbacks?.onQueryExecuted
+      ? store.sub(lastQueryAtom, () => {
+          const currStartDate = store.get(startFullDateAtom)!; // it's impossible to be undefined
+          const currEndDate = store.get(endFullDateAtom)!; // it's impossible to be undefined
+          const currQuery = store.get(searchQueryAtom);
+
+          callbacks.onQueryExecuted?.({
+            query: currQuery,
+            startTime: currStartDate,
+            endTime: currEndDate,
+          });
+        })
+      : undefined;
+
+    setup(controller).then(() => {
+      setIsInitialized(true);
+      if (
+        initialQuery !== undefined &&
+        initialStartTime !== undefined &&
+        initialEndTime !== undefined
+      ) {
+        // execute the query
+        runQuery(
+          controller,
+          {
+            searchTerm: store.get(searchQueryAtom),
+            fromTime: store.get(startFullDateAtom),
+            toTime: store.get(endFullDateAtom),
+          },
+          true
+        );
+      }
+    });
+
+    return () => {
+      searchQueryUnsubscriber?.();
+      startDateUnsubscriber?.();
+      endDateUnsubscriber?.();
+      lastExecutedQueryUnsubscriber?.();
+    };
+  }, []);
 
   useEffect(() => {
     if (tableView === undefined) {
@@ -73,6 +185,10 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [editor]);
+
+  if (!isInitialized) {
+    return null; // TODO: replace with loader
+  }
 
   return (
     <MainContainer id="cruncher-inner-root">
@@ -139,7 +255,7 @@ const MainContentInner: React.FC<MainContentProps> = ({ controller }) => {
           )}
         </Tabs.Content>
         <Tabs.Content value="view" minH="0" flex={1}>
-          <ViewChart/>
+          <ViewChart />
         </Tabs.Content>
       </Tabs.Root>
       <div

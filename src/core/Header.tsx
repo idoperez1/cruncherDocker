@@ -1,15 +1,13 @@
 import styled from "@emotion/styled";
-import merge from "merge-k-sorted-arrays";
 import type React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { ProgressBar, ProgressRoot } from "~components/ui/progress";
 
-import { Card, IconButton, MenuSeparator, Stack } from "@chakra-ui/react";
+import { IconButton, MenuSeparator, Stack } from "@chakra-ui/react";
 import { css } from "@emotion/react";
-import { Mutex } from "async-mutex";
 import { generateCsv, mkConfig } from "export-to-csv";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useAtom, useAtomValue } from "jotai";
+import { useMemo } from "react";
 import { CiExport } from "react-icons/ci";
 import {
   LuClipboardCopy,
@@ -26,39 +24,21 @@ import {
 } from "~components/ui/menu";
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
-import { parse, PipelineItem, QQLLexingError, QQLParserError } from "~core/qql";
 import { QueryProvider } from "./common/interface";
-import {
-  asDateField,
-  compareProcessedData,
-  ProcessedData,
-} from "./common/logTypes";
 import { DateSelector, isDateSelectorOpen } from "./DateSelector";
 import { Editor } from "./Editor";
-import { tree } from "./indexes/timeIndex";
 import { headerShortcuts } from "./keymaps";
-import { getPipelineItems } from "./pipelineEngine/root";
+import { abortRunningQuery, FormValues, isLoadingAtom, isQuerySuccessAtom, queryEndTimeAtom, queryStartTimeAtom, runQuery } from "./search";
 import {
-  actualEndTimeAtom,
-  actualStartTimeAtom,
-  compareFullDates,
   endFullDateAtom,
-  FullDate,
-  isTimeNow,
-  startFullDateAtom,
+  startFullDateAtom
 } from "./store/dateState";
 import {
-  availableControllerParamsAtom,
   dataViewModelAtom,
-  originalDataAtom,
-  searchQueryAtom,
+  searchQueryAtom
 } from "./store/queryState";
 import { store } from "./store/store";
 import { Timer } from "./Timer";
-import toast from "react-hot-toast";
-import { CloseButton } from "~components/ui/close-button";
-import equal from "fast-deep-equal";
-import { ControllerIndexParam, Search } from "./qql/grammar";
 
 const StyledHeader = styled.form`
   display: flex;
@@ -88,70 +68,18 @@ type HeaderProps = {
   controller: QueryProvider;
 };
 
-type FormValues = {
-  searchTerm: string;
-  fromTime: FullDate | undefined;
-  toTime: FullDate | undefined;
-};
-
-type QueryExecutionHistory = {
-  params: ControllerIndexParam[];
-  search: Search;
-  start: FullDate;
-  end: FullDate;
-};
-
-
-const compareExecutions = (
-  exec1: QueryExecutionHistory,
-  exec2: QueryExecutionHistory | undefined
-) => {
-  if (exec2 === undefined) {
-    return false;
-  }
-
-  if (!equal(exec1.params, exec2.params)) {
-    return false;
-  }
-
-  if (!equal(exec1.search, exec2.search)) {
-    return false;
-  }
-
-  if (compareFullDates(exec1.start, exec2.start) !== 0) {
-    return false;
-  }
-
-  if (compareFullDates(exec1.end, exec2.end) !== 0) {
-    return false;
-  }
-
-  return true;
-};
 
 const Header: React.FC<HeaderProps> = ({ controller }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [originalData, setOriginalData] = useAtom(originalDataAtom);
-  const setDataViewModel = useSetAtom(dataViewModelAtom);
-
-  const [lastExecutedQuery, setLastExecutedQuery] =
-    useState<QueryExecutionHistory>();
+  const isLoading = useAtomValue(isLoadingAtom);
 
   const [searchValue, setSearchValue] = useAtom(searchQueryAtom);
-  const setAvailableControllerParams = useSetAtom(availableControllerParamsAtom);
   const selectedStartTime = useAtomValue(startFullDateAtom);
   const selectedEndTime = useAtomValue(endFullDateAtom);
 
-  const setActualStartTime = useSetAtom(actualStartTimeAtom);
-  const setActualEndTime = useSetAtom(actualEndTimeAtom);
-
-  const abortController = useRef(new AbortController());
-  const submitMutex = useRef(new Mutex());
-
   // query execution props
-  const [isQuerySuccess, setIsQuerySuccess] = useState(true);
-  const [queryStartTime, setQueryStartTime] = useState<Date>();
-  const [queryEndTime, setQueryEndTime] = useState<Date>();
+  const isQuerySuccess = useAtomValue(isQuerySuccessAtom);
+  const queryStartTime = useAtomValue(queryStartTimeAtom);
+  const queryEndTime = useAtomValue(queryEndTimeAtom);
 
   const { handleSubmit } = useForm<FormValues>({
     values: {
@@ -161,140 +89,10 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
     },
   });
 
-  const startProcessingData = (
-    data: ProcessedData[],
-    pipeline: PipelineItem[],
-    startTime: Date,
-    endTime: Date
-  ) => {
-    try {
-      const finalData = getPipelineItems(data, pipeline, startTime, endTime);
-      setDataViewModel(finalData);
-    } catch (error) {
-      // check error is of type Error
-      if (!(error instanceof Error)) {
-        throw error;
-      }
-
-      notifyError("Error processing pipeline", error);
-    }
-  };
-
-  useEffect(() => {
-    controller.getControllerParams().then((value) => {
-      setAvailableControllerParams(value);
-    });
-  }, []);
-
-  const doSubmit = async (values: FormValues, isForced: boolean) => {
-    if (values.fromTime === undefined) {
-      // TODO: return error
-      return;
-    }
-
-    if (values.toTime === undefined) {
-      // TODO: return error
-      return;
-    }
-
-    const fromTime = isTimeNow(values.fromTime) ? new Date() : values.fromTime;
-    const toTime = isTimeNow(values.toTime) ? new Date() : values.toTime;
-
-    if (fromTime.getTime() > toTime.getTime()) {
-      // TODO: return error
-      return;
-    }
-
-    setActualStartTime(fromTime);
-    setActualEndTime(toTime);
-
-    try {
-      const parsedTree = parse(values.searchTerm);
-      let dataForPipelines: ProcessedData[] = [];
-      const cancelToken = abortController.current.signal;
-      try {
-        setIsLoading(true);
-        setQueryStartTime(new Date());
-        setQueryEndTime(undefined);
-
-        const executionQuery = {
-          search: parsedTree.search,
-          start: fromTime,
-          end: toTime,
-          params: parsedTree.controllerParams,
-        };
-
-        if (!isForced && compareExecutions(executionQuery, lastExecutedQuery)) {
-          console.log("using cached data");
-          dataForPipelines = originalData;
-          startProcessingData(dataForPipelines, parsedTree.pipeline, fromTime, toTime);
-        } else {
-          try {
-            tree.clear();
-            await controller.query(parsedTree.controllerParams, parsedTree.search, {
-              fromTime: fromTime,
-              toTime: toTime,
-              cancelToken: cancelToken,
-              limit: 100000,
-              onBatchDone: (data) => {
-                dataForPipelines = merge<ProcessedData>(
-                  [dataForPipelines, data],
-                  compareProcessedData
-                );
-                data.forEach((data) => {
-                  const timestamp = asDateField(data.object._time).value;
-                  const toAppendTo = tree.get(timestamp) ?? [];
-                  toAppendTo.push(data);
-                  tree.set(timestamp, toAppendTo);
-                });
-
-                setOriginalData(dataForPipelines);
-
-                startProcessingData(dataForPipelines, parsedTree.pipeline, fromTime, toTime);
-              },
-            });
-
-            setLastExecutedQuery(executionQuery);
-            setOriginalData(dataForPipelines);
-            setIsQuerySuccess(true);
-          } catch (error) {
-            setIsQuerySuccess(false);
-            console.log(error);
-            if (cancelToken.aborted) {
-              return; // don't continue if the request was aborted
-            }
-
-            console.error("Error executing query: ", error);
-            throw error;
-          }
-        }
-      } finally {
-        setIsLoading(false);
-        setQueryEndTime(new Date());
-      }
-    } catch (error) {
-      if (!(error instanceof Error)) {
-        throw error;
-      }
-
-      console.error("Error parsing query: ", error);
-      notifyError("Error parsing query", error);
-    }
-  };
-
   const onSubmit =
     (isForced: boolean): SubmitHandler<FormValues> =>
     async (values) => {
-      if (isLoading) {
-        abortController.current.abort("New query submitted");
-      }
-
-      // reset abort controller
-      abortController.current = new AbortController();
-
-      await submitMutex.current.runExclusive(async () => {
-        await doSubmit(values, isForced);
-      });
+      await runQuery(controller, values, isForced);
     };
 
   const onHeaderKeyDown = (e: React.KeyboardEvent) => {
@@ -355,9 +153,7 @@ const Header: React.FC<HeaderProps> = ({ controller }) => {
         <SearchBarButtons
           isLoading={isLoading}
           onForceSubmit={() => handleSubmit(onSubmit(true))()}
-          onTerminateSearch={() =>
-            abortController.current.abort("User aborted")
-          }
+          onTerminateSearch={() => abortRunningQuery("Search terminated by user")}
         />
       </StyledHeader>
     </>
@@ -540,52 +336,4 @@ const MiniButtons = () => {
   );
 };
 
-const notifyError = (message: string, error: Error) => {
-  console.error(message, error);
-  toast.error(
-    (t) => {
-      let subMessage = error.message;
-      if (error instanceof QQLLexingError) {
-        const errors: string[] = [];
-        error.errors.map((e) => {
-          errors.push(`${e.line}:${e.column} - ${e.message}`);
-        });
-
-        subMessage = errors.join("\n");
-      } else if (error instanceof QQLParserError) {
-        const errors: string[] = [];
-        error.errors.map((e) => {
-          errors.push(`${e.message}`);
-        });
-
-        subMessage = errors.join("\n");
-      }
-
-      return (
-        <Card.Root
-          pointerEvents={"all"}
-          zIndex={1000}
-          padding="3"
-          backgroundColor={"red.600"}
-        >
-          <Card.Header padding={0}>
-            <Stack direction="row" alignItems={"center"}>
-              <Card.Title>{message}</Card.Title>
-              <CloseButton
-                marginLeft="auto"
-                size="2xs"
-                onClick={() => toast.dismiss(t.id)}
-              />
-            </Stack>
-          </Card.Header>
-          <Card.Body padding={0}>{subMessage}</Card.Body>
-        </Card.Root>
-      );
-    },
-    {
-      position: "bottom-right",
-      duration: 10000,
-    }
-  );
-};
 export default Header;

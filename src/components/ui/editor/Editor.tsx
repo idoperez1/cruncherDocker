@@ -208,6 +208,7 @@ export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ valu
     <EditorWrapper>
       <TextHighlighter value={value} highlightData={highlightData} ref={preElement}/>
       <TextareaCustom
+        placeholder="Type your query here..."
         value={value}
         ref={setReferenceElement}
         data-enable-grammarly="false"

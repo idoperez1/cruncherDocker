@@ -1,11 +1,14 @@
 export {default as MainContent} from "~core/MainContent";
 
+// cosumers
+export {DateType} from "~core/store/dateState";
+export type {FullDate} from "~core/store/dateState";
+
 // QQL
 export * from "~core/qql";
 
-
-export * from "~core/common/interface";
 // controllers
+export * from "~core/common/interface";
 export {
     MockController,
 } from "~adapters/local/controller";
