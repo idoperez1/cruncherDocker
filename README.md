@@ -1,4 +1,11 @@
-<img src="./docs/cruncher_logo.png" width=300 />
+<img src="./docs/cruncher_logo.png" width=200 align="right" />
+<br/>
+<br/>
+<br/>
+<br/>
+<br/>
+<br/>
+<br/>
 
 # Cruncher
 
