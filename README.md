@@ -1,5 +1,6 @@
-
-![splash art](./docs/splash.png)
+<center>
+<img src="./docs/cruncher_logo.png" width=200 />
+</center>
 
 # Cruncher
 
