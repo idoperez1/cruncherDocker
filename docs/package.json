@@ -10,8 +10,10 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/react": "^4.1.2",
     "@astrojs/starlight": "^0.30.3",
     "astro": "^5.0.2",
+    "cruncher": "link:..",
     "sharp": "^0.32.5"
   }
 }

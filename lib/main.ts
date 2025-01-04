@@ -1,4 +1,5 @@
 export {default as MainContent} from "~core/MainContent";
+export {LocalContent} from "~bundle/LocalContent";
 
 // cosumers
 export {DateType} from "~core/store/dateState";

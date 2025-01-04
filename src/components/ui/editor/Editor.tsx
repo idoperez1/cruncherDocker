@@ -211,6 +211,7 @@ export const Editor = React.forwardRef<HTMLTextAreaElement, EditorProps>(({ valu
         placeholder="Type your query here..."
         value={value}
         ref={setReferenceElement}
+        data-1p-ignore="disabled"
         data-enable-grammarly="false"
         style={{
           position: "relative",
