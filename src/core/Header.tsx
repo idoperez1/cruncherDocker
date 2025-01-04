@@ -45,6 +45,11 @@ const StyledHeader = styled.form`
   gap: 0.4rem;
   flex-direction: row;
   padding: 0.3rem;
+
+  // add media
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
 `;
 
 const QueryContainer = styled.div`
