@@ -7,6 +7,8 @@
 
 # Cruncher
 
+<img src="./docs/splash.png">
+
 Ever wanted to post process your data?  
 `Cruncher` is here for the rescue!
 
