@@ -1,0 +1,39 @@
+---
+title: Cruncher
+description: Your logs, Your data - crunch it however you like
+template: splash
+hero:
+  tagline: Your logs, Your data - crunch it however you like
+  image:
+    file: ../../assets/cruncher_logo.webp
+  actions:
+    - text: QQL Reference
+      link: /qql_reference/qql
+      icon: right-arrow
+    - text: View on GitHub
+      icon: external
+      variant: minimal
+      link: https://github.com/IamShobe/cruncher
+---
+import { Image } from 'astro:assets';
+import { Card, CardGrid } from '@astrojs/starlight/components';
+import splashImg from '../../assets/splash.png';
+
+<Image src={splashImg} alt="Cruncher" />
+
+## Features
+
+<CardGrid stagger>
+	<Card title="Crunch Logs" icon="pencil">
+		Post-process your logs and create custom views.
+	</Card>
+	<Card title="Visualise" icon="add-document">
+		Build custom dashboards and visualisations.
+	</Card>
+	<Card title="Multiple Sources" icon="setting">
+		Connect to multiple data sources and crunch them all together!
+	</Card>
+	<Card title="Quick Query Language" icon="open-book">
+		Cruncher uses QQL (custom language) that is easy to learn and powerful.
+	</Card>
+</CardGrid>
