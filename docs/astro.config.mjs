@@ -4,6 +4,8 @@ import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
+	site: 'https://cruncher.iamshobe.com',
+	base: '/docs/',
 	integrations: [
 		starlight({
 			title: 'Cruncher',
