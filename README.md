@@ -1,6 +1,4 @@
-<center>
-<img src="./docs/cruncher_logo.png" width=200 />
-</center>
+<img src="./docs/cruncher_logo.png" width=300 />
 
 # Cruncher
 
