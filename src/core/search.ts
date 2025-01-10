@@ -5,13 +5,14 @@ import { store } from "./store/store";
 import { parse, PipelineItem } from "./qql";
 import { asDateField, compareProcessedData, ProcessedData } from "./common/logTypes";
 import equal from "fast-deep-equal";
-import { availableControllerParamsAtom, dataViewModelAtom, originalDataAtom } from "./store/queryState";
+import { availableControllerParamsAtom, dataViewModelAtom, originalDataAtom, viewSelectedForQueryAtom } from "./store/queryState";
 import { notifyError } from "./notifyError";
 import { getPipelineItems } from "./pipelineEngine/root";
 import { tree } from "./indexes/timeIndex";
 import { QueryProvider } from "./common/interface";
 import merge from "merge-k-sorted-arrays";
 import { Mutex } from "async-mutex";
+import { openIndexesAtom } from "./events/state";
 
 export type FormValues = {
     searchTerm: string;
@@ -109,9 +110,10 @@ const doRunQuery = async (controller: QueryProvider, values: FormValues, isForce
                 dataForPipelines = store.get(originalDataAtom); // get the data from the last query
                 startProcessingData(dataForPipelines, parsedTree.pipeline, fromTime, toTime);
             } else {
+                // new search initiated - we can reset
+                resetBeforeNewBackendQuery();
                 try {
                     store.set(lastQueryAtom, executionQuery);
-                    tree.clear();
                     await controller.query(parsedTree.controllerParams, parsedTree.search, {
                         fromTime: fromTime,
                         toTime: toTime,
@@ -160,6 +162,12 @@ const doRunQuery = async (controller: QueryProvider, values: FormValues, isForce
         notifyError("Error parsing query", error);
     }
 };
+
+const resetBeforeNewBackendQuery = () => {
+    store.set(openIndexesAtom, []);
+    tree.clear();
+    store.set(viewSelectedForQueryAtom, false);
+}
 
 const compareExecutions = (
     exec1: QueryExecutionHistory,

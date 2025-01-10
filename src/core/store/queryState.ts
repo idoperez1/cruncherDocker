@@ -94,3 +94,6 @@ export const dataBucketsAtom = atom((get) => {
     count,
   }));
 });
+
+
+export const viewSelectedForQueryAtom = atom<boolean>(false);

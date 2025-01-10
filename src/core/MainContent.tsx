@@ -1,7 +1,7 @@
 import { Badge, Tabs } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import styled from "@emotion/styled";
-import { Provider as JotaiProvider, useAtomValue } from "jotai";
+import { Provider as JotaiProvider, useAtom, useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
 import { LuChartArea, LuLogs, LuTable } from "react-icons/lu";
@@ -27,6 +27,7 @@ import {
   dataViewModelAtom,
   eventsAtom,
   searchQueryAtom,
+  viewSelectedForQueryAtom,
 } from "./store/queryState";
 import { store } from "./store/store";
 import { TableView } from "./table/TableView";
@@ -77,6 +78,13 @@ const MainContentInner: React.FC<MainContentProps> = ({
   const editor = useAtomValue(queryEditorAtom);
 
   const [isInitialized, setIsInitialized] = useState(false);
+
+  const [viewSelectedForQuery, setViewSelectedForQuery] = useAtom(viewSelectedForQueryAtom);
+
+  const selectTab = (tab: string) => {
+    setViewSelectedForQuery(true);
+    setSelectedTab(tab);
+  }
 
   useEffect(() => {
     if (initialStartTime !== undefined) {
@@ -153,12 +161,17 @@ const MainContentInner: React.FC<MainContentProps> = ({
   }, []);
 
   useEffect(() => {
+    if (viewSelectedForQuery) {
+      return // do nothing
+    }
+
+    // otherwise, select the tab based on the data available
     if (tableView === undefined) {
       setSelectedTab("logs");
     } else {
       setSelectedTab("table");
     }
-  }, [tableView]);
+  }, [tableView, viewSelectedForQuery]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -210,7 +223,7 @@ const MainContentInner: React.FC<MainContentProps> = ({
           flex-direction: column;
           min-height: 0;
         `}
-        onValueChange={(e) => setSelectedTab(e.value)}
+        onValueChange={(e) => selectTab(e.value)}
       >
         <Tabs.List zIndex={10}>
           <Tabs.Trigger value="logs">
