@@ -224,11 +224,9 @@ const MainContentInner: React.FC<MainContentProps> = ({
               <Badge>{tableView.dataPoints.length}</Badge>
             )}
           </Tabs.Trigger>
-          <Tooltip content="TBD Not Implemented yet">
-            <Tabs.Trigger value="view" disabled={viewChart === undefined}>
-              <LuChartArea /> View
-            </Tabs.Trigger>
-          </Tooltip>
+          <Tabs.Trigger value="view" disabled={viewChart === undefined}>
+            <LuChartArea /> View
+          </Tabs.Trigger>
         </Tabs.List>
         <Tabs.Content
           value="logs"
