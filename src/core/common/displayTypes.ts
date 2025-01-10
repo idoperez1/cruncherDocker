@@ -11,11 +11,16 @@ export type Table = {
     dataPoints: ProcessedData[],
 }
 
+export type Bucket = {
+    name: string,
+    color: string,
+}
+
 export type View = {
     type: "view",
     data: ProcessedData[],
     XAxis: string,
-    YAxis: string[],
+    YAxis: Bucket[],
     allBuckets: (string | number)[],
 }
 

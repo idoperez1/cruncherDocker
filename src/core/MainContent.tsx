@@ -254,7 +254,7 @@ const MainContentInner: React.FC<MainContentProps> = ({
             />
           )}
         </Tabs.Content>
-        <Tabs.Content value="view" minH="0" flex={1}>
+        <Tabs.Content value="view" minH="0" flex={1} overflow={"auto"}>
           <ViewChart />
         </Tabs.Content>
       </Tabs.Root>

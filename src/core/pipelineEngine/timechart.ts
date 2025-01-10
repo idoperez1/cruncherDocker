@@ -80,7 +80,12 @@ export const processTimeChart = (
         });
     }
 
-    const buckets = Array.from(yAxis).slice(0, maxBuckets === -1 ? undefined : maxBuckets);
+    const buckets = Array.from(yAxis).slice(0, maxBuckets === -1 ? undefined : maxBuckets).map((bucket) => {
+        return {
+            name: bucket,
+            color: getRandomColor(),
+        }
+    });
 
 
     return {
@@ -117,3 +122,8 @@ const parseTimeSpan = (span: string): number => {
             throw new Error(`Invalid time unit: ${unit}`);
     }
 }
+
+
+const getRandomColor = () => {
+    return "#" + Math.floor(Math.random() * 16777215).toString(16);
+};  
