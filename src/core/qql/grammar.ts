@@ -7,6 +7,14 @@ const WhiteSpace = createToken({
   pattern: /\s+/,
   group: Lexer.SKIPPED,
 });
+
+const Comment = createToken({ 
+  name: "Comment", 
+  pattern: /\/\/.*/, 
+  line_breaks: false, 
+  group: "singleLineComments",
+ });
+
 const Comma = createToken({ name: "Comma", pattern: /,/ });
 const Pipe = createToken({ name: "Pipe", pattern: /\|/ });
 const DoubleQoutedString = createToken({
@@ -174,6 +182,7 @@ const RightSquareBracket = createToken({ name: "RightSquareBracket", pattern:  m
 // note we are placing WhiteSpace first as it is very common thus it will speed up the lexer.
 const allTokens = [
   WhiteSpace,
+  Comment,
   DoubleQoutedString,
   RegexPattern,
 
@@ -559,6 +568,10 @@ export class QQLParser extends EmbeddedActionsParser {
 
   public getHighlightData() {
     return this.highlightData;
+  }
+
+  public highlightComment = (token: IToken) => {
+    this.addHighlightData("comment", token);
   }
 
   public query = this.RULE("query", () => {

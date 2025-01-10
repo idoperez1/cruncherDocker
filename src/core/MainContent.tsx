@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
 import { LuChartArea, LuLogs, LuTable } from "react-icons/lu";
 import { Provider } from "~components/ui/provider";
-import { Tooltip } from "~components/ui/tooltip";
 import { QueryProvider } from "./common/interface";
 import { isDateSelectorOpen } from "./DateSelector";
 import { queryEditorAtom } from "./Editor";

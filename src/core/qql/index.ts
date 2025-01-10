@@ -26,6 +26,10 @@ export const allData = (input: string) => {
   parser.input = lexer.tokens;
   const response = parser.query();
 
+  lexer.groups["singleLineComments"].forEach((comment) => {
+    parser.highlightComment(comment);
+  });
+
   return {
     ast: response,
     highlight: parser.getHighlightData(),

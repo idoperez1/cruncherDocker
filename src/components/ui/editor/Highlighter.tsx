@@ -90,6 +90,9 @@ const typeToStyle = (type: string) => {
 
     case "param":
       return { color: "rgb(105, 177, 177)" };
+    
+    case "comment":
+      return { color: "rgb(173, 196, 176)" };
   }
 
   return { color: "gray" };
