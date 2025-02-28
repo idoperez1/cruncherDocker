@@ -38,8 +38,10 @@ export const queryEndTimeAtom = atom<Date | undefined>(undefined);
 export const isQuerySuccessAtom = atom(true);
 
 export const setup = async (controller: QueryProvider) => {
-    const params = await controller.getControllerParams()
-    store.set(availableControllerParamsAtom, params);
+    // this can be done async to the loading of the app - no need to block
+    controller.getControllerParams().then((params) => {
+        store.set(availableControllerParamsAtom, params);
+    });
 }
 
 export const abortRunningQuery = (reason: string) => {

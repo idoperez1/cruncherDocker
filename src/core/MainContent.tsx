@@ -12,11 +12,8 @@ import { queryEditorAtom } from "./Editor";
 import DataLog from "./events/DataLog";
 import Header from "./Header";
 import { globalShortcuts } from "./keymaps";
-import {
-  isLoadingAtom,
-  runQuery,
-  setup,
-} from "./search";
+import { ProgressCircle } from "@chakra-ui/react";
+import { isLoadingAtom, runQuery, setup } from "./search";
 import { getCruncherRoot } from "./shadowUtils";
 import {
   endFullDateAtom,
@@ -48,7 +45,7 @@ type QueryExecuted = {
   query: string;
   startTime: FullDate;
   endTime: FullDate;
-}
+};
 
 type MainContentProps = {
   controller: QueryProvider;
@@ -79,12 +76,14 @@ const MainContentInner: React.FC<MainContentProps> = ({
 
   const [isInitialized, setIsInitialized] = useState(false);
 
-  const [viewSelectedForQuery, setViewSelectedForQuery] = useAtom(viewSelectedForQueryAtom);
+  const [viewSelectedForQuery, setViewSelectedForQuery] = useAtom(
+    viewSelectedForQueryAtom
+  );
 
   const selectTab = (tab: string) => {
     setViewSelectedForQuery(true);
     setSelectedTab(tab);
-  }
+  };
 
   useEffect(() => {
     if (initialStartTime !== undefined) {
@@ -162,7 +161,7 @@ const MainContentInner: React.FC<MainContentProps> = ({
 
   useEffect(() => {
     if (viewSelectedForQuery) {
-      return // do nothing
+      return; // do nothing
     }
 
     // otherwise, select the tab based on the data available
@@ -199,7 +198,19 @@ const MainContentInner: React.FC<MainContentProps> = ({
   }, [editor]);
 
   if (!isInitialized) {
-    return null; // TODO: replace with loader
+    return (
+      <MainContainer style={{
+        justifyContent: "center",
+        alignItems: "center",
+      }}>
+        <ProgressCircle.Root value={null} size="lg">
+          <ProgressCircle.Circle>
+            <ProgressCircle.Track />
+            <ProgressCircle.Range />
+          </ProgressCircle.Circle>
+        </ProgressCircle.Root>
+      </MainContainer>
+    );
   }
 
   return (
