@@ -1647,7 +1647,7 @@ export class QQLParser extends EmbeddedActionsParser {
     return this.ACTION(() => {
       this.addHighlightData("string", token);
 
-      return JSON.parse(token.image);
+      return token.image.slice(1, -1);
     });
   });
 
