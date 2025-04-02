@@ -462,6 +462,35 @@ test("support for regex command", () => {
   });
 })
 
+
+test("support for regex - escaping", () => {
+  const parser = new QQLParser();
+
+  const lexer = QQLLexer.tokenize(`hello world | regex \`\\d\\.\\d+\``);
+  expect(lexer.errors).toEqual([]);
+  parser.input = lexer.tokens;
+  const result = parser.query();
+  expect(result).toEqual({
+    controllerParams: [],
+    search: {
+      type: "search",
+      left: {
+        type: "searchLiteral",
+        tokens: [
+          "hello",
+          "world",
+        ],
+      },
+    },
+    pipeline: [
+      {
+        type: "regex",
+        pattern: "\\d\\.\\d+",
+      },
+    ],
+  });
+})
+
 test("support for regex command with column", () => {
   const parser = new QQLParser();
 
