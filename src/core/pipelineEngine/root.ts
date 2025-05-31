@@ -1,4 +1,4 @@
-import { current, produce } from "immer";
+import { produce } from "immer";
 import { DisplayResults, Events } from "~core/common/displayTypes";
 import { ProcessedData } from "~core/common/logTypes";
 import { PipelineItem } from "~core/qql";
