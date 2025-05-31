@@ -1647,7 +1647,10 @@ export class QQLParser extends EmbeddedActionsParser {
     return this.ACTION(() => {
       this.addHighlightData("string", token);
 
-      return token.image.slice(1, -1);
+      // replace new line characters with escape sequences
+      const value = token.image.replace(/\n/g, "\\n");
+      // remove the double quotes from the string
+      return JSON.parse(value);
     });
   });
 

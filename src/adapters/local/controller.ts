@@ -225,6 +225,8 @@ export const MockController = {
         });
     },
     getControllerParams(): Promise<Record<string, string[]>> {
-        return Promise.resolve({});
+        return Promise.resolve({
+            "label1": ["value1", "value2", "value3"],
+        });
     },
 } satisfies QueryProvider;
