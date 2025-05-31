@@ -1,4 +1,4 @@
-import { produce } from "immer";
+import { current, produce } from "immer";
 import { DisplayResults, Events } from "~core/common/displayTypes";
 import { ProcessedData } from "~core/common/logTypes";
 import { PipelineItem } from "~core/qql";
@@ -50,21 +50,30 @@ const processPipeline = (currentData: DisplayResults, pipeline: PipelineItem[], 
 
     switch (currentPipeline.type) {
         case "table":
-            return processPipeline(processTable(currentData, currentPipeline.columns), pipeline, currentIndex + 1, startTime, endTime);
+            currentData = processTable(currentData, currentPipeline.columns);
+            break;
         case "stats":
-            return processPipeline(processStats(currentData, currentPipeline.columns, currentPipeline.groupBy), pipeline, currentIndex + 1, startTime, endTime);
+            currentData = processStats(currentData, currentPipeline.columns, currentPipeline.groupBy);
+            break;
         case "regex":
-            return processPipeline(processRegex(currentData, new RegExp(currentPipeline.pattern), currentPipeline.columnSelected), pipeline, currentIndex + 1, startTime, endTime);
+            currentData = processRegex(currentData, new RegExp(currentPipeline.pattern), currentPipeline.columnSelected);
+            break;
         case "sort":
-            return processPipeline(processSort(currentData, currentPipeline.columns), pipeline, currentIndex + 1, startTime, endTime);
+            currentData = processSort(currentData, currentPipeline.columns);
+            break;
         case "where":
-            return processPipeline(processWhere(currentData, currentPipeline.expression), pipeline, currentIndex + 1, startTime, endTime);
+            currentData = processWhere(currentData, currentPipeline.expression)
+            break;
         case "timechart":
-            return processPipeline(processTimeChart(currentData, currentPipeline.columns, currentPipeline.groupBy, startTime, endTime, currentPipeline.params), pipeline, currentIndex + 1, startTime, endTime);
+            currentData = processTimeChart(currentData, currentPipeline.columns, currentPipeline.groupBy, startTime, endTime, currentPipeline.params);
+            break;
         case "eval":
-            return processPipeline(processEval(currentData, currentPipeline.variableName, currentPipeline.expression), pipeline, currentIndex + 1, startTime, endTime);
+            currentData = processEval(currentData, currentPipeline.variableName, currentPipeline.expression);
+            break;
         default:
             // @ts-expect-error - this should never happen
             throw new Error(`Pipeline type '${currentPipeline.type}' not implemented`);
     }
+
+    return processPipeline(currentData, pipeline, currentIndex + 1, startTime, endTime);
 }
