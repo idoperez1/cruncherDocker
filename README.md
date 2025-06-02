@@ -25,6 +25,27 @@ If you encounter corruption issues run:
 xattr -cr /Applications/cruncher.app
 ```
 
+## Cruncher config file
+Add a file named `cruncher.config.json` to your home directory at:
+`~/.config/cruncher/cruncher.config.yaml`
+
+The config file is a yaml file that contains the following fields:
+```yaml
+# Cruncher configuration file
+connectors:
+  - type: grafana_browser
+    name: main
+    params:
+      grafanaUrl: <your_grafana_url> 
+      uid: <your_loki_uid> # e.g. "logs"
+      filter: 
+        - key: label1
+          value: "label1_value"
+          operator: "="
+      querySuffix: []
+```
+
+
 ## QQL (Quick Query Language)
 QQL is the main query language inside `Cruncher` - it's main goal is to have a quick - easy to learn language - that's powerful enought to allow power users access to enhanced capabilities over that data.  
 
