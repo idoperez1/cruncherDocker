@@ -17,6 +17,14 @@ Of course this comes with alot of calculation costs - but my assumption is that 
 `Cruncher` was built with a mindset to be embedded everywhere - like inside an extension - so everything was built under unique [shadowDOM](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM).  
 
 
+## Macos installation
+You can download the latest version from the [releases page](https://github.com/IamShobe/cruncher/releases/latest) -
+Download the zip file extract, and move the `cruncher.app` to your `Applications` folder and run it.
+If you encounter corruption issues run:
+```bash
+xattr -cr /Applications/cruncher.app
+```
+
 ## QQL (Quick Query Language)
 QQL is the main query language inside `Cruncher` - it's main goal is to have a quick - easy to learn language - that's powerful enought to allow power users access to enhanced capabilities over that data.  
 
