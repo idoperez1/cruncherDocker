@@ -3,9 +3,9 @@ import { css } from "@emotion/react";
 import styled from "@emotion/styled";
 import { Provider as JotaiProvider, useAtom, useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
-import { Toaster } from "react-hot-toast";
 import { LuChartArea, LuLogs, LuTable } from "react-icons/lu";
 import { Provider } from "~components/ui/provider";
+import { Toaster } from "~components/ui/toaster";
 import { isDateSelectorOpen } from "./DateSelector";
 import { queryEditorAtom } from "./Editor";
 import DataLog from "./events/DataLog";
@@ -129,12 +129,12 @@ const MainContentInner: React.FC<MainContentProps> = ({ }) => {
   return (
     <MainContainer id="cruncher-inner-root">
       <Toaster
-        toastOptions={{
-          style: {
-            zIndex: 1000,
-          },
-          duration: 10000,
-        }}
+        // toastOptions={{
+        //   style: {
+        //     zIndex: 1000,
+        //   },
+        //   duration: 10000,
+        // }}
       />
       <Header />
       <Tabs.Root

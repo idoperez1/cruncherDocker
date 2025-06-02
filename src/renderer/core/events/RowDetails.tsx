@@ -77,8 +77,6 @@ const getRowIcon = (row: Field) => {
 }
 
 export const RowDetail: React.FC<DataRowProps> = ({ rowKey, rowValue }) => {
-  const [isOpen, setIsOpen] = React.useState(false);
-
   return (
     <div
       css={css`
@@ -140,12 +138,11 @@ export const RowDetail: React.FC<DataRowProps> = ({ rowKey, rowValue }) => {
                         </PopoverBody>
                       </PopoverContent>
                     </PopoverRoot>*/}
-      <MenuRoot open={isOpen} lazyMount unmountOnExit>
+      <MenuRoot lazyMount unmountOnExit>
         <MenuTrigger asChild>
           <IconButton
             size={"2xs"}
             variant="ghost"
-            onClick={() => setIsOpen(!isOpen)}
           >
             <LuEllipsisVertical />
           </IconButton>
@@ -155,7 +152,6 @@ export const RowDetail: React.FC<DataRowProps> = ({ rowKey, rowValue }) => {
             value="copy-value"
             onClick={() => {
               navigator.clipboard.writeText(asDisplayString(rowValue));
-              setIsOpen(false);
             }}
             cursor={"pointer"}
           >

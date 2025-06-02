@@ -3,9 +3,9 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import MainContent from "~core/MainContent";
 
+import "./binding";
 import "./index.css";
 import "./websocket_bridge";
-import "./binding"
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

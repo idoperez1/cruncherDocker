@@ -1,82 +1,37 @@
-import { Card, Stack } from "@chakra-ui/react";
-import toast from "react-hot-toast";
-import { CloseButton } from "~components/ui/close-button";
+// import toast from "react-hot-toast";
+import { toaster } from "~components/ui/toaster";
 import { QQLLexingError, QQLParserError } from "~lib/qql";
 
 export const notifySuccess = (message: string) => {
   console.log(message);
-  toast.success(
-    (t) => (
-      <Card.Root
-        pointerEvents={"all"}
-        zIndex={1000}
-        padding="3"
-        backgroundColor={"green.600"}
-      >
-        <Card.Header padding={0}>
-          <Stack direction="row" alignItems={"center"}>
-            <Card.Title>{message}</Card.Title>
-            <CloseButton
-              marginLeft="auto"
-              size="2xs"
-              onClick={() => toast.dismiss(t.id)}
-            />
-          </Stack>
-        </Card.Header>
-      </Card.Root>
-    ),
-    {
-      position: "bottom-right",
-      duration: 5000,
-    }
-  );
-}
+  toaster.success({
+    title: message,
+    duration: 5000,
+  });
+};
 
 export const notifyError = (message: string, error: Error) => {
   console.error(message, error);
-  toast.error(
-    (t) => {
-      let subMessage = error.message;
-      if (error instanceof QQLLexingError) {
-        const errors: string[] = [];
-        error.errors.map((e) => {
-          errors.push(`${e.line}:${e.column} - ${e.message}`);
-        });
+  let subMessage = error.message;
+  if (error instanceof QQLLexingError) {
+    const errors: string[] = [];
+    error.errors.map((e) => {
+      errors.push(`${e.line}:${e.column} - ${e.message}`);
+    });
 
-        subMessage = errors.join("\n");
-      } else if (error instanceof QQLParserError) {
-        const errors: string[] = [];
-        error.errors.map((e) => {
-          errors.push(`${e.message}`);
-        });
+    subMessage = errors.join("\n");
+  } else if (error instanceof QQLParserError) {
+    const errors: string[] = [];
+    error.errors.map((e) => {
+      errors.push(`${e.message}`);
+    });
 
-        subMessage = errors.join("\n");
-      }
-
-      return (
-        <Card.Root
-          pointerEvents={"all"}
-          zIndex={1000}
-          padding="3"
-          backgroundColor={"red.600"}
-        >
-          <Card.Header padding={0}>
-            <Stack direction="row" alignItems={"center"}>
-              <Card.Title>{message}</Card.Title>
-              <CloseButton
-                marginLeft="auto"
-                size="2xs"
-                onClick={() => toast.dismiss(t.id)}
-              />
-            </Stack>
-          </Card.Header>
-          <Card.Body padding={0}>{subMessage}</Card.Body>
-        </Card.Root>
-      );
-    },
-    {
-      position: "bottom-right",
-      duration: 10000,
-    }
-  );
+    subMessage = errors.join("\n");
+  }
+  toaster.error({
+    title: message,
+    description: subMessage,
+    duration: 15000,
+    closable: true,
+  });
 };
