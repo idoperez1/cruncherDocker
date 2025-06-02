@@ -19,7 +19,7 @@ const config: ForgeConfig = {
         name: 'Cruncher Protocol',
         schemes: ['cruncher'],
       }
-    ]
+    ],
   },
   rebuildConfig: {},
   makers: [
