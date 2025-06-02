@@ -17,6 +17,9 @@ const url = `${updateServer}/update/${feedChannel}/${app.getVersion()}`
 
 console.log("feed URL for autoUpdater:", url);
 
+const version = app.getVersion();
+console.log(`Cruncher version: ${version}`);
+
 autoUpdater.setFeedURL({ url });
 
 setInterval(() => {
