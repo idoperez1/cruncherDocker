@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain, autoUpdater, dialog } from 'electron';
+import { compare } from 'compare-versions';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import log from 'electron-log/main';
 import started from 'electron-squirrel-startup';
 import path from 'node:path';
@@ -12,41 +13,46 @@ log.initialize();
 Object.assign(console, log.functions);
 
 const updateServer = "https://cruncher-upstream.vercel.app";
+const repoHome = "https://github.com/IamShobe/cruncher"
 const feedChannel = `${process.platform}_${process.arch}`;
-const url = `${updateServer}/update/${feedChannel}/${app.getVersion()}`
+const updateUrl = `${updateServer}/update/${feedChannel}/0.0.0`
 
-console.log("feed URL for autoUpdater:", url);
+console.log("feed URL for autoUpdater:", updateUrl);
 
 const version = app.getVersion();
 console.log(`Cruncher version: ${version}`);
 
-autoUpdater.setFeedURL({ url });
+const checkForUpdates = async () => {
+  console.log("Checking for updates...");
+  const fetchResponse = await fetch(updateUrl)
+  if (!fetchResponse.ok) {
+    console.error("Failed to fetch update information:", fetchResponse.statusText);
+    return;
+  }
 
-setInterval(() => {
-  autoUpdater.checkForUpdates();
-}, 60000);
+  const respData = await fetchResponse.json();
 
-autoUpdater.on('update-available', () => {
-  console.log('Update available');
-});
+  const latestVersion = respData.name;
+  const latestAvailableVersion = latestVersion.trim().replace(/^v/, '');
 
-autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
-  dialog.showMessageBox({
-    type: 'info',
-    buttons: ['Restart', 'Later'],
-    title: 'Application Update',
-    message: process.platform === 'win32' ? releaseNotes : releaseName,
-    detail:
-      'A new version has been downloaded. Restart the application to apply the updates.'
-  }).then((returnValue) => {
-    if (returnValue.response === 0) autoUpdater.quitAndInstall()
-  })
-})
+  if (compare(latestAvailableVersion, version, '>')) {
+    console.log(`A new version is available: ${latestVersion}`);
+    dialog.showMessageBox({
+      type: 'info',
+      buttons: ['Go to release page', 'Later'],
+      title: 'Application Update',
+      message: `Version ${latestVersion} is available!`,
+      detail: 'A new version of Cruncher is available. Would you like to go to the release page to download it?'
+    }).then((returnValue) => {
+      if (returnValue.response === 0) {
+        const releaseUrl = `${repoHome}/releases/tag/${latestVersion}`;
+        shell.openExternal(releaseUrl);
+      }
+    })
+  }
+}
 
-autoUpdater.on('error', (message) => {
-  console.error('There was a problem updating the application')
-  console.error(message)
-})
+checkForUpdates()
 
 // log workdir 
 console.log(`Current working directory: ${process.cwd()}`);
