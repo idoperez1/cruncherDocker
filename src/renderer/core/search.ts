@@ -68,6 +68,15 @@ const getController = () => {
     return controller;
 }
 
+export const getCurrentShareLink = () => {
+    const queryState = store.get(lastExecutedQueryStateAtom);
+    if (queryState === undefined) {
+        return null;
+    }
+
+    return getShareLink(queryState);
+}
+
 export const getShareLink = (queryState: QueryState) => {
     const startTime = queryState.startTime;
     const endTime = queryState.endTime;

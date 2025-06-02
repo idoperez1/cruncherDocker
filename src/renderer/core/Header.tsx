@@ -15,6 +15,7 @@ import {
   LuSearch,
   LuSearchCode,
   LuSearchX,
+  LuShare2,
 } from "react-icons/lu";
 import {
   MenuContent,
@@ -27,17 +28,21 @@ import { Tooltip } from "~components/ui/tooltip";
 import { DateSelector, isDateSelectorOpen } from "./DateSelector";
 import { Editor } from "./Editor";
 import { headerShortcuts } from "./keymaps";
-import { abortRunningQuery, FormValues, isLoadingAtom, isQuerySuccessAtom, queryEndTimeAtom, queryStartTimeAtom, runQuery } from "./search";
 import {
-  endFullDateAtom,
-  startFullDateAtom
-} from "./store/dateState";
-import {
-  dataViewModelAtom,
-  searchQueryAtom
-} from "./store/queryState";
+  abortRunningQuery,
+  FormValues,
+  getCurrentShareLink,
+  isLoadingAtom,
+  isQuerySuccessAtom,
+  queryEndTimeAtom,
+  queryStartTimeAtom,
+  runQuery
+} from "./search";
+import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
+import { dataViewModelAtom, searchQueryAtom } from "./store/queryState";
 import { store } from "./store/store";
 import { Timer } from "./Timer";
+import { notifySuccess } from "./notifyError";
 
 const StyledHeader = styled.form`
   display: flex;
@@ -68,11 +73,9 @@ const LoaderHolder = styled.div`
   height: 5px;
 `;
 
-type HeaderProps = {
-};
+type HeaderProps = {};
 
-
-const Header: React.FC<HeaderProps> = ({ }) => {
+const Header: React.FC<HeaderProps> = ({}) => {
   const isLoading = useAtomValue(isLoadingAtom);
 
   const [searchValue, setSearchValue] = useAtom(searchQueryAtom);
@@ -156,7 +159,9 @@ const Header: React.FC<HeaderProps> = ({ }) => {
         <SearchBarButtons
           isLoading={isLoading}
           onForceSubmit={() => handleSubmit(onSubmit(true))()}
-          onTerminateSearch={() => abortRunningQuery("Search terminated by user")}
+          onTerminateSearch={() =>
+            abortRunningQuery("Search terminated by user")
+          }
         />
       </StyledHeader>
     </>
@@ -256,7 +261,7 @@ const downloadFile = (filename: string, data: string, mimeType: string) => {
 };
 
 const MiniButtons = () => {
-  const {table: tableView} = useAtomValue(dataViewModelAtom);
+  const { table: tableView } = useAtomValue(dataViewModelAtom);
 
   const isDisabled = tableView === undefined;
 
@@ -291,7 +296,15 @@ const MiniButtons = () => {
   const copyCsv = () => {
     const csvValue = getCSVValue();
     navigator.clipboard.writeText(csvValue);
+    notifySuccess("CSV copied to clipboard");
   };
+
+  const shareableLink = getCurrentShareLink();
+
+  const copyShareableLink = () => {
+    navigator.clipboard.writeText(shareableLink ?? "");
+    notifySuccess("Shareable link copied to clipboard");
+  }
 
   const getJson = () => {
     const data = dataAsArray();
@@ -301,6 +314,7 @@ const MiniButtons = () => {
 
   const copyJson = () => {
     navigator.clipboard.writeText(getJson());
+    notifySuccess("JSON copied to clipboard");
   };
 
   const downloadJson = () => {
@@ -336,6 +350,9 @@ const MiniButtons = () => {
           </MenuItem>
         </MenuContent>
       </MenuRoot>
+      <IconButton aria-label="Copy Shareable Link" size="2xs" variant="surface" disabled={!shareableLink} onClick={copyShareableLink}>
+        <LuShare2 />
+      </IconButton>
     </Stack>
   );
 };

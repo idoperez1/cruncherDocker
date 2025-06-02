@@ -3,6 +3,35 @@ import toast from "react-hot-toast";
 import { CloseButton } from "~components/ui/close-button";
 import { QQLLexingError, QQLParserError } from "~lib/qql";
 
+export const notifySuccess = (message: string) => {
+  console.log(message);
+  toast.success(
+    (t) => (
+      <Card.Root
+        pointerEvents={"all"}
+        zIndex={1000}
+        padding="3"
+        backgroundColor={"green.600"}
+      >
+        <Card.Header padding={0}>
+          <Stack direction="row" alignItems={"center"}>
+            <Card.Title>{message}</Card.Title>
+            <CloseButton
+              marginLeft="auto"
+              size="2xs"
+              onClick={() => toast.dismiss(t.id)}
+            />
+          </Stack>
+        </Card.Header>
+      </Card.Root>
+    ),
+    {
+      position: "bottom-right",
+      duration: 5000,
+    }
+  );
+}
+
 export const notifyError = (message: string, error: Error) => {
   console.error(message, error);
   toast.error(
