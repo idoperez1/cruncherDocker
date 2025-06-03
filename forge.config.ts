@@ -80,8 +80,6 @@ const config: ForgeConfig = {
           owner: 'IamShobe',
           name: 'cruncher'
         },
-        prerelease: true,
-        force: true,
       }
     }
   ]
