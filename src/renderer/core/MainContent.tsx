@@ -11,6 +11,7 @@ const Wrapper = styled.div`
   flex: 1;
   display: flex;
   min-width: 0;
+  height: 100%;
 `;
 
 const MainContentInner = () => {
