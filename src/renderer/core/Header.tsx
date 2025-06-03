@@ -15,7 +15,7 @@ import {
   LuSearch,
   LuSearchCode,
   LuSearchX,
-  LuShare2,
+  LuShare2
 } from "react-icons/lu";
 import {
   MenuContent,
@@ -26,8 +26,10 @@ import {
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
 import { DateSelector, isDateSelectorOpen } from "./DateSelector";
+import { SettingsDrawer } from "./drawer/Drawer";
 import { Editor } from "./Editor";
 import { headerShortcuts } from "./keymaps";
+import { notifySuccess } from "./notifyError";
 import {
   abortRunningQuery,
   FormValues,
@@ -42,7 +44,6 @@ import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { dataViewModelAtom, searchQueryAtom } from "./store/queryState";
 import { store } from "./store/store";
 import { Timer } from "./Timer";
-import { notifySuccess } from "./notifyError";
 
 const StyledHeader = styled.form`
   display: flex;
@@ -353,6 +354,7 @@ const MiniButtons = () => {
       <IconButton aria-label="Copy Shareable Link" size="2xs" variant="surface" disabled={!shareableLink} onClick={copyShareableLink}>
         <LuShare2 />
       </IconButton>
+      <SettingsDrawer/>
     </Stack>
   );
 };

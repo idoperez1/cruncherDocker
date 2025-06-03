@@ -1,28 +1,35 @@
-import { Button, CloseButton, Drawer, Portal } from "@chakra-ui/react";
-import React from "react";
+import {
+  Button,
+  CloseButton,
+  Drawer,
+  IconButton,
+  Portal,
+} from "@chakra-ui/react";
+import { LuSettings } from "react-icons/lu";
+import { Tooltip } from "~components/ui/tooltip";
 
-export const SettingsDrawer = ({
-  children,
-}: {
-  children?: React.ReactNode;
-}) => {
+export const SettingsDrawer = () => {
   return (
-    <Drawer.Root>
-      <Drawer.Trigger asChild>
-        {children}
-      </Drawer.Trigger>
+    <Drawer.Root size={"md"}>
+      <Tooltip
+        content={<span>Settings</span>}
+        showArrow
+        positioning={{ placement: "bottom" }}
+      >
+        <Drawer.Trigger asChild>
+          <IconButton aria-label="Settings" size="2xs" variant="surface">
+            <LuSettings />
+          </IconButton>
+        </Drawer.Trigger>
+      </Tooltip>
       <Portal>
         <Drawer.Backdrop />
         <Drawer.Positioner padding="4">
           <Drawer.Content rounded="md">
             <Drawer.Header>
-              <Drawer.Title>Drawer Title</Drawer.Title>
+              <Drawer.Title>Search Settings</Drawer.Title>
             </Drawer.Header>
             <Drawer.Body>
-              <p>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-                eiusmod tempor incididunt ut labore et dolore magna aliqua.
-              </p>
             </Drawer.Body>
             <Drawer.Footer>
               <Button variant="outline">Cancel</Button>
