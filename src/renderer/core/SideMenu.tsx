@@ -1,17 +1,21 @@
 import {
-  Icon,
-  IconButton,
-  IconButtonProps,
-  Separator,
-  Stack,
+    Icon,
+    IconButton,
+    Separator,
+    Stack
 } from "@chakra-ui/react";
-import { ReactNode, useCallback, useState } from "react";
-import { LuFileSearch, LuBolt } from "react-icons/lu";
-import { Tooltip } from "~components/ui/tooltip";
+import { atom, useAtom } from "jotai";
+import { ReactNode, useCallback } from "react";
+import { LuBolt, LuFileSearch } from "react-icons/lu";
 import logo from "src/icons/png/256x256.png";
+import { Tooltip } from "~components/ui/tooltip";
+
+export type MenuItem = "searcher" | "settings";
+
+export const selectedMenuItemAtom = atom<MenuItem>("searcher");
 
 export const SideMenu = () => {
-  const { selectedItem, itemProps } = useMenu("searcher");
+  const { selectedItem, itemProps } = useMenu();
 
   return (
     <Stack direction="row" backgroundColor="rgb(22, 23, 29)" gap={0}>
@@ -50,11 +54,11 @@ export const SideMenu = () => {
   );
 };
 
-const useMenu = (defaultSelected: string) => {
-  const [selectedItem, setSelectedItems] = useState<string>(defaultSelected);
+const useMenu = () => {
+  const [selectedItem, setSelectedItems] = useAtom(selectedMenuItemAtom);
 
   const itemProps = useCallback(
-    (itemKey: string) => {
+    (itemKey: MenuItem) => {
       return {
         onClick: () => {
           setSelectedItems(itemKey);
@@ -90,13 +94,4 @@ const MenuButton: React.FC<{
       </IconButton>
     </Tooltip>
   );
-};
-
-const getPropsBySelected = (
-  itemId: string,
-  selected: string
-): Pick<IconButtonProps, "variant"> => {
-  return {
-    variant: itemId === selected ? "solid" : "outline",
-  };
 };
