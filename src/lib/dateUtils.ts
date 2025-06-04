@@ -16,13 +16,13 @@ export const isTimeNow = (date: Date | DateType | undefined): date is DateType.N
  * @param {string|number|Date} input
  * @returns {Date|null}
  */
-export const parseDate = (input: unknown): Date | null => {
+export const parseDate = (input: unknown): FullDate | null => {
     if (input instanceof Date && isValid(input)) {
         return input;
     }
 
     if (typeof input === 'string' && input.trim() === 'Now') {
-        return new Date();  // Return current date if input is "Now"
+        return DateType.Now;
     }
 
     // Handle epoch time (number or numeric string)

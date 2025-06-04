@@ -1,8 +1,9 @@
 import { Mutex } from "async-mutex";
 import equal from "fast-deep-equal";
 import { atom } from "jotai";
+import * as _ from "lodash-es";
 import merge from "merge-k-sorted-arrays";
-import { dateAsString, FullDate, isTimeNow } from "~lib/dateUtils";
+import { dateAsString, DateType, FullDate, isTimeNow } from "~lib/dateUtils";
 import { getPipelineItems } from "~lib/pipelineEngine/root";
 import { parse, PipelineItem } from "~lib/qql";
 import { ControllerIndexParam, Search } from "~lib/qql/grammar";
@@ -10,9 +11,9 @@ import { asDateField, compareProcessedData, ProcessedData } from "../../lib/adap
 import { QueryProvider } from "./common/interface";
 import { openIndexesAtom } from "./events/state";
 import { tree } from "./indexes/timeIndex";
-import { notifyError } from "./notifyError";
-import { actualEndTimeAtom, actualStartTimeAtom, compareFullDates } from "./store/dateState";
-import { availableControllerParamsAtom, dataViewModelAtom, originalDataAtom, viewSelectedForQueryAtom } from "./store/queryState";
+import { notifyError, notifySuccess } from "./notifyError";
+import { actualEndTimeAtom, actualStartTimeAtom, compareFullDates, endFullDateAtom, startFullDateAtom } from "./store/dateState";
+import { availableControllerParamsAtom, dataViewModelAtom, originalDataAtom, searchQueryAtom, viewSelectedForQueryAtom } from "./store/queryState";
 import { QueryState, store } from "./store/store";
 
 export type FormValues = {
@@ -68,13 +69,36 @@ const getController = () => {
     return controller;
 }
 
-export const getCurrentShareLink = () => {
-    const queryState = store.get(lastExecutedQueryStateAtom);
-    if (queryState === undefined) {
-        return null;
+export const toggleUntilNow = () => {
+    const currentEndTime = store.get(endFullDateAtom);
+
+    if (currentEndTime === DateType.Now) {
+        store.set(endFullDateAtom, new Date());
+    } else {
+        store.set(endFullDateAtom, DateType.Now)
+    }
+}
+
+export const copyCurrentShareLink = () => {
+    const shareLink = getCurrentShareLink();
+    if (_.isNil(shareLink)) {
+        return;
     }
 
-    return getShareLink(queryState);
+    navigator.clipboard.writeText(shareLink).then(() => {
+        notifySuccess("Shareable link copied to clipboard");
+    }).catch((error) => {
+        console.error("Failed to copy shareable link: ", error);
+        notifyError("Failed to copy shareable link", error);
+    });
+}
+
+export const getCurrentShareLink = () => {
+    return getShareLink({
+        searchQuery: store.get(searchQueryAtom),
+        startTime: store.get(startFullDateAtom),
+        endTime: store.get(endFullDateAtom),
+    });
 }
 
 export const getShareLink = (queryState: QueryState) => {
@@ -156,8 +180,8 @@ const doRunQuery = async (values: FormValues, isForced: boolean) => {
     const abortController = store.get(abortControllerAtom);
     const lastExecutedQuery = store.get(lastQueryAtom);
     const state: QueryState = {
-        startTime: fromTime,
-        endTime: toTime,
+        startTime: values.fromTime,
+        endTime: values.toTime,
         searchQuery: values.searchTerm,
     };
 

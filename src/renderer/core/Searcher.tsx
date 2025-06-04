@@ -9,7 +9,13 @@ import { queryEditorAtom } from "./Editor";
 import DataLog from "./events/DataLog";
 import Header from "./Header";
 import { globalShortcuts } from "./keymaps";
-import { getShareLink, setup, subscribeToQueryExecuted } from "./search";
+import {
+  copyCurrentShareLink,
+  getShareLink,
+  setup,
+  subscribeToQueryExecuted,
+  toggleUntilNow
+} from "./search";
 import { getCruncherRoot } from "./shadowUtils";
 import {
   dataViewModelAtom,
@@ -40,7 +46,9 @@ export const Searcher = () => {
 
   const [isInitialized, setIsInitialized] = useState(false);
 
-  const [viewSelectedForQuery, setViewSelectedForQuery] = useAtom(viewSelectedForQueryAtom);
+  const [viewSelectedForQuery, setViewSelectedForQuery] = useAtom(
+    viewSelectedForQueryAtom
+  );
 
   const selectTab = (tab: string) => {
     setViewSelectedForQuery(true);
@@ -91,6 +99,11 @@ export const Searcher = () => {
         store.set(isDateSelectorOpen, false);
         // required to focus on the input after the tab is changed
         setTimeout(() => editor?.focus(), 0);
+      } else if (globalShortcuts.isPressed(e, "copy-link")) {
+        e.preventDefault();
+        copyCurrentShareLink();
+      } else if (globalShortcuts.isPressed(e, "toggle-until-now")) {
+        toggleUntilNow();
       }
     };
 

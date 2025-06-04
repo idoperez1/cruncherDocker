@@ -1,7 +1,7 @@
-import { subDays, subHours, subMinutes } from "date-fns";
+import { set, subDays, subHours, subMinutes } from "date-fns";
 import { atom, useAtom } from "jotai";
 import type React from "react";
-import { useCallback, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { useOutsideDetector } from "~components/ui/useOutsideDetector";
 import {
@@ -64,13 +64,22 @@ export const DateSelector = () => {
   const [selectedRenderedEndDate] = useAtom(renderedEndDateAtom);
   const [isOpen, setIsOpen] = useAtom(isDateSelectorOpen);
 
-  const wrapperRef = useOutsideDetector(
-    useCallback(() => setIsOpen(false), [])
-  );
+  const firstFocusRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // When the popover is opened, focus the first input
+    if (isOpen) {
+      setTimeout(() => {
+        firstFocusRef.current?.focus();
+      }, 0);
+    }
+  }, [isOpen]);
 
   return (
     <PopoverRoot
       open={isOpen}
+      onOpenChange={(e) => setIsOpen(e.open)}
+      initialFocusEl={() => firstFocusRef.current}
       positioning={{ placement: "left-end" }}
       lazyMount
       unmountOnExit
@@ -106,14 +115,14 @@ export const DateSelector = () => {
           </Tooltip>
         </Button>
       </PopoverTrigger>
-      <PopoverContent width={400} ref={wrapperRef}>
+      <PopoverContent width={400}>
         <PopoverArrow />
         <PopoverBody
           display={"flex"}
           justifyContent="center"
           alignItems="center"
         >
-          <CalendarPopUp setIsOpen={setIsOpen} />
+          <CalendarPopUp setIsOpen={setIsOpen} ref={firstFocusRef}/>
         </PopoverBody>
       </PopoverContent>
     </PopoverRoot>
@@ -124,7 +133,7 @@ type CalendarPopUpProps = {
   setIsOpen: (value: boolean) => void;
 };
 
-const CalendarPopUp = ({ setIsOpen }: CalendarPopUpProps) => {
+const CalendarPopUp = forwardRef(({ setIsOpen }: CalendarPopUpProps, ref: React.ForwardedRef<HTMLInputElement>) => {
   const [selectedRange, setSelectedRange] = useAtom(dateRangeAtom);
 
   const [startFullDate] = useAtom(startFullDateAtom);
@@ -196,6 +205,7 @@ const CalendarPopUp = ({ setIsOpen }: CalendarPopUpProps) => {
     <Stack>
       <Stack direction="row" flex={1}>
         <Input
+          ref={ref}
           name="start"
           value={inputRenderedStartDate}
           onBlur={() => {
@@ -311,4 +321,4 @@ const CalendarPopUp = ({ setIsOpen }: CalendarPopUpProps) => {
       </Stack>
     </Stack>
   );
-};
+});

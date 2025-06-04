@@ -95,4 +95,12 @@ export const globalShortcuts = new ShortcutHolder({
         "Mac": "Alt + Q",
         "Windows": "Alt + Q",
     },
+    "copy-link": {
+        "Mac": "Meta + Shift + C",
+        "Windows": "Control + Shift + C",
+    },
+    "toggle-until-now": {
+        "Mac": "Meta + N",
+        "Windows": "Ctrl + N",
+    },
 });

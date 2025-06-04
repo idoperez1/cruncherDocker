@@ -12,7 +12,7 @@ export const SettingsDrawer = () => {
   return (
     <Drawer.Root size={"md"}>
       <Tooltip
-        content={<span>Settings</span>}
+        content={<span>Search Settings</span>}
         showArrow
         positioning={{ placement: "bottom" }}
       >

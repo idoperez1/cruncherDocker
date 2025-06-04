@@ -3,19 +3,28 @@ import type React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { ProgressBar, ProgressRoot } from "~components/ui/progress";
 
-import { IconButton, MenuSeparator, Stack } from "@chakra-ui/react";
+import {
+  Box,
+  Circle,
+  Float,
+  IconButton,
+  MenuSeparator,
+  Stack,
+} from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import { generateCsv, mkConfig } from "export-to-csv";
 import { useAtom, useAtomValue } from "jotai";
+import * as _ from "lodash-es";
 import { useMemo } from "react";
 import { CiExport } from "react-icons/ci";
 import {
   LuClipboardCopy,
   LuDownload,
+  LuExternalLink,
+  LuLink,
   LuSearch,
-  LuSearchCode,
   LuSearchX,
-  LuShare2
+  LuSigma,
 } from "react-icons/lu";
 import {
   MenuContent,
@@ -28,22 +37,25 @@ import { Tooltip } from "~components/ui/tooltip";
 import { DateSelector, isDateSelectorOpen } from "./DateSelector";
 import { SettingsDrawer } from "./drawer/Drawer";
 import { Editor } from "./Editor";
-import { headerShortcuts } from "./keymaps";
+import { globalShortcuts, headerShortcuts } from "./keymaps";
 import { notifySuccess } from "./notifyError";
 import {
   abortRunningQuery,
+  copyCurrentShareLink,
   FormValues,
   getCurrentShareLink,
   isLoadingAtom,
   isQuerySuccessAtom,
   queryEndTimeAtom,
   queryStartTimeAtom,
-  runQuery
+  runQuery,
+  toggleUntilNow,
 } from "./search";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { dataViewModelAtom, searchQueryAtom } from "./store/queryState";
 import { store } from "./store/store";
 import { Timer } from "./Timer";
+import { DateType } from "~lib/dateUtils";
 
 const StyledHeader = styled.form`
   display: flex;
@@ -180,31 +192,52 @@ const SearchBarButtons: React.FC<SearchBarButtonsProps> = ({
   onForceSubmit,
   onTerminateSearch,
 }) => {
+  const endTime = useAtomValue(endFullDateAtom);
+  const startTime = useAtomValue(startFullDateAtom);
+  const isRelativeTimeSelected = useMemo(() => {
+    return endTime === DateType.Now || startTime === DateType.Now;
+  }, [endTime, startTime]);
+
   return (
     <ButtonsHolder>
       <Stack gap={3}>
         <DateSelector />
         <Stack gap={3} direction="row">
-          <Tooltip
-            content={
-              <span>
-                Re-evaluate{" "}
-                <Shortcut keys={headerShortcuts.getAlias("re-evaluate")} />
-              </span>
-            }
-            showArrow
-            positioning={{
-              placement: "bottom",
-            }}
-          >
-            <IconButton
-              aria-label="Re-evalutate"
-              type="submit"
-              disabled={isLoading}
+          <Box position="relative">
+            <Tooltip
+              content={
+                <span>
+                  Process Pipeline {!isRelativeTimeSelected && "Only"}{" "}
+                  <Shortcut keys={headerShortcuts.getAlias("re-evaluate")} />
+                </span>
+              }
+              showArrow
+              positioning={{
+                placement: "bottom",
+              }}
             >
-              <LuSearchCode />
-            </IconButton>
-          </Tooltip>
+              <IconButton
+                aria-label="Re-evalutate"
+                type="submit"
+                disabled={isLoading}
+              >
+                <LuSigma />
+              </IconButton>
+            </Tooltip>
+            {isRelativeTimeSelected && (
+              <Tooltip
+                content={<span>Relative time is selected</span>}
+                showArrow
+                positioning={{
+                  placement: "bottom",
+                }}
+              >
+                <Float placement="top-end">
+                  <Circle size="3" bg="red" color="white"></Circle>
+                </Float>
+              </Tooltip>
+            )}
+          </Box>
           {isLoading ? (
             <Tooltip
               content={<span>Terminate Search</span>}
@@ -300,12 +333,7 @@ const MiniButtons = () => {
     notifySuccess("CSV copied to clipboard");
   };
 
-  const shareableLink = getCurrentShareLink();
-
-  const copyShareableLink = () => {
-    navigator.clipboard.writeText(shareableLink ?? "");
-    notifySuccess("Shareable link copied to clipboard");
-  }
+  const hasSharableLink = _.isNil(getCurrentShareLink());
 
   const getJson = () => {
     const data = dataAsArray();
@@ -326,11 +354,17 @@ const MiniButtons = () => {
   return (
     <Stack gap={3} direction="row">
       <MenuRoot lazyMount unmountOnExit>
-        <MenuTrigger asChild disabled={isDisabled}>
-          <IconButton aria-label="Export" size="2xs" variant="surface">
-            <CiExport />
-          </IconButton>
-        </MenuTrigger>
+        <Tooltip
+          content={<span>Export</span>}
+          showArrow
+          positioning={{ placement: "bottom" }}
+        >
+          <MenuTrigger asChild disabled={isDisabled}>
+            <IconButton aria-label="Export" size="2xs" variant="surface">
+              <CiExport />
+            </IconButton>
+          </MenuTrigger>
+        </Tooltip>
         <MenuContent>
           <MenuItem value="json-copy" cursor="pointer" onClick={copyJson}>
             <LuClipboardCopy /> Copy JSON
@@ -351,10 +385,27 @@ const MiniButtons = () => {
           </MenuItem>
         </MenuContent>
       </MenuRoot>
-      <IconButton aria-label="Copy Shareable Link" size="2xs" variant="surface" disabled={!shareableLink} onClick={copyShareableLink}>
-        <LuShare2 />
-      </IconButton>
-      <SettingsDrawer/>
+      <Tooltip
+        content={
+          <span>
+            Copy External Link{" "}
+            <Shortcut keys={globalShortcuts.getAlias("copy-link")} />
+          </span>
+        }
+        showArrow
+        positioning={{ placement: "bottom" }}
+      >
+        <IconButton
+          aria-label="Copy Shareable Link"
+          size="2xs"
+          variant="surface"
+          disabled={hasSharableLink}
+          onClick={copyCurrentShareLink}
+        >
+          <LuLink />
+        </IconButton>
+      </Tooltip>
+      <SettingsDrawer />
     </Stack>
   );
 };
