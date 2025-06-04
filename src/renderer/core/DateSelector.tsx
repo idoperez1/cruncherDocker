@@ -1,9 +1,8 @@
-import { set, subDays, subHours, subMinutes } from "date-fns";
+import { subDays, subHours, subMinutes } from "date-fns";
 import { atom, useAtom } from "jotai";
 import type React from "react";
-import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
-import { useOutsideDetector } from "~components/ui/useOutsideDetector";
 import {
   compareFullDates,
   dateRangeAtom,
@@ -24,12 +23,12 @@ import {
   PopoverRoot,
   PopoverTrigger,
 } from "~components/ui/popover";
-import { CalendarSelector } from "./CalendarSelector";
-import { Tooltip } from "~components/ui/tooltip";
 import { Shortcut } from "~components/ui/shortcut";
+import { Tooltip } from "~components/ui/tooltip";
+import { CalendarSelector } from "./CalendarSelector";
 import { globalShortcuts } from "./keymaps";
 import { store } from "./store/store";
-import { DateType } from "~lib/dateUtils";
+import { toggleUntilNow } from "./search";
 
 export const setRangeByMinutes = (minutes: number) => {
   const now = new Date();
@@ -48,14 +47,6 @@ export const setRangeByDays = (days: number) => {
   store.set(startFullDateAtom, subDays(now, days));
   store.set(endFullDateAtom, new Date());
 };
-
-export function alignToNow(): void {
-  const fullStartDate = store.get(startFullDateAtom);
-  if (!fullStartDate || fullStartDate > new Date()) {
-    store.set(startFullDateAtom, new Date());
-  }
-  store.set(endFullDateAtom, DateType.Now);
-}
 
 export const isDateSelectorOpen = atom(false);
 
@@ -122,7 +113,7 @@ export const DateSelector = () => {
           justifyContent="center"
           alignItems="center"
         >
-          <CalendarPopUp setIsOpen={setIsOpen} ref={firstFocusRef}/>
+          <CalendarPopUp setIsOpen={setIsOpen} ref={firstFocusRef} />
         </PopoverBody>
       </PopoverContent>
     </PopoverRoot>
@@ -133,192 +124,206 @@ type CalendarPopUpProps = {
   setIsOpen: (value: boolean) => void;
 };
 
-const CalendarPopUp = forwardRef(({ setIsOpen }: CalendarPopUpProps, ref: React.ForwardedRef<HTMLInputElement>) => {
-  const [selectedRange, setSelectedRange] = useAtom(dateRangeAtom);
+const CalendarPopUp = forwardRef(
+  (
+    { setIsOpen }: CalendarPopUpProps,
+    ref: React.ForwardedRef<HTMLInputElement>
+  ) => {
+    const [selectedRange, setSelectedRange] = useAtom(dateRangeAtom);
 
-  const [startFullDate] = useAtom(startFullDateAtom);
-  const [endFullDate] = useAtom(endFullDateAtom);
+    const [startFullDate] = useAtom(startFullDateAtom);
+    const [endFullDate] = useAtom(endFullDateAtom);
 
-  const endInputBoxRef = useRef<HTMLInputElement>(null);
+    const endInputBoxRef = useRef<HTMLInputElement>(null);
 
-  const [selectedRenderedStartDate] = useAtom(renderedStartDateAtom);
-  const [selectedRenderedEndDate] = useAtom(renderedEndDateAtom);
+    const [selectedRenderedStartDate] = useAtom(renderedStartDateAtom);
+    const [selectedRenderedEndDate] = useAtom(renderedEndDateAtom);
 
-  const [inputRenderedStartDate, setInputRenderedStartDate] = useState(
-    selectedRenderedStartDate
-  );
-  const [inputRenderedEndDate, setInputRenderedEndDate] = useState(
-    selectedRenderedEndDate
-  );
+    const [inputRenderedStartDate, setInputRenderedStartDate] = useState(
+      selectedRenderedStartDate
+    );
+    const [inputRenderedEndDate, setInputRenderedEndDate] = useState(
+      selectedRenderedEndDate
+    );
 
-  const onInputStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    tryToUpdateDateFromText(startFullDateAtom, e.target.value);
-    setInputRenderedStartDate(e.target.value);
-  };
+    const onInputStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      tryToUpdateDateFromText(startFullDateAtom, e.target.value);
+      setInputRenderedStartDate(e.target.value);
+    };
 
-  const onInputEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    tryToUpdateDateFromText(endFullDateAtom, e.target.value);
-    setInputRenderedEndDate(e.target.value);
-  };
+    const onInputEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      tryToUpdateDateFromText(endFullDateAtom, e.target.value);
+      setInputRenderedEndDate(e.target.value);
+    };
 
-  const updateRenderedText = () => {
-    const startValue = store.get(renderedStartDateAtom);
-    setInputRenderedStartDate(startValue);
+    const updateRenderedText = () => {
+      const startValue = store.get(renderedStartDateAtom);
+      setInputRenderedStartDate(startValue);
 
-    const endValue = store.get(renderedEndDateAtom);
-    setInputRenderedEndDate(endValue);
-  };
+      const endValue = store.get(renderedEndDateAtom);
+      setInputRenderedEndDate(endValue);
+    };
 
-  const onDatePickerChange = (range: DateRange | undefined) => {
-    setSelectedRange(range);
-    updateRenderedText();
-  };
+    const onDatePickerChange = (range: DateRange | undefined) => {
+      setSelectedRange(range);
+      updateRenderedText();
+    };
 
-  const datePresetSelector = (callback: () => void) => () => {
-    callback();
-    updateRenderedText();
-  };
+    const datePresetSelector = (callback: () => void) => () => {
+      callback();
+      updateRenderedText();
+    };
 
-  const closeOnEscape = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      setIsOpen(false);
-    }
-  };
+    const closeOnEscape = (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
 
-  const onStartInputKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      endInputBoxRef.current?.focus();
-      return;
-    }
+    const onStartInputKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        endInputBoxRef.current?.focus();
+        return;
+      }
 
-    closeOnEscape(e);
-  };
+      closeOnEscape(e);
+    };
 
-  const onEndInputKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      setIsOpen(false);
-    }
+    const onEndInputKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        setIsOpen(false);
+      }
 
-    closeOnEscape(e);
-  };
-  return (
-    <Stack>
-      <Stack direction="row" flex={1}>
-        <Input
-          ref={ref}
-          name="start"
-          value={inputRenderedStartDate}
-          onBlur={() => {
-            // if end date is empty of lower than start date align it to start date
-            if (
-              startFullDate &&
-              (!endFullDate || compareFullDates(endFullDate, startFullDate) < 0)
-            ) {
-              store.set(endFullDateAtom, startFullDate);
-              updateRenderedText();
-            }
-          }}
-          onKeyDown={onStartInputKeyDown}
-          onChange={onInputStartDateChange}
-        />
-        <Input
-          name="end"
-          ref={endInputBoxRef}
-          onKeyDown={onEndInputKeyDown}
-          value={inputRenderedEndDate}
-          onChange={onInputEndDateChange}
-        />
-      </Stack>
-      <Stack direction="row" flex={1}>
-        <CalendarSelector
-          selectedRange={selectedRange}
-          onSelect={onDatePickerChange}
-        />
-        <Stack justifyContent="center">
-          <SimpleGrid columns={4} gap={2}>
-            <IconButton
+      closeOnEscape(e);
+    };
+    return (
+      <Stack>
+        <Stack direction="row" flex={1}>
+          <Input
+            ref={ref}
+            name="start"
+            value={inputRenderedStartDate}
+            onBlur={() => {
+              // if end date is empty of lower than start date align it to start date
+              if (
+                startFullDate &&
+                (!endFullDate ||
+                  compareFullDates(endFullDate, startFullDate) < 0)
+              ) {
+                store.set(endFullDateAtom, startFullDate);
+                updateRenderedText();
+              }
+            }}
+            onKeyDown={onStartInputKeyDown}
+            onChange={onInputStartDateChange}
+          />
+          <Input
+            name="end"
+            ref={endInputBoxRef}
+            onKeyDown={onEndInputKeyDown}
+            value={inputRenderedEndDate}
+            onChange={onInputEndDateChange}
+          />
+        </Stack>
+        <Stack direction="row" flex={1}>
+          <CalendarSelector
+            selectedRange={selectedRange}
+            onSelect={onDatePickerChange}
+          />
+          <Stack justifyContent="center">
+            <SimpleGrid columns={4} gap={2}>
+              <IconButton
+                variant="surface"
+                size="2xs"
+                onClick={datePresetSelector(() => setRangeByMinutes(5))}
+              >
+                5m
+              </IconButton>
+              <IconButton
+                variant="surface"
+                size="2xs"
+                onClick={datePresetSelector(() => setRangeByMinutes(10))}
+              >
+                10m
+              </IconButton>
+              <IconButton
+                variant="surface"
+                size="2xs"
+                onClick={datePresetSelector(() => setRangeByMinutes(15))}
+              >
+                15m
+              </IconButton>
+              <IconButton
+                variant="surface"
+                size="2xs"
+                onClick={datePresetSelector(() => setRangeByMinutes(30))}
+              >
+                30m
+              </IconButton>
+              <IconButton
+                variant="surface"
+                size="2xs"
+                onClick={datePresetSelector(() => setRangeByHours(1))}
+              >
+                1h
+              </IconButton>
+              <IconButton
+                variant="surface"
+                size="2xs"
+                onClick={datePresetSelector(() => setRangeByHours(4))}
+              >
+                4h
+              </IconButton>
+              <IconButton
+                variant="surface"
+                size="2xs"
+                onClick={datePresetSelector(() => setRangeByHours(12))}
+              >
+                12h
+              </IconButton>
+              <IconButton
+                variant="surface"
+                size="2xs"
+                onClick={datePresetSelector(() => setRangeByHours(24))}
+              >
+                24h
+              </IconButton>
+            </SimpleGrid>
+            <Button
               variant="surface"
-              size="2xs"
-              onClick={datePresetSelector(() => setRangeByMinutes(5))}
+              onClick={datePresetSelector(() => setRangeByDays(3))}
             >
-              5m
-            </IconButton>
-            <IconButton
+              Last 3 days
+            </Button>
+            <Button
               variant="surface"
-              size="2xs"
-              onClick={datePresetSelector(() => setRangeByMinutes(10))}
+              onClick={datePresetSelector(() => setRangeByDays(7))}
             >
-              10m
-            </IconButton>
-            <IconButton
+              Last 7 days
+            </Button>
+            <Button
               variant="surface"
-              size="2xs"
-              onClick={datePresetSelector(() => setRangeByMinutes(15))}
+              onClick={datePresetSelector(() => setRangeByDays(30))}
             >
-              15m
-            </IconButton>
-            <IconButton
-              variant="surface"
-              size="2xs"
-              onClick={datePresetSelector(() => setRangeByMinutes(30))}
+              Last 30 days
+            </Button>
+            <Tooltip
+              content={<span><Shortcut keys={globalShortcuts.getAlias("toggle-until-now")} /></span>}
+              showArrow
+              positioning={{
+                placement: "bottom",
+              }}
             >
-              30m
-            </IconButton>
-            <IconButton
-              variant="surface"
-              size="2xs"
-              onClick={datePresetSelector(() => setRangeByHours(1))}
-            >
-              1h
-            </IconButton>
-            <IconButton
-              variant="surface"
-              size="2xs"
-              onClick={datePresetSelector(() => setRangeByHours(4))}
-            >
-              4h
-            </IconButton>
-            <IconButton
-              variant="surface"
-              size="2xs"
-              onClick={datePresetSelector(() => setRangeByHours(12))}
-            >
-              12h
-            </IconButton>
-            <IconButton
-              variant="surface"
-              size="2xs"
-              onClick={datePresetSelector(() => setRangeByHours(24))}
-            >
-              24h
-            </IconButton>
-          </SimpleGrid>
-          <Button
-            variant="surface"
-            onClick={datePresetSelector(() => setRangeByDays(3))}
-          >
-            Last 3 days
-          </Button>
-          <Button
-            variant="surface"
-            onClick={datePresetSelector(() => setRangeByDays(7))}
-          >
-            Last 7 days
-          </Button>
-          <Button
-            variant="surface"
-            onClick={datePresetSelector(() => setRangeByDays(30))}
-          >
-            Last 30 days
-          </Button>
-          <Button
-            variant="surface"
-            onClick={datePresetSelector(() => alignToNow())}
-          >
-            Until Now
-          </Button>
+              <Button
+                variant="surface"
+                onClick={datePresetSelector(() => toggleUntilNow())}
+              >
+                Toggle Until Now
+              </Button>
+            </Tooltip>
+          </Stack>
         </Stack>
       </Stack>
-    </Stack>
-  );
-});
+    );
+  }
+);

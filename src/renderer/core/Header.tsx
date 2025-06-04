@@ -20,11 +20,10 @@ import { CiExport } from "react-icons/ci";
 import {
   LuClipboardCopy,
   LuDownload,
-  LuExternalLink,
   LuLink,
   LuSearch,
   LuSearchX,
-  LuSigma,
+  LuSigma
 } from "react-icons/lu";
 import {
   MenuContent,
@@ -34,6 +33,7 @@ import {
 } from "~components/ui/menu";
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
+import { DateType } from "~lib/dateUtils";
 import { DateSelector, isDateSelectorOpen } from "./DateSelector";
 import { SettingsDrawer } from "./drawer/Drawer";
 import { Editor } from "./Editor";
@@ -48,14 +48,12 @@ import {
   isQuerySuccessAtom,
   queryEndTimeAtom,
   queryStartTimeAtom,
-  runQuery,
-  toggleUntilNow,
+  runQuery
 } from "./search";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { dataViewModelAtom, searchQueryAtom } from "./store/queryState";
 import { store } from "./store/store";
 import { Timer } from "./Timer";
-import { DateType } from "~lib/dateUtils";
 
 const StyledHeader = styled.form`
   display: flex;
@@ -226,11 +224,9 @@ const SearchBarButtons: React.FC<SearchBarButtonsProps> = ({
             </Tooltip>
             {isRelativeTimeSelected && (
               <Tooltip
-                content={<span>Relative time is selected</span>}
+                content={<span>Relative time is selected, full refresh is required!</span>}
                 showArrow
-                positioning={{
-                  placement: "bottom",
-                }}
+                contentProps={{ css: { "--tooltip-bg": "tomato" } }}
               >
                 <Float placement="top-end">
                   <Circle size="3" bg="red" color="white"></Circle>

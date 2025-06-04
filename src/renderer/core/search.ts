@@ -70,6 +70,11 @@ const getController = () => {
 }
 
 export const toggleUntilNow = () => {
+    const fullStartDate = store.get(startFullDateAtom);
+    if (!fullStartDate || fullStartDate > new Date()) {
+        store.set(startFullDateAtom, new Date());
+    }
+
     const currentEndTime = store.get(endFullDateAtom);
 
     if (currentEndTime === DateType.Now) {
@@ -247,6 +252,7 @@ const doRunQuery = async (values: FormValues, isForced: boolean) => {
                     throw error;
                 }
             }
+            notifySuccess("Query executed successfully");
         } finally {
             store.set(isLoadingAtom, false);
             store.set(queryEndTimeAtom, new Date());
