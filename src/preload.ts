@@ -8,6 +8,9 @@ export const electronAPI = {
   getPort: async () => {
     return await ipcRenderer.invoke('getPort') as Promise<number>;
   },
+  getVersion: async () => {
+    return await ipcRenderer.invoke('getVersion') as Promise<string>;
+  }
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);

@@ -108,6 +108,10 @@ const ready = async () => {
     return serverContainer.port;
   });
 
+  ipcMain.handle('getVersion', async () => {
+    return app.getVersion();
+  });
+
   setupPluginsFromConfig();
   createWindow();
 }

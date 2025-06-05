@@ -1,14 +1,10 @@
-import {
-    Icon,
-    IconButton,
-    Separator,
-    Stack
-} from "@chakra-ui/react";
+import { Badge, Icon, IconButton, Separator, Stack } from "@chakra-ui/react";
 import { atom, useAtom } from "jotai";
 import { ReactNode, useCallback } from "react";
 import { LuBolt, LuFileSearch } from "react-icons/lu";
 import logo from "src/icons/png/256x256.png";
 import { Tooltip } from "~components/ui/tooltip";
+import { useAsync } from "react-use";
 
 export type MenuItem = "searcher" | "settings";
 
@@ -16,6 +12,11 @@ export const selectedMenuItemAtom = atom<MenuItem>("searcher");
 
 export const SideMenu = () => {
   const { selectedItem, itemProps } = useMenu();
+  const versionResult = useAsync(async () => {
+    return "v" + (await window.electronAPI.getVersion());
+  }, []);
+
+  const version = versionResult.value || "unknown";
 
   return (
     <Stack direction="row" backgroundColor="rgb(22, 23, 29)" gap={0}>
@@ -47,6 +48,9 @@ export const SideMenu = () => {
               {...itemProps("settings")}
             />
           </Stack>
+          <Badge size="xs" variant="surface">
+            {version}
+          </Badge>
         </Stack>
       </Stack>
       <Separator orientation="vertical" m={0} p={0} />
