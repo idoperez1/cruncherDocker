@@ -4,8 +4,8 @@ import { Provider } from "~components/ui/provider";
 import { store } from "./store/store";
 import { Toaster } from "~components/ui/toaster";
 import { selectedMenuItemAtom, SideMenu } from "./SideMenu";
-import { Searcher } from "./Searcher";
 import { useMemo } from "react";
+import { SearcherWrapper } from "./SearcherWrapper";
 
 const Wrapper = styled.div`
   flex: 1;
@@ -20,7 +20,7 @@ const MainContentInner = () => {
   const component = useMemo(() => {
     switch (selectedItem) {
       case "searcher":
-        return <Searcher />;
+        return <SearcherWrapper />;
 
       default:
         return "not implemented";

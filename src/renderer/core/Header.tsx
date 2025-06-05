@@ -13,7 +13,7 @@ import {
 } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import { generateCsv, mkConfig } from "export-to-csv";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import * as _ from "lodash-es";
 import { useMemo } from "react";
 import { CiExport } from "react-icons/ci";
@@ -52,7 +52,6 @@ import {
 } from "./search";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { dataViewModelAtom, searchQueryAtom } from "./store/queryState";
-import { store } from "./store/store";
 import { Timer } from "./Timer";
 
 const StyledHeader = styled.form`
@@ -97,6 +96,7 @@ const Header: React.FC<HeaderProps> = ({}) => {
   const isQuerySuccess = useAtomValue(isQuerySuccessAtom);
   const queryStartTime = useAtomValue(queryStartTimeAtom);
   const queryEndTime = useAtomValue(queryEndTimeAtom);
+  const setDateSelectorOpen = useSetAtom(isDateSelectorOpen);
 
   const { handleSubmit } = useForm<FormValues>({
     values: {
@@ -115,11 +115,11 @@ const Header: React.FC<HeaderProps> = ({}) => {
   const onHeaderKeyDown = (e: React.KeyboardEvent) => {
     if (headerShortcuts.isPressed(e, "search")) {
       e.preventDefault();
-      store.set(isDateSelectorOpen, false);
+      setDateSelectorOpen(false);
       handleSubmit(onSubmit(true))();
     } else if (headerShortcuts.isPressed(e, "re-evaluate")) {
       e.preventDefault();
-      store.set(isDateSelectorOpen, false);
+      setDateSelectorOpen(false)
       handleSubmit(onSubmit(false))();
     }
   };
