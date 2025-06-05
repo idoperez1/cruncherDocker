@@ -9,7 +9,10 @@ export const electronAPI = {
     return await ipcRenderer.invoke('getPort') as Promise<number>;
   },
   getVersion: async () => {
-    return await ipcRenderer.invoke('getVersion') as Promise<string>;
+    return await ipcRenderer.invoke('getVersion') as Promise<{
+      tag: string;
+      isDev: boolean;
+    }>;
   }
 };
 

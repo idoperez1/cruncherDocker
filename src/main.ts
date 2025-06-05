@@ -95,6 +95,9 @@ const createWindow = () => {
 
 let messageSender: MessageSender | undefined = undefined;
 const messageSenderReady = createSignal();
+function isDev() {
+  return !app.getAppPath().includes('app.asar');
+}
 
 const ready = async () => {
   // get free port
@@ -109,7 +112,10 @@ const ready = async () => {
   });
 
   ipcMain.handle('getVersion', async () => {
-    return app.getVersion();
+    return {
+      "tag": app.getVersion(),
+      "isDev": isDev(),
+    }
   });
 
   setupPluginsFromConfig();
