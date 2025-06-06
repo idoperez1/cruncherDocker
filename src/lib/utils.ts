@@ -39,25 +39,25 @@ export function product<T>(elements: T[][]): T[][] {
 	return result;
 }
 
-export const createSignal = () => {
-	let resolve: () => void;
-	let promise: Promise<void>;
+export const createSignal = <T = void>() => {
+	let resolve: (value: T | PromiseLike<T>) => void;
+	let promise: Promise<T>;
 
 	const reset = () => {
-		promise = new Promise<void>((res) => {
+		promise = new Promise<T>((res) => {
 			resolve = res;
 		});
 	}
 
 	const wait = (opts: {timeout?: number} = {}) => {
 		if (opts.timeout) {
-			return new Promise<void>((res, rej) => {
+			return new Promise<T>((res, rej) => {
 				const timer = setTimeout(() => {
 					rej(new Error("Signal wait timed out"));
 				}, opts.timeout);
-				promise.then(() => {
+				promise.then((value) => {
 					clearTimeout(timer);
-					res();
+					res(value);
 				});
 			});
 		}
@@ -69,7 +69,7 @@ export const createSignal = () => {
 	return {
 		reset: reset,  // Reset the signal to a new promise
 		wait: wait,  // Await this to wait for the signal
-		signal: () => resolve(),  // Call this to resolve the signal
+		signal: (value: T | PromiseLike<T>) => resolve(value),  // Call this to resolve the signal
 	};
 }
 

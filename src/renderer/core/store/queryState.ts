@@ -5,7 +5,6 @@ import { asDateField, ProcessedData } from '~lib/adapters/logTypes';
 import { allData } from '~lib/qql';
 import { actualEndTimeAtom, actualStartTimeAtom } from './dateState';
 
-export const availableControllerParamsAtom = atom<Record<string, string[]>>({});
 export const searchQueryAtom = atom(''); // search query
 
 export const queryDataAtom = atom((get) => {

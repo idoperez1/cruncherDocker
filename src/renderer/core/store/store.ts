@@ -2,6 +2,7 @@ import { atom, createStore } from 'jotai'
 import { searchQueryAtom } from './queryState';
 import { endFullDateAtom, startFullDateAtom } from './dateState';
 import { FullDate } from '~lib/dateUtils';
+import { create } from 'zustand'
 
 export type QueryState = {
     searchQuery: string;
@@ -23,16 +24,18 @@ export const queryStateAtom = atom<QueryState>((get) => {
 
 export const store: ReturnType<typeof createStore> = createStore();
 
-export const subscribeToQueryState = (callback: (state: QueryState) => void) => {
-    const unsubscribe = store.sub(queryStateAtom, () => {
-        const state = store.get(queryStateAtom);
-        callback({
-            searchQuery: state.searchQuery,
-            startTime: state.startTime,
-            endTime: state.endTime,
-        });
-    });
-    return () => {
-        unsubscribe();
-    };
+export type ApplicationStore = {
+    isInitialized: boolean;
+    setIsInitialized: (isInitialized: boolean) => void;
+
+    controllerParams: Record<string, string[]>;
+    setControllerParams: (params: Record<string, string[]>) => void;
 }
+
+export const useApplicationStore = create<ApplicationStore>((set) => ({
+    isInitialized: false,
+    setIsInitialized: (isInitialized: boolean) => set({ isInitialized }),
+
+    controllerParams: {},
+    setControllerParams: (params: Record<string, string[]>) => set({ controllerParams: params }),
+}));

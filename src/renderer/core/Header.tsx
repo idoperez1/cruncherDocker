@@ -14,7 +14,6 @@ import {
 import { css } from "@emotion/react";
 import { generateCsv, mkConfig } from "export-to-csv";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import * as _ from "lodash-es";
 import { useMemo } from "react";
 import { CiExport } from "react-icons/ci";
 import {
@@ -34,21 +33,19 @@ import {
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
 import { DateType } from "~lib/dateUtils";
-import { DateSelector, isDateSelectorOpen } from "./DateSelector";
+import { DateSelector, isDateSelectorOpenAtom } from "./DateSelector";
 import { SettingsDrawer } from "./drawer/Drawer";
 import { Editor } from "./Editor";
-import { globalShortcuts, headerShortcuts } from "./keymaps";
+import { createShortcutsHandler, headerShortcuts, searcherShortcuts } from "./keymaps";
 import { notifySuccess } from "./notifyError";
 import {
-  abortRunningQuery,
-  copyCurrentShareLink,
   FormValues,
-  getCurrentShareLink,
   isLoadingAtom,
   isQuerySuccessAtom,
   queryEndTimeAtom,
   queryStartTimeAtom,
-  runQuery
+  useQueryActions,
+  useRunQuery
 } from "./search";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { dataViewModelAtom, searchQueryAtom } from "./store/queryState";
@@ -96,7 +93,9 @@ const Header: React.FC<HeaderProps> = ({}) => {
   const isQuerySuccess = useAtomValue(isQuerySuccessAtom);
   const queryStartTime = useAtomValue(queryStartTimeAtom);
   const queryEndTime = useAtomValue(queryEndTimeAtom);
-  const setDateSelectorOpen = useSetAtom(isDateSelectorOpen);
+  const setDateSelectorOpen = useSetAtom(isDateSelectorOpenAtom);
+  const runQuery = useRunQuery();
+  const {abortRunningQuery} = useQueryActions();
 
   const { handleSubmit } = useForm<FormValues>({
     values: {
@@ -108,21 +107,22 @@ const Header: React.FC<HeaderProps> = ({}) => {
 
   const onSubmit =
     (isForced: boolean): SubmitHandler<FormValues> =>
-    async (values) => {
-      await runQuery(values, isForced);
-    };
-
-  const onHeaderKeyDown = (e: React.KeyboardEvent) => {
-    if (headerShortcuts.isPressed(e, "search")) {
-      e.preventDefault();
-      setDateSelectorOpen(false);
-      handleSubmit(onSubmit(true))();
-    } else if (headerShortcuts.isPressed(e, "re-evaluate")) {
-      e.preventDefault();
-      setDateSelectorOpen(false)
-      handleSubmit(onSubmit(false))();
+    async () => {
+      await runQuery(isForced);
     }
-  };
+
+  const onHeaderKeyDown = createShortcutsHandler(headerShortcuts, (shortcut) => {
+    switch (shortcut) {
+      case "search":
+        setDateSelectorOpen(false);
+        handleSubmit(onSubmit(true))();
+        break;
+      case "re-evaluate":
+        setDateSelectorOpen(false);
+        handleSubmit(onSubmit(false))();
+        break;
+    }
+  });
 
   const loaderValue = isLoading ? null : 100;
   const loaderColor = useMemo(() => {
@@ -293,6 +293,8 @@ const downloadFile = (filename: string, data: string, mimeType: string) => {
 const MiniButtons = () => {
   const { table: tableView } = useAtomValue(dataViewModelAtom);
 
+  const {copyCurrentShareLink} = useQueryActions();
+
   const isDisabled = tableView === undefined;
 
   const dataAsArray = () => {
@@ -329,7 +331,6 @@ const MiniButtons = () => {
     notifySuccess("CSV copied to clipboard");
   };
 
-  const hasSharableLink = _.isNil(getCurrentShareLink());
 
   const getJson = () => {
     const data = dataAsArray();
@@ -385,7 +386,7 @@ const MiniButtons = () => {
         content={
           <span>
             Copy External Link{" "}
-            <Shortcut keys={globalShortcuts.getAlias("copy-link")} />
+            <Shortcut keys={searcherShortcuts.getAlias("copy-link")} />
           </span>
         }
         showArrow
@@ -395,7 +396,6 @@ const MiniButtons = () => {
           aria-label="Copy Shareable Link"
           size="2xs"
           variant="surface"
-          disabled={hasSharableLink}
           onClick={copyCurrentShareLink}
         >
           <LuLink />

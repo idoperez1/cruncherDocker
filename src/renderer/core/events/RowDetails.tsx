@@ -1,5 +1,6 @@
 import { Box, IconButton } from "@chakra-ui/react";
 import { css } from "@emotion/react";
+import { useSetAtom } from "jotai";
 import React, { useMemo } from "react";
 import {
   LuAArrowUp,
@@ -12,15 +13,23 @@ import {
   MenuRoot,
   MenuTrigger,
 } from "~components/ui/menu";
-import { asDisplayString, Field, ProcessedData } from "../../../lib/adapters/logTypes";
+import {
+  asDisplayString,
+  Field,
+  ProcessedData,
+} from "../../../lib/adapters/logTypes";
 import { searchQueryAtom } from "../store/queryState";
-import { isIndexOpen, openIndexesAtom } from "./state";
-import { useAtom } from "jotai";
-import { store } from "~core/store/store";
+import { useIsIndexOpen } from "./state";
 
-import {VscSymbolArray, VscSymbolBoolean, VscSymbolClass, VscSymbolNumeric, VscSymbolString} from "react-icons/vsc";
-import {CiCalendarDate} from "react-icons/ci";
-import {GrStatusUnknown} from "react-icons/gr";
+import { CiCalendarDate } from "react-icons/ci";
+import { GrStatusUnknown } from "react-icons/gr";
+import {
+  VscSymbolArray,
+  VscSymbolBoolean,
+  VscSymbolClass,
+  VscSymbolNumeric,
+  VscSymbolString,
+} from "react-icons/vsc";
 
 type DataRowProps = {
   rowKey: string;
@@ -34,8 +43,8 @@ export const RowDetails = ({
   row: ProcessedData;
   index: number;
 }) => {
-  const [openIndexes] = useAtom(openIndexesAtom);
-  const isOpen = useMemo(() => isIndexOpen(index), [index, openIndexes]);
+  const isIndexOpen = useIsIndexOpen();
+  const isOpen = useMemo(() => isIndexOpen(index), [index, isIndexOpen]);
   if (!isOpen) {
     return null;
   }
@@ -55,28 +64,29 @@ export const RowDetails = ({
 };
 
 const getRowIcon = (row: Field) => {
-  if (!row) return null
+  if (!row) return null;
 
   switch (row.type) {
     case "string":
-      return <VscSymbolString />
+      return <VscSymbolString />;
     case "number":
-      return <VscSymbolNumeric />
+      return <VscSymbolNumeric />;
     case "array":
-      return <VscSymbolArray />
+      return <VscSymbolArray />;
     case "object":
-      return <VscSymbolClass />
+      return <VscSymbolClass />;
     case "date":
-      return <CiCalendarDate />
+      return <CiCalendarDate />;
     case "boolean":
-      return <VscSymbolBoolean />
-    
+      return <VscSymbolBoolean />;
+
     default:
-      return <GrStatusUnknown />
+      return <GrStatusUnknown />;
   }
-}
+};
 
 export const RowDetail: React.FC<DataRowProps> = ({ rowKey, rowValue }) => {
+  const setSearchQuery = useSetAtom(searchQueryAtom);
   return (
     <div
       css={css`
@@ -104,8 +114,7 @@ export const RowDetail: React.FC<DataRowProps> = ({ rowKey, rowValue }) => {
           size={"2xs"}
           variant="ghost"
           onClick={() => {
-            const value = store.get(searchQueryAtom);
-            store.set(searchQueryAtom, value + ` ${rowKey}`);
+            setSearchQuery((prev) => prev + ` ${rowKey}`);
           }}
         >
           <LuAArrowUp />
@@ -120,11 +129,15 @@ export const RowDetail: React.FC<DataRowProps> = ({ rowKey, rowValue }) => {
         `}
       >
         <span>{getRowIcon(rowValue)}</span>
-        <span css={css`
-          white-space: pre-wrap;
-          word-break: break-all;
-          line-height: 1.5;
-        `}>{asDisplayString(rowValue)}</span>
+        <span
+          css={css`
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.5;
+          `}
+        >
+          {asDisplayString(rowValue)}
+        </span>
       </div>
       {/* <PopoverRoot
                       size="sm"
@@ -140,10 +153,7 @@ export const RowDetail: React.FC<DataRowProps> = ({ rowKey, rowValue }) => {
                     </PopoverRoot>*/}
       <MenuRoot lazyMount unmountOnExit>
         <MenuTrigger asChild>
-          <IconButton
-            size={"2xs"}
-            variant="ghost"
-          >
+          <IconButton size={"2xs"} variant="ghost">
             <LuEllipsisVertical />
           </IconButton>
         </MenuTrigger>

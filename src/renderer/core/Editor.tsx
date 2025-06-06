@@ -13,9 +13,9 @@ import { HighlightData as ParserHighlightData } from "~lib/qql/grammar";
 import { getPopperRoot } from "./shadowUtils";
 import {
   availableColumnsAtom,
-  availableControllerParamsAtom,
   queryDataAtom,
 } from "./store/queryState";
+import { useApplicationStore } from "./store/store";
 
 export const queryEditorAtom = atom<HTMLTextAreaElement | null>(null);
 
@@ -47,7 +47,9 @@ export const Editor = ({ value, onChange }: EditorProps) => {
   const availableColumns = useAtomValue(availableColumnsAtom);
   const data = useAtomValue(queryDataAtom);
   const setQueryEditor = useSetAtom(queryEditorAtom);
-  const availableControllerParams = useAtomValue(availableControllerParamsAtom);
+  const controllerParams = useApplicationStore((state) => state.controllerParams);
+
+  // Get the controller params from the context
   const highlightData = useMemo<HighlightData[]>(() => {
     const errorHighlightData = data.parserError.map(
       (error: IRecognitionException) => {
@@ -130,7 +132,7 @@ export const Editor = ({ value, onChange }: EditorProps) => {
           );
           break;
         case "controllerParam":
-          Object.keys(availableControllerParams).forEach((param) =>
+          Object.keys(controllerParams).forEach((param) =>
             results.push({
               type: "param",
               value: param,
@@ -140,7 +142,7 @@ export const Editor = ({ value, onChange }: EditorProps) => {
           );
           break;
         case "paramValue": {
-          const paramValues = availableControllerParams[suggestion.key];
+          const paramValues = controllerParams[suggestion.key];
           if (!paramValues) {
             continue;
           }

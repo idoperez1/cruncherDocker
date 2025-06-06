@@ -1,11 +1,11 @@
-import styled from "@emotion/styled";
 import { css } from "@emotion/react";
+import styled from "@emotion/styled";
 import { parse } from "ansicolor";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import React, { useMemo } from "react";
 import { formatDataTime } from "~lib/adapters/formatters";
 import { asDateField, ProcessedData } from "~lib/adapters/logTypes";
-import { isIndexOpen, openIndexesAtom } from "./state";
+import { openIndexesAtom, useIsIndexOpen } from "./state";
 
 type DataRowProps = {
   row: ProcessedData;
@@ -47,8 +47,9 @@ const StyledGutter = styled.div<{ row: ProcessedData }>`
 `;
 
 const DataRow: React.FC<DataRowProps> = ({ row, index }) => {
-  const [openIndexes, setOpenIndexes] = useAtom(openIndexesAtom);
-  const isOpen = useMemo(() => isIndexOpen(index), [index, openIndexes]);
+  const setOpenIndexes = useSetAtom(openIndexesAtom);
+  const isIndexOpen = useIsIndexOpen();
+  const isOpen = useMemo(() => isIndexOpen(index), [index, isIndexOpen]);
 
   const setIsOpen = (value: boolean) => {
     if (value) {

@@ -1,28 +1,31 @@
-import { Badge, ProgressCircle, Tabs } from "@chakra-ui/react";
+import { Badge, Tabs } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import styled from "@emotion/styled";
-import { useAtom, useAtomValue } from "jotai";
+import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { LuChartArea, LuLogs, LuTable } from "react-icons/lu";
-import { isDateSelectorOpen } from "./DateSelector";
+import { useEffectOnce } from "react-use";
+import { FullDate } from "~lib/dateUtils";
+import { createSignal } from "~lib/utils";
+import { isDateSelectorOpenAtom } from "./DateSelector";
 import { queryEditorAtom } from "./Editor";
 import DataLog from "./events/DataLog";
 import Header from "./Header";
-import { globalShortcuts } from "./keymaps";
+import { searcherShortcuts, useShortcuts } from "./keymaps";
 import {
-  copyCurrentShareLink,
   getShareLink,
-  setup,
-  subscribeToQueryExecuted,
-  toggleUntilNow
+  useQueryActions,
+  useQueryExecutedEffect,
+  useRunQuery,
 } from "./search";
-import { getCruncherRoot } from "./shadowUtils";
+import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import {
   dataViewModelAtom,
   eventsAtom,
+  searchQueryAtom,
   viewSelectedForQueryAtom,
 } from "./store/queryState";
-import { store } from "./store/store";
+import { QueryState } from "./store/store";
 import { TableView } from "./table/TableView";
 import { TimeChart } from "./TimeChart";
 import { ViewChart } from "./view/ViewChart";
@@ -32,19 +35,73 @@ const MainContainer = styled.section`
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background-color: rgb(17, 18, 23);
   /* scrollbar-gutter: stable; */
   overflow: hidden;
 `;
 
-export const Searcher = () => {
+const onQueryExecuted = (state: QueryState) => {
+  console.log("Query state updated:", state);
+
+  console.log("shareable link:", getShareLink(state));
+};
+
+export type SearcherProps = {
+  readySignal: ReturnType<typeof createSignal<() => void>>;
+  initialQuery?: {
+    startFullDate?: FullDate;
+    endFullDate?: FullDate;
+    searchQuery: string;
+  };
+};
+
+const isInitializedAtom = atom(false);
+
+const useSetupQuery = (props: SearcherProps) => {
+  const [isInitialized, setIsInitialized] = useAtom(isInitializedAtom);
+  const runQuery = useRunQuery();
+
+  const setSearchTerm = useSetAtom(searchQueryAtom);
+  const setStartFullDate = useSetAtom(startFullDateAtom);
+  const setEndFullDate = useSetAtom(endFullDateAtom);
+
+  useEffectOnce(() => {
+    if (isInitialized) {
+      return; // already initialized
+    }
+
+    console.log("Initializing Searcher with props:", props);
+    try {
+      if (!props.initialQuery) {
+        return; // no initial query, nothing to do
+      }
+
+      setSearchTerm(props.initialQuery.searchQuery);
+      if (props.initialQuery.startFullDate) {
+        setStartFullDate(props.initialQuery.startFullDate);
+      }
+      if (props.initialQuery.endFullDate) {
+        setEndFullDate(props.initialQuery.endFullDate);
+      }
+
+      // signal that the query is ready to be run
+      props.readySignal.signal(() => {
+        runQuery(true);
+      })
+    } finally {
+      setIsInitialized(true);
+    }
+  });
+};
+
+export const Searcher: React.FC<SearcherProps> = (props) => {
   const [selectedTab, setSelectedTab] = useState<string | null>("logs");
   const events = useAtomValue(eventsAtom);
   const { table: tableView, view: viewChart } = useAtomValue(dataViewModelAtom);
 
   const editor = useAtomValue(queryEditorAtom);
 
-  const [isInitialized, setIsInitialized] = useState(false);
+  const queryActions = useQueryActions();
+  const setDateSelectorIsOpen = useSetAtom(isDateSelectorOpenAtom);
 
   const [viewSelectedForQuery, setViewSelectedForQuery] = useAtom(
     viewSelectedForQueryAtom
@@ -55,21 +112,8 @@ export const Searcher = () => {
     setSelectedTab(tab);
   };
 
-  useEffect(() => {
-    const unsub = subscribeToQueryExecuted((state) => {
-      console.log("Query state updated:", state);
-
-      console.log("shareable link:", getShareLink(state));
-    });
-
-    setup().then(() => {
-      setIsInitialized(true);
-    });
-
-    return () => {
-      unsub();
-    };
-  }, []);
+  useSetupQuery(props);
+  useQueryExecutedEffect(onQueryExecuted);
 
   useEffect(() => {
     if (viewSelectedForQuery) {
@@ -84,53 +128,23 @@ export const Searcher = () => {
     }
   }, [tableView, viewSelectedForQuery]);
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const root = getCruncherRoot();
-      if (!root) {
-        return;
-      }
-
-      if (globalShortcuts.isPressed(e, "select-time")) {
-        e.preventDefault();
-        store.set(isDateSelectorOpen, (prev) => !prev);
-      } else if (globalShortcuts.isPressed(e, "query")) {
-        e.preventDefault();
-        store.set(isDateSelectorOpen, false);
-        // required to focus on the input after the tab is changed
+  useShortcuts(searcherShortcuts, (shortcut) => {
+    switch (shortcut) {
+      case "select-time":
+        setDateSelectorIsOpen((prev) => !prev);
+        break;
+      case "query":
+        setDateSelectorIsOpen(false);
         setTimeout(() => editor?.focus(), 0);
-      } else if (globalShortcuts.isPressed(e, "copy-link")) {
-        e.preventDefault();
-        copyCurrentShareLink();
-      } else if (globalShortcuts.isPressed(e, "toggle-until-now")) {
-        toggleUntilNow();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [editor]);
-
-  if (!isInitialized) {
-    return (
-      <MainContainer
-        style={{
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <ProgressCircle.Root value={null} size="lg">
-          <ProgressCircle.Circle>
-            <ProgressCircle.Track />
-            <ProgressCircle.Range />
-          </ProgressCircle.Circle>
-        </ProgressCircle.Root>
-      </MainContainer>
-    );
-  }
+        break;
+      case "copy-link":
+        queryActions.copyCurrentShareLink();
+        break;
+      case "toggle-until-now":
+        queryActions.toggleUntilNow();
+        break;
+    }
+  });
 
   return (
     <MainContainer id="cruncher-inner-root">

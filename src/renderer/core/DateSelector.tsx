@@ -1,5 +1,5 @@
 import { subDays, subHours, subMinutes } from "date-fns";
-import { atom, useAtom } from "jotai";
+import { atom, useAtom, useSetAtom } from "jotai";
 import type React from "react";
 import { forwardRef, useEffect, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
@@ -10,7 +10,7 @@ import {
   renderedEndDateAtom,
   renderedStartDateAtom,
   startFullDateAtom,
-  tryToUpdateDate as tryToUpdateDateFromText,
+  useTryToUpdateDate
 } from "./store/dateState";
 
 import { IconButton, Input, SimpleGrid, Stack } from "@chakra-ui/react";
@@ -26,34 +26,39 @@ import {
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
 import { CalendarSelector } from "./CalendarSelector";
-import { globalShortcuts } from "./keymaps";
-import { store } from "./store/store";
-import { toggleUntilNow } from "./search";
+import { searcherShortcuts } from "./keymaps";
+import { useQueryActions } from "./search";
 
-export const setRangeByMinutes = (minutes: number) => {
-  const now = new Date();
-  store.set(startFullDateAtom, subMinutes(now, minutes));
-  store.set(endFullDateAtom, new Date());
-};
+const useDateOperations = () => {
+  const setStartFullDate = useSetAtom(startFullDateAtom);
+  const setEndFullDate = useSetAtom(endFullDateAtom);
 
-export const setRangeByHours = (hours: number) => {
-  const now = new Date();
-  store.set(startFullDateAtom, subHours(now, hours));
-  store.set(endFullDateAtom, new Date());
-};
+  return {
+    setRangeByMinutes: (minutes: number) => {
+      const now = new Date();
+      setStartFullDate(subMinutes(now, minutes));
+      setEndFullDate(new Date());
+    },
+    setRangeByHours: (hours: number) => {
+      const now = new Date();
+      setStartFullDate(subHours(now, hours));
+      setEndFullDate(new Date());
+    },
+    setRangeByDays: (days: number) => {
+      const now = new Date();
+      setStartFullDate(subDays(now, days));
+      setEndFullDate(new Date());
+    }
+  }
+}
 
-export const setRangeByDays = (days: number) => {
-  const now = new Date();
-  store.set(startFullDateAtom, subDays(now, days));
-  store.set(endFullDateAtom, new Date());
-};
 
-export const isDateSelectorOpen = atom(false);
+export const isDateSelectorOpenAtom = atom(false);
 
 export const DateSelector = () => {
   const [selectedRenderedStartDate] = useAtom(renderedStartDateAtom);
   const [selectedRenderedEndDate] = useAtom(renderedEndDateAtom);
-  const [isOpen, setIsOpen] = useAtom(isDateSelectorOpen);
+  const [isOpen, setIsOpen] = useAtom(isDateSelectorOpenAtom);
 
   const firstFocusRef = useRef<HTMLInputElement>(null);
 
@@ -89,7 +94,7 @@ export const DateSelector = () => {
             content={
               <span>
                 Change time range
-                <Shortcut keys={globalShortcuts.getAlias("select-time")} />
+                <Shortcut keys={searcherShortcuts.getAlias("select-time")} />
               </span>
             }
             showArrow
@@ -131,8 +136,13 @@ const CalendarPopUp = forwardRef(
   ) => {
     const [selectedRange, setSelectedRange] = useAtom(dateRangeAtom);
 
+    const { toggleUntilNow } = useQueryActions();
+    
+    const { setRangeByMinutes, setRangeByHours, setRangeByDays } =
+      useDateOperations();
+
     const [startFullDate] = useAtom(startFullDateAtom);
-    const [endFullDate] = useAtom(endFullDateAtom);
+    const [endFullDate, setEndFullDate] = useAtom(endFullDateAtom);
 
     const endInputBoxRef = useRef<HTMLInputElement>(null);
 
@@ -146,21 +156,24 @@ const CalendarPopUp = forwardRef(
       selectedRenderedEndDate
     );
 
+    const tryToUpdateStartDateFromText = useTryToUpdateDate(startFullDateAtom);
+    const tryToUpdateEndDateFromText = useTryToUpdateDate(endFullDateAtom);
+
     const onInputStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      tryToUpdateDateFromText(startFullDateAtom, e.target.value);
+      tryToUpdateStartDateFromText(e.target.value);
       setInputRenderedStartDate(e.target.value);
     };
 
     const onInputEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      tryToUpdateDateFromText(endFullDateAtom, e.target.value);
+      tryToUpdateEndDateFromText(e.target.value);
       setInputRenderedEndDate(e.target.value);
     };
 
     const updateRenderedText = () => {
-      const startValue = store.get(renderedStartDateAtom);
+      const startValue = selectedRenderedStartDate;
       setInputRenderedStartDate(startValue);
 
-      const endValue = store.get(renderedEndDateAtom);
+      const endValue = selectedRenderedEndDate;
       setInputRenderedEndDate(endValue);
     };
 
@@ -210,7 +223,7 @@ const CalendarPopUp = forwardRef(
                 (!endFullDate ||
                   compareFullDates(endFullDate, startFullDate) < 0)
               ) {
-                store.set(endFullDateAtom, startFullDate);
+                setEndFullDate(startFullDate);
                 updateRenderedText();
               }
             }}
@@ -308,7 +321,7 @@ const CalendarPopUp = forwardRef(
               Last 30 days
             </Button>
             <Tooltip
-              content={<span><Shortcut keys={globalShortcuts.getAlias("toggle-until-now")} /></span>}
+              content={<span><Shortcut keys={searcherShortcuts.getAlias("toggle-until-now")} /></span>}
               showArrow
               positioning={{
                 placement: "bottom",

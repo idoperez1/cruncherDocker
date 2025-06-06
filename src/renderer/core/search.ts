@@ -1,20 +1,23 @@
 import { Mutex } from "async-mutex";
 import equal from "fast-deep-equal";
-import { atom } from "jotai";
-import * as _ from "lodash-es";
+import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import merge from "merge-k-sorted-arrays";
+import React, { useEffect } from "react";
+import { useAsync } from "react-use";
+import z from "zod";
 import { dateAsString, DateType, FullDate, isTimeNow } from "~lib/dateUtils";
 import { getPipelineItems } from "~lib/pipelineEngine/root";
 import { parse, PipelineItem } from "~lib/qql";
 import { ControllerIndexParam, Search } from "~lib/qql/grammar";
+import { SubscribeOptions } from "~lib/websocket/client";
 import { asDateField, compareProcessedData, ProcessedData } from "../../lib/adapters/logTypes";
 import { QueryProvider } from "./common/interface";
 import { openIndexesAtom } from "./events/state";
 import { tree } from "./indexes/timeIndex";
 import { notifyError, notifySuccess } from "./notifyError";
 import { actualEndTimeAtom, actualStartTimeAtom, compareFullDates, endFullDateAtom, startFullDateAtom } from "./store/dateState";
-import { availableControllerParamsAtom, dataViewModelAtom, originalDataAtom, searchQueryAtom, viewSelectedForQueryAtom } from "./store/queryState";
-import { QueryState, store } from "./store/store";
+import { dataViewModelAtom, originalDataAtom, searchQueryAtom, viewSelectedForQueryAtom } from "./store/queryState";
+import { QueryState, useApplicationStore } from "./store/store";
 
 export type FormValues = {
     searchTerm: string;
@@ -36,75 +39,120 @@ export const lastQueryAtom = atom<QueryExecutionHistory | undefined>(undefined);
 
 export const lastExecutedQueryStateAtom = atom<QueryState | undefined>(undefined);
 
-
-export const subscribeToQueryExecuted = (callback: (state: QueryState) => void) => {
-    const unsubscribe = store.sub(lastExecutedQueryStateAtom, () => {
-        const state = store.get(lastExecutedQueryStateAtom);
-        callback({
-            searchQuery: state?.searchQuery ?? '',
-            startTime: state?.startTime,
-            endTime: state?.endTime,
-        });
-    });
-    return () => {
-        unsubscribe();
-    };
-}
-
 export const isLoadingAtom = atom(false);
 
 export const queryStartTimeAtom = atom<Date | undefined>(undefined);
 export const queryEndTimeAtom = atom<Date | undefined>(undefined);
 export const isQuerySuccessAtom = atom(true);
 
-let controller: QueryProvider | undefined;
-export const setController = (newController: QueryProvider) => {
-    controller = newController;
+export type ControllerProviderContextType = {
+    provider: QueryProvider | undefined;
+    subscribeToMessages: <T extends z.ZodTypeAny>(schema: T, options: SubscribeOptions<T>) => () => void;
 }
+export const ControllerProviderContext = React.createContext<ControllerProviderContextType | undefined>(undefined);
 
-const getController = () => {
-    if (controller === undefined) {
-        throw new Error("Controller is not set. Please call setController() before using it.");
+export const useQueryProvider = () => {
+    const context = React.useContext(ControllerProviderContext);
+    if (context === undefined) {
+        throw new Error("useQueryProvider must be used within a ControllerProvider");
     }
-    return controller;
-}
-
-export const toggleUntilNow = () => {
-    const fullStartDate = store.get(startFullDateAtom);
-    if (!fullStartDate || fullStartDate > new Date()) {
-        store.set(startFullDateAtom, new Date());
+    if (context.provider === undefined) {
+        throw new Error("Query provider is not set. Please ensure the provider is initialized.");
     }
 
-    const currentEndTime = store.get(endFullDateAtom);
-
-    if (currentEndTime === DateType.Now) {
-        store.set(endFullDateAtom, new Date());
-    } else {
-        store.set(endFullDateAtom, DateType.Now)
-    }
+    return context.provider;
 }
 
-export const copyCurrentShareLink = () => {
-    const shareLink = getCurrentShareLink();
-    if (_.isNil(shareLink)) {
-        return;
+export const useMessageEvent = <T extends z.ZodTypeAny>(schema: T, options: SubscribeOptions<T>) => {
+    const context = React.useContext(ControllerProviderContext);
+    if (context === undefined) {
+        throw new Error("useMessageEvent must be used within a ControllerProvider");
+    }
+    if (context.subscribeToMessages === undefined) {
+        throw new Error("subscribeToMessages is not available in the current context");
     }
 
-    navigator.clipboard.writeText(shareLink).then(() => {
-        notifySuccess("Shareable link copied to clipboard");
-    }).catch((error) => {
-        console.error("Failed to copy shareable link: ", error);
-        notifyError("Failed to copy shareable link", error);
-    });
+    useEffect(() => {
+        const unsubscribe = context.subscribeToMessages(schema, options);
+        return () => {
+            unsubscribe();
+        };
+    }, [context, schema, options]);
 }
 
-export const getCurrentShareLink = () => {
+export const useController = () => {
+    return useQueryProvider();
+}
+
+export const useControllerInitializer = () => {
+    const controller = useController();
+    const setIsInitialized = useApplicationStore((state) => state.setIsInitialized);
+    const setControllerParams = useApplicationStore((state) => state.setControllerParams);
+    useAsync(async () => {
+        console.log("waiting for controller to be ready...");
+        await controller.waitForReady?.();
+        // const params = await controller.getControllerParams();
+        // setControllerParams(params);
+        setIsInitialized(true);
+    }, [setIsInitialized, setControllerParams, controller]);
+}
+
+export const useQueryExecutedEffect = (callback: (state: QueryState) => void) => {
+    const lastExecutedQueryState = useAtomValue(lastExecutedQueryStateAtom);
+    useEffect(() => {
+        callback({
+            searchQuery: lastExecutedQueryState?.searchQuery ?? '',
+            startTime: lastExecutedQueryState?.startTime,
+            endTime: lastExecutedQueryState?.endTime,
+        });
+    }, [lastExecutedQueryState, callback]);
+}
+
+
+export const useQueryActions = () => {
+    const [startFullDate, setStartFullDate] = useAtom(startFullDateAtom);
+    const [endFullDate, setEndFullDate] = useAtom(endFullDateAtom);
+    const currentShareLink = useCurrentShareLink();
+    const abortController = useAtomValue(abortControllerAtom);
+
+    return {
+        toggleUntilNow: () => {
+            if (!startFullDate || startFullDate > new Date()) {
+                setStartFullDate(new Date());
+            }
+
+            if (endFullDate === DateType.Now) {
+                setEndFullDate(new Date());
+            } else {
+                setEndFullDate(DateType.Now);
+            }
+        },
+        copyCurrentShareLink: () => {
+            navigator.clipboard.writeText(currentShareLink).then(() => {
+                notifySuccess("Shareable link copied to clipboard");
+            }).catch((error) => {
+                console.error("Failed to copy shareable link: ", error);
+                notifyError("Failed to copy shareable link", error);
+            });
+        },
+        abortRunningQuery: (reason: string) => {
+            abortController.abort(reason);
+        }
+    }
+
+}
+
+export const useCurrentShareLink = () => {
+    const [searchQuery] = useAtom(searchQueryAtom);
+    const [startTime] = useAtom(startFullDateAtom);
+    const [endTime] = useAtom(endFullDateAtom);
     return getShareLink({
-        searchQuery: store.get(searchQueryAtom),
-        startTime: store.get(startFullDateAtom),
-        endTime: store.get(endFullDateAtom),
+        searchQuery,
+        startTime,
+        endTime,
     });
 }
+
 
 export const getShareLink = (queryState: QueryState) => {
     const startTime = queryState.startTime;
@@ -128,149 +176,175 @@ export const getShareLink = (queryState: QueryState) => {
 }
 
 
-export const setup = async () => {
-    const controller = getController();
-    await controller?.waitForReady?.();
-    // this can be done async to the loading of the app - no need to block
-    controller.getControllerParams().then((params) => {
-        store.set(availableControllerParamsAtom, params);
-    });
-}
 
-export const abortRunningQuery = (reason: string) => {
-    const abortController = store.get(abortControllerAtom);
-    abortController.abort(reason);
-}
+// export const setup = async () => {
+//     const controller = useController();
+//     await controller?.waitForReady?.();
+//     // this can be done async to the loading of the app - no need to block
+//     // TODO: this needs to be smarter
+//     controller.getControllerParams().then((params) => {
+//         store.set(availableControllerParamsAtom, params);
+//     });
+// }
 
-export const runQuery = async (values: FormValues, isForced: boolean) => {
-    const abortController = store.get(abortControllerAtom);
-    const isLoading = store.get(isLoadingAtom);
-    if (isLoading) {
-        abortController.abort("New query submitted");
+export const useRunQuery = () => {
+    const controller = useController();
+    const [abortController, setAbortController] = useAtom(abortControllerAtom);
+    const [isLoading, setIsLoading] = useAtom(isLoadingAtom);
+    const [submitMutex] = useAtom(submitMutexAtom);
+    const setActualStartTime = useSetAtom(actualStartTimeAtom);
+    const setActualEndTime = useSetAtom(actualEndTimeAtom);
+    const [lastExecutedQuery, setLastExecutedQuery] = useAtom(lastQueryAtom);
+    const setLastExecutedQueryState = useSetAtom(lastExecutedQueryStateAtom);
+    const setQueryStartTime = useSetAtom(queryStartTimeAtom);
+    const setQueryEndTime = useSetAtom(queryEndTimeAtom);
+    const [originalData, setOriginalData] = useAtom(originalDataAtom);
+    const setIsQuerySuccess = useSetAtom(isQuerySuccessAtom);
+    const setOpenIndexes = useSetAtom(openIndexesAtom);
+    const setViewSelectedForQuery = useSetAtom(viewSelectedForQueryAtom);
+    const setDataViewModel = useSetAtom(dataViewModelAtom);
+
+    const startFullDate = useAtomValue(startFullDateAtom);
+    const endFullDate = useAtomValue(endFullDateAtom);
+    const searchTerm = useAtomValue(searchQueryAtom);
+
+    const resetBeforeNewBackendQuery = () => {
+        setOpenIndexes([]);
+        tree.clear();
+        setViewSelectedForQuery(false);
     }
 
-    // reset abort controller
-    const newAbortController = new AbortController();
-    store.set(abortControllerAtom, newAbortController);
+    const startProcessingData = (
+        data: ProcessedData[],
+        pipeline: PipelineItem[],
+        startTime: Date,
+        endTime: Date
+    ) => {
+        try {
+            const finalData = getPipelineItems(data, pipeline, startTime, endTime);
+            setDataViewModel(finalData)
+        } catch (error) {
+            // check error is of type Error
+            if (!(error instanceof Error)) {
+                throw error;
+            }
 
-    const submitMutex = store.get(submitMutexAtom);
-    await submitMutex.runExclusive(async () => {
-        await doRunQuery(values, isForced);
-    });
-}
-
-const doRunQuery = async (values: FormValues, isForced: boolean) => {
-    const controller = getController();
-    if (values.fromTime === undefined) {
-        // TODO: return error
-        return;
-    }
-
-    if (values.toTime === undefined) {
-        // TODO: return error
-        return;
-    }
-
-    const fromTime = isTimeNow(values.fromTime) ? new Date() : values.fromTime;
-    const toTime = isTimeNow(values.toTime) ? new Date() : values.toTime;
-
-    if (fromTime.getTime() > toTime.getTime()) {
-        // TODO: return error
-        return;
-    }
-
-    store.set(actualStartTimeAtom, fromTime);
-    store.set(actualEndTimeAtom, toTime);
-
-    const abortController = store.get(abortControllerAtom);
-    const lastExecutedQuery = store.get(lastQueryAtom);
-    const state: QueryState = {
-        startTime: values.fromTime,
-        endTime: values.toTime,
-        searchQuery: values.searchTerm,
+            notifyError("Error processing pipeline", error);
+        }
     };
 
-    store.set(lastExecutedQueryStateAtom, state);
+    return async (isForced: boolean) => {
+        if (isLoading) {
+            abortController.abort("New query submitted");
+        }
+        // reset abort controller
+        const newAbortController = new AbortController();
+        setAbortController(newAbortController);
 
-    try {
-        const parsedTree = parse(values.searchTerm);
-        let dataForPipelines: ProcessedData[] = [];
-        const cancelToken = abortController.signal;
-        try {
-            store.set(isLoadingAtom, true);
-            store.set(queryStartTimeAtom, new Date());
-            store.set(queryEndTimeAtom, undefined);
+        await submitMutex.runExclusive(async () => {
+            if (startFullDate === undefined) {
+                // TODO: return error
+                return;
+            }
 
-            const executionQuery: QueryExecutionHistory = {
-                search: parsedTree.search,
-                start: fromTime,
-                end: toTime,
-                params: parsedTree.controllerParams,
+            if (endFullDate === undefined) {
+                // TODO: return error
+                return;
+            }
+
+            const fromTime = isTimeNow(startFullDate) ? new Date() : startFullDate;
+            const toTime = isTimeNow(endFullDate) ? new Date() : endFullDate;
+
+            if (fromTime.getTime() > toTime.getTime()) {
+                // TODO: return error
+                return;
+            }
+
+            setActualStartTime(fromTime);
+            setActualEndTime(toTime);
+
+            const state: QueryState = {
+                startTime: startFullDate,
+                endTime: endFullDate,
+                searchQuery: searchTerm,
             };
 
-            if (!isForced && compareExecutions(executionQuery, lastExecutedQuery)) {
-                console.log("using cached data");
-                dataForPipelines = store.get(originalDataAtom); // get the data from the last query
-                startProcessingData(dataForPipelines, parsedTree.pipeline, fromTime, toTime);
-            } else {
-                // new search initiated - we can reset
-                resetBeforeNewBackendQuery();
+            setLastExecutedQueryState(state);
+
+            try {
+                const parsedTree = parse(searchTerm);
+                let dataForPipelines: ProcessedData[] = [];
+                const cancelToken = newAbortController.signal;
                 try {
-                    store.set(lastQueryAtom, executionQuery);
-                    await controller.query(parsedTree.controllerParams, parsedTree.search, {
-                        fromTime: fromTime,
-                        toTime: toTime,
-                        cancelToken: cancelToken,
-                        limit: 100000,
-                        onBatchDone: (data) => {
-                            dataForPipelines = merge<ProcessedData>(
-                                [dataForPipelines, data],
-                                compareProcessedData,
-                            );
-                            data.forEach((data) => {
-                                const timestamp = asDateField(data.object._time).value;
-                                const toAppendTo = tree.get(timestamp) ?? [];
-                                toAppendTo.push(data);
-                                tree.set(timestamp, toAppendTo);
+                    setIsLoading(true);
+                    setQueryStartTime(new Date());
+                    setQueryEndTime(undefined);
+
+                    const executionQuery: QueryExecutionHistory = {
+                        search: parsedTree.search,
+                        start: fromTime,
+                        end: toTime,
+                        params: parsedTree.controllerParams,
+                    };
+
+                    if (!isForced && compareExecutions(executionQuery, lastExecutedQuery)) {
+                        console.log("using cached data");
+                        dataForPipelines = originalData; // get the data from the last query
+                        startProcessingData(dataForPipelines, parsedTree.pipeline, fromTime, toTime);
+                    } else {
+                        // new search initiated - we can reset
+                        resetBeforeNewBackendQuery();
+                        try {
+                            setLastExecutedQuery(executionQuery);
+                            await controller.query(parsedTree.controllerParams, parsedTree.search, {
+                                fromTime: fromTime,
+                                toTime: toTime,
+                                cancelToken: cancelToken,
+                                limit: 100000,
+                                onBatchDone: (data) => {
+                                    dataForPipelines = merge<ProcessedData>(
+                                        [dataForPipelines, data],
+                                        compareProcessedData,
+                                    );
+                                    data.forEach((data) => {
+                                        const timestamp = asDateField(data.object._time).value;
+                                        const toAppendTo = tree.get(timestamp) ?? [];
+                                        toAppendTo.push(data);
+                                        tree.set(timestamp, toAppendTo);
+                                    });
+
+                                    setOriginalData(dataForPipelines);
+                                    startProcessingData(dataForPipelines, parsedTree.pipeline, fromTime, toTime);
+                                },
                             });
 
-                            store.set(originalDataAtom, dataForPipelines);
+                            setIsQuerySuccess(true);
+                        } catch (error) {
+                            setIsQuerySuccess(false);
+                            console.log(error);
+                            if (cancelToken.aborted) {
+                                return; // don't continue if the request was aborted
+                            }
 
-                            startProcessingData(dataForPipelines, parsedTree.pipeline, fromTime, toTime);
-                        },
-                    });
-
-                    store.set(isQuerySuccessAtom, true);
-                } catch (error) {
-                    store.set(isQuerySuccessAtom, false);
-                    console.log(error);
-                    if (cancelToken.aborted) {
-                        return; // don't continue if the request was aborted
+                            console.error("Error executing query: ", error);
+                            throw error;
+                        }
                     }
-
-                    console.error("Error executing query: ", error);
+                    notifySuccess("Query executed successfully");
+                } finally {
+                    setIsLoading(false);
+                    setQueryEndTime(new Date());
+                }
+            } catch (error) {
+                if (!(error instanceof Error)) {
                     throw error;
                 }
+
+                console.error("Error parsing query: ", error);
+                notifyError("Error parsing query", error);
             }
-            notifySuccess("Query executed successfully");
-        } finally {
-            store.set(isLoadingAtom, false);
-            store.set(queryEndTimeAtom, new Date());
-        }
-    } catch (error) {
-        if (!(error instanceof Error)) {
-            throw error;
-        }
-
-        console.error("Error parsing query: ", error);
-        notifyError("Error parsing query", error);
+        });
     }
-};
-
-const resetBeforeNewBackendQuery = () => {
-    store.set(openIndexesAtom, []);
-    tree.clear();
-    store.set(viewSelectedForQueryAtom, false);
 }
 
 const compareExecutions = (
@@ -298,24 +372,4 @@ const compareExecutions = (
     }
 
     return true;
-};
-
-
-const startProcessingData = (
-    data: ProcessedData[],
-    pipeline: PipelineItem[],
-    startTime: Date,
-    endTime: Date
-) => {
-    try {
-        const finalData = getPipelineItems(data, pipeline, startTime, endTime);
-        store.set(dataViewModelAtom, finalData);
-    } catch (error) {
-        // check error is of type Error
-        if (!(error instanceof Error)) {
-            throw error;
-        }
-
-        notifyError("Error processing pipeline", error);
-    }
 };

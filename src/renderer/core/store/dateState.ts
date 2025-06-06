@@ -1,7 +1,6 @@
 import { format, isValid, parse, subMinutes } from "date-fns";
-import { atom, PrimitiveAtom } from "jotai";
+import { atom, PrimitiveAtom, useAtom } from "jotai";
 import { DateRange } from "react-day-picker";
-import { store } from "./store";
 import { DateType, FullDate, isTimeNow } from "~lib/dateUtils";
 
 export const dateFormat = "yyyy/MM/dd HH:mm:ss";
@@ -129,38 +128,43 @@ const renderedDateAtom = (dateAtom: PrimitiveAtom<FullDate | undefined>) => atom
     return formatTime(get(dateAtom));
 });
 
-export const tryToUpdateDate = (dateAtom: PrimitiveAtom<FullDate | undefined>, update: string) => {
-    const fullDate = store.get(dateAtom);
-    if (update.toLowerCase() === "now") {
-        store.set(dateAtom, DateType.Now);
-        return;
-    }
-    const res = parse(update, dateFormat, fullDate ?? new Date());
-    if (isValid(res)) {
-        store.set(dateAtom, res);
-        return;
-    }
+export const useTryToUpdateDate = (dateAtom: PrimitiveAtom<FullDate | undefined>) => {
+    const [fullDate, setFullDate] = useAtom(dateAtom);
 
-    const dateWithoutSeconds = parse(
-        update,
-        dateWithoutSecondsFormat,
-        fullDate ?? new Date()
-    );
-    if (isValid(dateWithoutSeconds)) {
-        store.set(dateAtom, dateWithoutSeconds);
-        return;
-    }
+    return (update: string) => {
+        if (update.toLowerCase() === "now") {
+            setFullDate(DateType.Now);
+            return;
+        }
 
-    const dateOnly = parse(
-        update,
-        dateOnlyFormat,
-        fullDate ?? new Date()
-    );
-    if (isValid(dateOnly)) {
-        store.set(dateAtom, dateOnly);
-        return;
+        const res = parse(update, dateFormat, fullDate ?? new Date());
+        if (isValid(res)) {
+            setFullDate(res);
+            return;
+        }
+
+        const dateWithoutSeconds = parse(
+            update,
+            dateWithoutSecondsFormat,
+            fullDate ?? new Date()
+        );
+        if (isValid(dateWithoutSeconds)) {
+            setFullDate(dateWithoutSeconds);
+            return;
+        }
+
+        const dateOnly = parse(
+            update,
+            dateOnlyFormat,
+            fullDate ?? new Date()
+        );
+        if (isValid(dateOnly)) {
+            setFullDate(dateOnly);
+            return;
+        }
     }
 }
+    
 
 export const renderedStartDateAtom = renderedDateAtom(startFullDateAtom);
 export const renderedEndDateAtom = renderedDateAtom(endFullDateAtom);

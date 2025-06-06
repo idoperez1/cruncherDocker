@@ -1,11 +1,13 @@
-import { atom } from "jotai";
-import { store } from "~core/store/store";
+import { atom, useAtomValue } from "jotai";
 
 
 export const openIndexesAtom = atom<number[]>([]);
 
-export const isIndexOpen = (index: number) => {
-  return store.get(openIndexesAtom).includes(index);
+export const useIsIndexOpen = () => {
+  const openIndexes = useAtomValue(openIndexesAtom);
+  return (index: number) => {
+    return openIndexes.includes(index);
+  }
 }
 
 

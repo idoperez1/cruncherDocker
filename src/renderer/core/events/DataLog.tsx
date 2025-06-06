@@ -1,14 +1,13 @@
 import { css } from "@emotion/react";
 import type { Range } from "@tanstack/react-virtual";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
+import { atom, useAtomValue, useSetAtom } from "jotai";
 import type React from "react";
 import { useCallback, useEffect, useRef } from "react";
+import { eventsAtom } from "~core/store/queryState";
 import DataRow from "./Row";
 import { RowDetails } from "./RowDetails";
-import { isIndexOpen, rangeInViewAtom } from "./state";
-import { atom, useAtomValue, useSetAtom } from "jotai";
-import { eventsAtom } from "~core/store/queryState";
-import { store } from "~core/store/store";
+import { rangeInViewAtom, useIsIndexOpen } from "./state";
 
 export const scrollToIndexAtom = atom<(index: number) => void>();
 
@@ -23,6 +22,7 @@ const DataLog: React.FC<DataRowProps> = () => {
   const parentRef = useRef(null);
 
   const activeStickyIndexRef = useRef(0);
+  const isIndexOpen = useIsIndexOpen();
 
   const isSticky = (index: number) => {
     const dataIndex = Math.floor(index / 2);
@@ -57,8 +57,12 @@ const DataLog: React.FC<DataRowProps> = () => {
   });
 
   useEffect(() => {
-    setScrollToIndex(() => (index: number) => rowVirtualizer.scrollToIndex(index * 2));
+    setScrollToIndex(
+      () => (index: number) => rowVirtualizer.scrollToIndex(index * 2)
+    );
   }, [rowVirtualizer.scrollToIndex, setScrollToIndex]);
+
+  const setRangeInView = useSetAtom(rangeInViewAtom);
 
   useEffect(() => {
     if (!rowVirtualizer.range) {
@@ -67,11 +71,11 @@ const DataLog: React.FC<DataRowProps> = () => {
 
     const dataIndexStart = Math.floor(rowVirtualizer.range.startIndex / 2);
     const dataIndexEnd = Math.floor(rowVirtualizer.range.endIndex / 2);
-    store.set(rangeInViewAtom, {
+    setRangeInView({
       start: dataIndexStart,
       end: dataIndexEnd,
     });
-  }, [rowVirtualizer.range]);
+  }, [rowVirtualizer.range, setRangeInView]);
 
   return (
     <section
@@ -149,4 +153,3 @@ const DataLog: React.FC<DataRowProps> = () => {
 };
 
 export default DataLog;
-
