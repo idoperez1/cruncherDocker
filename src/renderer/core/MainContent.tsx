@@ -15,6 +15,7 @@ const Wrapper = styled.div`
   display: flex;
   min-width: 0;
   height: 100%;
+  position: relative;
   background-color: rgb(17, 18, 23);
 `;
 

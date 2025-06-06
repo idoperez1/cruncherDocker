@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import styled from "@emotion/styled";
 import { parse } from "ansicolor";
-import { useAtom, useSetAtom } from "jotai";
+import { useSetAtom } from "jotai";
 import React, { useMemo } from "react";
 import { formatDataTime } from "~lib/adapters/formatters";
 import { asDateField, ProcessedData } from "~lib/adapters/logTypes";

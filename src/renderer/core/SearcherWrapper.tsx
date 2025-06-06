@@ -1,4 +1,4 @@
-import { Box, Button, IconButton } from "@chakra-ui/react";
+import { Box, Button, HStack, IconButton, Stack } from "@chakra-ui/react";
 import { atom, createStore, Provider, useAtom } from "jotai";
 import { VscClose } from "react-icons/vsc";
 import { UrlNavigationSchema } from "src/plugins_engine/protocol_out";
@@ -6,11 +6,9 @@ import { v4 as uuidv4 } from "uuid";
 import { parseDate } from "~lib/dateUtils";
 import { createSignal } from "~lib/utils";
 import { Searcher, SearcherProps } from "./Searcher";
-import {
-  globalShortcuts,
-  useShortcuts
-} from "./keymaps";
+import { globalShortcuts, useShortcuts } from "./keymaps";
 import { useMessageEvent } from "./search";
+import { css } from "@emotion/react";
 
 const createNewTab = (props: Omit<SearcherProps, "readySignal">) => {
   return {
@@ -151,61 +149,92 @@ export const SearcherWrapper = () => {
   const selectedTabInfo = tabs[selectedTab];
 
   return (
-    <Box flex={1} display="flex" flexDirection="column">
-      <Box>
-        {tabs.map((tab, index) => (
-          <Button
-            key={tab.key}
-            marginRight={2}
-            marginBottom={2}
-            variant="surface"
-            color={selectedTab === index ? "white" : "gray"}
-            margin={0}
-            alignItems="center"
-            lineHeight={1}
-            borderRadius={0}
-            borderTop={
-              selectedTab === index
-                ? "4px solid #3182ce"
-                : "4px solid transparent"
-            }
-            onClick={() => setSelectedTab(index)}
-          >
-            <span>{tab.label}</span>
-            {/* show only on hover */}
-            <IconButton
-              size="2xs"
-              variant="ghost"
-              aria-label="Close tab"
-              onClick={(e) => {
-                e.stopPropagation(); // prevent the button click from selecting the tab
-                removeTab(tab.key);
-              }}
-            >
-              <VscClose />
-            </IconButton>
-            {/* <IconButton
-              size="2xs"
-              variant="ghost"
-              onClick={() => {
-                removeTab(index);
-                if (selectedTab === index) {
-                  setSelectedTab(0); // switch to the first tab if the current one is closed
+    <Box
+      flex={1}
+      display="flex"
+      flexDirection="column"
+      position="relative"
+      width="100%"
+      minW={"0"}
+    >
+      <div
+        css={css`
+          padding: 0;
+          overflow-x: scroll;
+          overflow-y: hidden;
+          box-sizing: border-box;
+          width: 100%;
+          gap: 0;
+          /* scrollbar-gutter: stable; */
+          /* scrollbar-color: rgba(255, 255, 255, 0.2) transparent; */
+
+          &::-webkit-scrollbar {
+            height: 4px;
+          }
+          &::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.3);
+          }
+        `}
+      >
+        <Stack direction="row" gap={0}>
+          {tabs.map((tab, index) => (
+            <Stack
+              direction="row"
+              key={tab.key}
+              css={css`
+                padding: 0.5rem;
+                color: ${selectedTab === index ? "white" : "gray"};
+                background-color: ${selectedTab === index
+                  ? "rgba(255, 255, 255, 0.1)"
+                  : "transparent"};
+                border-top: ${selectedTab === index
+                  ? "4px solid #3182ce"
+                  : "4px solid transparent"};
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                min-width: 0;
+                gap: 0.5rem;
+                border-radius: 0;
+                transition: background-color 0.2s ease-in-out;
+                &:focus,
+                &:focus-visible {
+                  outline: none;
+                  background-color: rgba(255, 255, 255, 0.1);
                 }
-              }}
+                &:focus-visible {
+                  box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.6);
+                }
+                &:active {
+                  background-color: rgba(255, 255, 255, 0.2);
+                }
+                &:active,
+                &:focus,
+                &:focus-visible,
+                &:hover {
+                  background-color: rgba(255, 255, 255, 0.1);
+                }
+              `}
+              onClick={() => setSelectedTab(index)}
             >
-              <span aria-label="Close tab">×</span>
-            </IconButton> */}
-          </Button>
-          // <Button
-          //   key={index}
-          //   onClick={() => setSelectedTab(index)}
-          //   variant={selectedTab === index ? "solid" : "outline"}
-          // >
-          //   {tab.label} {selectedTab === index && " (active)"}
-          // </Button>
-        ))}
-      </Box>
+              <span>{tab.label}</span>
+              <IconButton
+                size="2xs"
+                variant="ghost"
+                aria-label="Close tab"
+                onClick={(e) => {
+                  e.stopPropagation(); // prevent the button click from selecting the tab
+                  removeTab(tab.key);
+                }}
+              >
+                <VscClose />
+              </IconButton>
+            </Stack>
+          ))}
+        </Stack>
+      </div>
       {selectedTabInfo && (
         <Provider store={selectedTabInfo.store}>
           <Searcher

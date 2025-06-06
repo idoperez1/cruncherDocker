@@ -2,9 +2,9 @@ import { Badge, Icon, IconButton, Separator, Stack } from "@chakra-ui/react";
 import { atom, useAtom } from "jotai";
 import { ReactNode, useCallback, useMemo } from "react";
 import { LuBolt, LuFileSearch } from "react-icons/lu";
+import { useAsync } from "react-use";
 import logo from "src/icons/png/256x256.png";
 import { Tooltip } from "~components/ui/tooltip";
-import { useAsync } from "react-use";
 
 export type MenuItem = "searcher" | "settings";
 
