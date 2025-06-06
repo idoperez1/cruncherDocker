@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
-import SuperJSON from 'superjson';
 import { GenericMessageSchema, SyncRequestIn, SyncResponsesSchema, WebsocketMessageCustomer } from "./types";
 import { measureTime } from '~lib/utils';
 import z from 'zod';
+import { unpack, pack } from 'msgpackr';
 
 
 export interface WebsocketClientWrapper {
@@ -69,13 +69,15 @@ export type SubscribeOptions<T extends z.ZodTypeAny> = {
 
 export const getWebsocketConnection = (url: string) => {
     const ws = new WebSocket(url);
+    ws.binaryType = "arraybuffer";
+
 
     const consumers: WebsocketMessageCustomer[] = []; // Array to hold consumers
 
     ws.addEventListener('message', (event) => {
         try {
             const parsedRawMessage = measureTime("WebSocket message parsing", () => {
-                return SuperJSON.parse(event.data);
+                return unpack(event.data)
             });
             if (!parsedRawMessage) {
                 console.warn('Received empty or invalid message:', event.data);
@@ -157,8 +159,8 @@ export const getWebsocketConnection = (url: string) => {
 
     return {
         sendMessage: (message: unknown) => {
-            const serializedMessage = SuperJSON.stringify(message);
-            ws.send(serializedMessage);
+            const serializedMessageBuffer = pack(message);
+            ws.send(serializedMessageBuffer);
         },
         subscribe: subscribeMessage,
         once: (consumer: WebsocketMessageCustomer) => {

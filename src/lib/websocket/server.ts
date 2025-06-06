@@ -1,8 +1,8 @@
 
-import SuperJSON from 'superjson';
 import { WebSocketServer } from "ws";
 import { atLeastOneConnectionSignal } from "~lib/utils";
 import { GenericMessageSchema, ResponseHandler, SyncErrorOut, SyncRequestIn, SyncRequestInSchema, SyncResponseOut } from "./types";
+import {pack, unpack} from 'msgpackr';
 
 export type Consumer = {
     type: string;
@@ -93,8 +93,13 @@ export const getServer = () => {
             ws.on('message', (message) => {
                 // Here you can handle incoming messages
                 try {
-                    const rawMessage = message.toString();
-                    const parsedMessage = SuperJSON.parse(rawMessage);
+                    const rawMessage = message instanceof Buffer ? message : null;
+                    if (!rawMessage) {
+                        console.warn('Received empty or invalid message:', message);
+                        return;
+                    }
+
+                    const parsedMessage = unpack(rawMessage);
                     if (!parsedMessage) {
                         console.warn('Received empty or invalid message:', rawMessage);
                         return;
@@ -111,7 +116,7 @@ export const getServer = () => {
 
 
         const sendMessage = async (message: unknown) => {
-            const serializedMessage = SuperJSON.stringify(message);
+            const serializedMessage = pack(message);
             // wait for at least one connection to be established
             await connectionsSignal.isReady()
             wss.clients.forEach(client => {
