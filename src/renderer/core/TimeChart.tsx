@@ -3,22 +3,21 @@ import { useRef, useState } from "react";
 import { Card } from "@chakra-ui/react";
 import { useAtomValue } from "jotai";
 import {
-    Bar,
-    BarChart,
-    CartesianGrid,
-    ReferenceArea,
-    ResponsiveContainer,
-    Tooltip,
-    TooltipProps,
-    XAxis,
-    YAxis,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ReferenceArea,
+  ResponsiveContainer,
+  Tooltip,
+  TooltipProps,
+  XAxis,
+  YAxis,
 } from "recharts";
 import { formatDataTimeShort } from "~lib/adapters/formatters";
 import { asDateField } from "~lib/adapters/logTypes";
 import { scrollToIndexAtom } from "./events/DataLog";
 import { rangeInViewAtom } from "./events/state";
-import { dataBucketsAtom, eventsAtom, scaleAtom } from "./store/queryState";
-import { treeAtom } from "./indexes/timeIndex";
+import { dataBucketsAtom, eventsAtom, scaleAtom, useQuerySpecificStore } from "./store/queryState";
 
 export const TimeChart = () => {
   const events = useAtomValue(eventsAtom);
@@ -39,7 +38,7 @@ export const TimeChart = () => {
   const rangeInView = useAtomValue(rangeInViewAtom);
   const scale = useAtomValue(scaleAtom);
   const dataBuckets = useAtomValue(dataBucketsAtom);
-  const tree = useAtomValue(treeAtom);
+  const tree = useQuerySpecificStore((state) => state.index);
 
   if (!scale) {
     return null;

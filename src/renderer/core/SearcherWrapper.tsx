@@ -1,4 +1,5 @@
-import { Box, Button, HStack, IconButton, Stack } from "@chakra-ui/react";
+import { Box, IconButton, Stack } from "@chakra-ui/react";
+import { css } from "@emotion/react";
 import { atom, createStore, Provider, useAtom } from "jotai";
 import { VscClose } from "react-icons/vsc";
 import { UrlNavigationSchema } from "src/plugins_engine/protocol_out";
@@ -8,11 +9,15 @@ import { createSignal } from "~lib/utils";
 import { Searcher, SearcherProps } from "./Searcher";
 import { globalShortcuts, useShortcuts } from "./keymaps";
 import { useMessageEvent } from "./search";
-import { css } from "@emotion/react";
+import {
+  createQuerySpecificStore,
+  QuerySpecificContext,
+} from "./store/queryState";
 
 const createNewTab = (props: Omit<SearcherProps, "readySignal">) => {
   return {
     store: createStore(),
+    querySpecificStore: createQuerySpecificStore(),
     label: "New Search",
     props: props,
     key: uuidv4(),
@@ -22,6 +27,7 @@ const createNewTab = (props: Omit<SearcherProps, "readySignal">) => {
 
 type Tab = {
   store: ReturnType<typeof createStore>;
+  querySpecificStore: ReturnType<typeof createQuerySpecificStore>;
   label: string;
   props: Omit<SearcherProps, "readySignal">;
   key: string;
@@ -236,13 +242,17 @@ export const SearcherWrapper = () => {
         </Stack>
       </div>
       {selectedTabInfo && (
-        <Provider store={selectedTabInfo.store}>
-          <Searcher
-            key={selectedTabInfo.key}
-            {...selectedTabInfo.props}
-            readySignal={selectedTabInfo.readySignal}
-          />
-        </Provider>
+        <QuerySpecificContext.Provider
+          value={selectedTabInfo.querySpecificStore}
+        >
+          <Provider store={selectedTabInfo.store}>
+            <Searcher
+              key={selectedTabInfo.key}
+              {...selectedTabInfo.props}
+              readySignal={selectedTabInfo.readySignal}
+            />
+          </Provider>
+        </QuerySpecificContext.Provider>
       )}
     </Box>
   );

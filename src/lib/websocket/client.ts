@@ -126,7 +126,6 @@ export const getWebsocketConnection = (url: string) => {
     }
 
     const subscribeMessage = <T extends z.ZodTypeAny>(schema: T, options: SubscribeOptions<T>) => {
-        const cache = new Map<string, unknown>();
         const consumer: WebsocketMessageCustomer = {
             shouldMatch: (message: unknown) => {
                 const payload = schema.safeParse(message)
@@ -141,11 +140,10 @@ export const getWebsocketConnection = (url: string) => {
                     return false;
                 }
 
-                cache.set("payload", payload.data);
                 return true;
             },
-            callback: () => {
-                const parsedMessage = cache.get("payload") as z.infer<T>;
+            callback: (message: unknown) => {
+                const parsedMessage = schema.parse(message);
                 options.callback(parsedMessage);
             },
         };

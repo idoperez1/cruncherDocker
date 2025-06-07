@@ -70,13 +70,6 @@ export const WebsocketProvider: React.FC<{
 
     const ws = wsServer;
     const cancelReady = ws.onReady(async () => {
-      // @ts-expect-error - Expose the WebSocket connection globally for debugging
-      window.invokeSyncRequestTyped = (method, params) =>
-        invokeSyncRequestTyped(ws, method, params); // Expose the WebSocket connection globally for debugging
-      // @ts-expect-error - Expose the WebSocket connection globally for debugging
-      window.invokeAsyncRequestTyped = (message, params) =>
-        invokeAsyncRequestTyped(ws, message, params); // Expose the WebSocket connection globally for debugging
-
       try {
         console.log("WebSocket connection established");
 

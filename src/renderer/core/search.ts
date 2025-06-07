@@ -16,7 +16,7 @@ import { openIndexesAtom } from "./events/state";
 import { treeAtom } from "./indexes/timeIndex";
 import { notifyError, notifySuccess } from "./notifyError";
 import { actualEndTimeAtom, actualStartTimeAtom, compareFullDates, endFullDateAtom, startFullDateAtom } from "./store/dateState";
-import { dataViewModelAtom, originalDataAtom, searchQueryAtom, viewSelectedForQueryAtom } from "./store/queryState";
+import { dataViewModelAtom, searchQueryAtom, useQuerySpecificStore, useQuerySpecificStoreInternal, viewSelectedForQueryAtom } from "./store/queryState";
 import { QueryState, useApplicationStore } from "./store/store";
 
 export type FormValues = {
@@ -198,7 +198,8 @@ export const useRunQuery = () => {
     const setLastExecutedQueryState = useSetAtom(lastExecutedQueryStateAtom);
     const setQueryStartTime = useSetAtom(queryStartTimeAtom);
     const setQueryEndTime = useSetAtom(queryEndTimeAtom);
-    const [originalData, setOriginalData] = useAtom(originalDataAtom);
+    const originalData = useQuerySpecificStore((state) => state.originalData);
+    const store = useQuerySpecificStoreInternal();
     const setIsQuerySuccess = useSetAtom(isQuerySuccessAtom);
     const setOpenIndexes = useSetAtom(openIndexesAtom);
     const setViewSelectedForQuery = useSetAtom(viewSelectedForQueryAtom);
@@ -207,7 +208,7 @@ export const useRunQuery = () => {
     const startFullDate = useAtomValue(startFullDateAtom);
     const endFullDate = useAtomValue(endFullDateAtom);
     const searchTerm = useAtomValue(searchQueryAtom);
-    const tree = useAtomValue(treeAtom);
+    const tree = useQuerySpecificStore((state) => state.index);
 
     const resetBeforeNewBackendQuery = () => {
         setOpenIndexes([]);
@@ -274,7 +275,6 @@ export const useRunQuery = () => {
 
             try {
                 const parsedTree = parse(searchTerm);
-                let dataForPipelines: ProcessedData[] = [];
                 const cancelToken = newAbortController.signal;
                 try {
                     setIsLoading(true);
@@ -290,8 +290,7 @@ export const useRunQuery = () => {
 
                     if (!isForced && compareExecutions(executionQuery, lastExecutedQuery)) {
                         console.log("using cached data");
-                        dataForPipelines = originalData; // get the data from the last query
-                        startProcessingData(dataForPipelines, parsedTree.pipeline, fromTime, toTime);
+                        startProcessingData(originalData, parsedTree.pipeline, fromTime, toTime);
                     } else {
                         // new search initiated - we can reset
                         resetBeforeNewBackendQuery();
@@ -303,8 +302,11 @@ export const useRunQuery = () => {
                                 cancelToken: cancelToken,
                                 limit: 100000,
                                 onBatchDone: (data) => {
-                                    dataForPipelines = merge<ProcessedData>(
-                                        [dataForPipelines, data],
+                                    // get current data and merge it with the existing data - memory leak risk!!
+                                    const updatedState = store.getState();
+                                    const existingData = updatedState.originalData
+                                    const dataForPipelines = merge<ProcessedData>(
+                                        [existingData, data],
                                         compareProcessedData,
                                     );
                                     data.forEach((data) => {
@@ -314,7 +316,7 @@ export const useRunQuery = () => {
                                         tree.set(timestamp, toAppendTo);
                                     });
 
-                                    setOriginalData(dataForPipelines);
+                                    updatedState.setOriginalData(dataForPipelines);
                                     startProcessingData(dataForPipelines, parsedTree.pipeline, fromTime, toTime);
                                 },
                             });
