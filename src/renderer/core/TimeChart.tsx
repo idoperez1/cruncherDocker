@@ -17,8 +17,8 @@ import { formatDataTimeShort } from "~lib/adapters/formatters";
 import { asDateField } from "~lib/adapters/logTypes";
 import { scrollToIndexAtom } from "./events/DataLog";
 import { rangeInViewAtom } from "./events/state";
-import { tree } from "./indexes/timeIndex";
 import { dataBucketsAtom, eventsAtom, scaleAtom } from "./store/queryState";
+import { treeAtom } from "./indexes/timeIndex";
 
 export const TimeChart = () => {
   const events = useAtomValue(eventsAtom);
@@ -39,6 +39,7 @@ export const TimeChart = () => {
   const rangeInView = useAtomValue(rangeInViewAtom);
   const scale = useAtomValue(scaleAtom);
   const dataBuckets = useAtomValue(dataBucketsAtom);
+  const tree = useAtomValue(treeAtom);
 
   if (!scale) {
     return null;

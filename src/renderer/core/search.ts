@@ -13,7 +13,7 @@ import { SubscribeOptions } from "~lib/websocket/client";
 import { asDateField, compareProcessedData, ProcessedData } from "../../lib/adapters/logTypes";
 import { QueryProvider } from "./common/interface";
 import { openIndexesAtom } from "./events/state";
-import { tree } from "./indexes/timeIndex";
+import { treeAtom } from "./indexes/timeIndex";
 import { notifyError, notifySuccess } from "./notifyError";
 import { actualEndTimeAtom, actualStartTimeAtom, compareFullDates, endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { dataViewModelAtom, originalDataAtom, searchQueryAtom, viewSelectedForQueryAtom } from "./store/queryState";
@@ -207,6 +207,7 @@ export const useRunQuery = () => {
     const startFullDate = useAtomValue(startFullDateAtom);
     const endFullDate = useAtomValue(endFullDateAtom);
     const searchTerm = useAtomValue(searchQueryAtom);
+    const tree = useAtomValue(treeAtom);
 
     const resetBeforeNewBackendQuery = () => {
         setOpenIndexes([]);

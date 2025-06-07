@@ -41,19 +41,34 @@ export const WebsocketProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
   const readySignal = useRef(createSignal());
-  const wsResponse = useAsync(async () => {
-    const port = await window.electronAPI.getPort();
-    return getWebsocketConnection(`ws://localhost:${port}`);
+  const getPort = useAsync(async () => {
+     return await window.electronAPI.getPort();
   }, []);
+
+  const [wsServer, setWsServer] = useState<ReturnType<typeof getWebsocketConnection>>();
+
+  useEffect(() => {
+    if (getPort.loading || !getPort.value) {
+      return;
+    }
+
+    const server =  getWebsocketConnection(`ws://localhost:${getPort.value}`);
+
+    setWsServer(server);
+
+    return () => {
+      server.close(); // Clean up the WebSocket connection when the component unmounts
+    }
+  }, [getPort]);
 
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    if (wsResponse.loading || !wsResponse.value) {
+    if (!wsServer) {
       return;
     }
 
-    const ws = wsResponse.value;
+    const ws = wsServer;
     const cancelReady = ws.onReady(async () => {
       // @ts-expect-error - Expose the WebSocket connection globally for debugging
       window.invokeSyncRequestTyped = (method, params) =>
@@ -112,14 +127,14 @@ export const WebsocketProvider: React.FC<{
       cancelReady();
       cancelOnClose();
     };
-  }, [wsResponse]);
+  }, [wsServer]);
 
   const queryProvider = useMemo(() => {
-    if (wsResponse.loading || !wsResponse.value) {
+    if (!wsServer) {
       return;
     }
 
-    const ws = wsResponse.value;
+    const ws = wsServer;
     return {
       waitForReady: async () => {
         return await readySignal.current.wait();
@@ -220,17 +235,17 @@ export const WebsocketProvider: React.FC<{
         });
       },
     } satisfies QueryProvider;
-  }, [wsResponse]);
+  }, [wsServer]);
 
   const subscribeToMessages = <T extends z.ZodTypeAny>(
     schema: T,
     options: SubscribeOptions<T>
   ) => {
-    if (wsResponse.loading || !wsResponse.value) {
+    if (!wsServer) {
       throw new Error("WebSocket connection is not ready");
     }
 
-    const ws = wsResponse.value;
+    const ws = wsServer;
     const unsub = ws.subscribe(schema, options);
 
     return () => {

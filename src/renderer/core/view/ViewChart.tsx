@@ -161,7 +161,6 @@ const CustomTooltip = ({
     });
   }, [payload, selectedAxises]);
 
-  console.log(active, payload, label);
   if (active && payload && payload.length) {
     return (
       <Card.Root>

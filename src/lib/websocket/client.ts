@@ -176,6 +176,10 @@ export const getWebsocketConnection = (url: string) => {
 
             addConsumer(consumer);
         },
+        close: () => {
+            ws.close();
+            consumers.length = 0; // Clear all consumers
+        },
         onReady: (callback: () => void) => {
             ws.addEventListener('open', callback);
 

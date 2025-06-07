@@ -31,7 +31,6 @@ export const getPipelineItems = (data: ProcessedData[], pipeline: PipelineItem[]
             draft.table = res.table;
             draft.view = res.view;
         });
-        console.log("[Pipeline] Result: ", result);
 
         return result;
     } finally {

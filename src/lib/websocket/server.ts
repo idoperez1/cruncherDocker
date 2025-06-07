@@ -189,7 +189,6 @@ export const setupEngine = async (server: EngineServer, routes: readonly RouteTy
             const parsedMessage = GenericMessageSchema.parse(message);
             if (parsedMessage.type === "sync_request") {
                 const request = SyncRequestInSchema.parse(message);
-                console.log("Received message:", request);
 
                 routes.forEach(handler => {
                     if (handler.kind !== request.kind) {
@@ -206,7 +205,6 @@ export const setupEngine = async (server: EngineServer, routes: readonly RouteTy
                     return;
                 }
 
-                console.log("Received message:", parsedMessage);
                 asyncHandler.callback(parsedMessage.payload)
             }
         } catch (error) {
