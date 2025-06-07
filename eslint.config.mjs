@@ -22,7 +22,6 @@ export default defineConfig([
         "eslint:recommended",
         "plugin:@typescript-eslint/eslint-recommended",
         "plugin:@typescript-eslint/recommended",
-        "plugin:import-x/recommended",
         "plugin:import-x/typescript"
       )
     ),
@@ -32,6 +31,10 @@ export default defineConfig([
     settings: {
       "import-x/resolver": {
         typescript: true,
+        node: {
+          extensions: [".js", ".jsx", ".ts", ".tsx"],
+          moduleDirectory: ["node_modules", "src/"],
+        },
       },
     },
 
@@ -43,10 +46,13 @@ export default defineConfig([
       "@typescript-eslint/no-explicit-any": "warn",
       "no-useless-escape": "off",
       "no-empty-pattern": "off",
-      "@typescript-eslint/no-unused-vars": ["warn", {
-        // allow prefix _ - otherwise unused variables are an error
-        varsIgnorePattern: "^_",
-      }],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          // allow prefix _ - otherwise unused variables are an error
+          varsIgnorePattern: "^_",
+        },
+      ],
     },
 
     languageOptions: {
