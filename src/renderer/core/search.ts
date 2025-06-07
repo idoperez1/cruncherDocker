@@ -13,7 +13,6 @@ import { SubscribeOptions } from "~lib/websocket/client";
 import { asDateField, compareProcessedData, ProcessedData } from "../../lib/adapters/logTypes";
 import { QueryProvider } from "./common/interface";
 import { openIndexesAtom } from "./events/state";
-import { treeAtom } from "./indexes/timeIndex";
 import { notifyError, notifySuccess } from "./notifyError";
 import { actualEndTimeAtom, actualStartTimeAtom, compareFullDates, endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { dataViewModelAtom, searchQueryAtom, useQuerySpecificStore, useQuerySpecificStoreInternal, viewSelectedForQueryAtom } from "./store/queryState";
