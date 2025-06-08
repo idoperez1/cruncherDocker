@@ -1,7 +1,7 @@
 import { subDays, subHours, subMinutes } from "date-fns";
 import { atom, useAtom, useSetAtom } from "jotai";
 import type React from "react";
-import { forwardRef, useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
 import {
   compareFullDates,
@@ -10,7 +10,7 @@ import {
   renderedEndDateAtom,
   renderedStartDateAtom,
   startFullDateAtom,
-  useTryToUpdateDate
+  useTryToUpdateDate,
 } from "./store/dateState";
 
 import { IconButton, Input, SimpleGrid, Stack } from "@chakra-ui/react";
@@ -28,6 +28,8 @@ import { Tooltip } from "~components/ui/tooltip";
 import { CalendarSelector } from "./CalendarSelector";
 import { searcherShortcuts } from "./keymaps";
 import { useQueryActions } from "./search";
+import { useQuerySpecificStoreInternal } from "./store/queryState";
+import { useOutsideDetector } from "~components/ui/useOutsideDetector";
 
 const useDateOperations = () => {
   const setStartFullDate = useSetAtom(startFullDateAtom);
@@ -48,10 +50,9 @@ const useDateOperations = () => {
       const now = new Date();
       setStartFullDate(subDays(now, days));
       setEndFullDate(new Date());
-    }
-  }
-}
-
+    },
+  };
+};
 
 export const isDateSelectorOpenAtom = atom(false);
 
@@ -71,10 +72,13 @@ export const DateSelector = () => {
     }
   }, [isOpen]);
 
+  const wrapperRef = useOutsideDetector(
+    useCallback(() => setIsOpen(false), [])
+  );
+
   return (
     <PopoverRoot
       open={isOpen}
-      onOpenChange={(e) => setIsOpen(e.open)}
       initialFocusEl={() => firstFocusRef.current}
       positioning={{ placement: "left-end" }}
       lazyMount
@@ -111,7 +115,7 @@ export const DateSelector = () => {
           </Tooltip>
         </Button>
       </PopoverTrigger>
-      <PopoverContent width={400}>
+      <PopoverContent width={400} ref={wrapperRef}>
         <PopoverArrow />
         <PopoverBody
           display={"flex"}
@@ -137,7 +141,7 @@ const CalendarPopUp = forwardRef(
     const [selectedRange, setSelectedRange] = useAtom(dateRangeAtom);
 
     const { toggleUntilNow } = useQueryActions();
-    
+
     const { setRangeByMinutes, setRangeByHours, setRangeByDays } =
       useDateOperations();
 
@@ -164,16 +168,18 @@ const CalendarPopUp = forwardRef(
       setInputRenderedStartDate(e.target.value);
     };
 
+    const store = useQuerySpecificStoreInternal();
+
     const onInputEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       tryToUpdateEndDateFromText(e.target.value);
       setInputRenderedEndDate(e.target.value);
     };
 
     const updateRenderedText = () => {
-      const startValue = selectedRenderedStartDate;
+      const startValue = store.get(renderedStartDateAtom);
       setInputRenderedStartDate(startValue);
 
-      const endValue = selectedRenderedEndDate;
+      const endValue = store.get(renderedEndDateAtom);
       setInputRenderedEndDate(endValue);
     };
 
@@ -321,7 +327,13 @@ const CalendarPopUp = forwardRef(
               Last 30 days
             </Button>
             <Tooltip
-              content={<span><Shortcut keys={searcherShortcuts.getAlias("toggle-until-now")} /></span>}
+              content={
+                <span>
+                  <Shortcut
+                    keys={searcherShortcuts.getAlias("toggle-until-now")}
+                  />
+                </span>
+              }
               showArrow
               positioning={{
                 placement: "bottom",
