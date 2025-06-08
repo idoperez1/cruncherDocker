@@ -1,12 +1,11 @@
 import { scaleLinear } from 'd3-scale';
-import { atom } from 'jotai';
+import { atom, createStore } from 'jotai';
 import React from 'react';
-import { create, ExtractState } from 'zustand';
+import BTree from 'sorted-btree';
 import { asDateField, ProcessedData } from '~lib/adapters/logTypes';
 import { DisplayResults, Events } from '~lib/displayTypes';
 import { allData } from '~lib/qql';
 import { actualEndTimeAtom, actualStartTimeAtom } from './dateState';
-import BTree from 'sorted-btree';
 
 export const searchQueryAtom = atom(''); // search query
 
@@ -15,26 +14,10 @@ export const queryDataAtom = atom((get) => {
   return allData(searchQuery);
 });
 
-type QuerySpecificStore = {
-  index: BTree<number, ProcessedData[]>; 
-  originalData: ProcessedData[];
-  setOriginalData: (data: ProcessedData[]) => void;
-}
 
-export const createQuerySpecificStore = () => {
-  return create<QuerySpecificStore>((set) => ({
-    index: new BTree<number, ProcessedData[]>(undefined, (a, b) => b - a),
-    originalData: [],
-    setOriginalData: (data: ProcessedData[]) => set({ originalData: data }),
-  }));
-}
-
-export const QuerySpecificContext = React.createContext<ReturnType<typeof createQuerySpecificStore> | null>(null);
-
-export const useQuerySpecificStore = <U>(selector: (state: ExtractState<ReturnType<typeof createQuerySpecificStore>>) => U) => {
-  const store = useQuerySpecificStoreInternal();
-  return store(selector);
-}
+export const originalDataAtom = atom<ProcessedData[]>([]);
+export const indexAtom = atom(new BTree<number, ProcessedData[]>(undefined, (a, b) => b - a));
+export const QuerySpecificContext = React.createContext<ReturnType<typeof createStore> | null>(null);
 
 export const useQuerySpecificStoreInternal = () => {
   const store = React.useContext(QuerySpecificContext);

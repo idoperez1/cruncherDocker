@@ -5,33 +5,29 @@ import { VscClose } from "react-icons/vsc";
 import { UrlNavigationSchema } from "src/plugins_engine/protocol_out";
 import { v4 as uuidv4 } from "uuid";
 import { parseDate } from "~lib/dateUtils";
-import { createSignal } from "~lib/utils";
 import { Searcher, SearcherProps } from "./Searcher";
 import { globalShortcuts, useShortcuts } from "./keymaps";
-import { useMessageEvent } from "./search";
+import { runQueryForStore, useController, useMessageEvent } from "./search";
+import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import {
-  createQuerySpecificStore,
   QuerySpecificContext,
+  searchQueryAtom,
 } from "./store/queryState";
 
 const createNewTab = (props: Omit<SearcherProps, "readySignal">) => {
   return {
     store: createStore(),
-    querySpecificStore: createQuerySpecificStore(),
     label: "New Search",
     props: props,
     key: uuidv4(),
-    readySignal: createSignal<() => void>(),
   };
 };
 
 type Tab = {
   store: ReturnType<typeof createStore>;
-  querySpecificStore: ReturnType<typeof createQuerySpecificStore>;
   label: string;
   props: Omit<SearcherProps, "readySignal">;
   key: string;
-  readySignal: ReturnType<typeof createSignal<() => void>>;
 };
 
 const tabsAtom = atom<Tab[]>([createNewTab({})]);
@@ -103,6 +99,7 @@ export const useTabs = () => {
 export const SearcherWrapper = () => {
   // TODO: Implement tab selection logic
   const { tabs, addTab, removeTab, selectedTab, setSelectedTab } = useTabs();
+  const controller = useController();
 
   useMessageEvent(UrlNavigationSchema, {
     callback: async (urlNavigationMessage) => {
@@ -123,6 +120,8 @@ export const SearcherWrapper = () => {
         searchQuery: initialQuery,
       });
 
+
+
       // create new tab
       const createdTab = addTab({
         initialQuery: {
@@ -131,9 +130,14 @@ export const SearcherWrapper = () => {
           searchQuery: initialQuery,
         },
       });
+
+      const store = createdTab.createdTab.store;
+
+      store.set(searchQueryAtom, initialQuery);
+      store.set(startFullDateAtom, initialStartTime);
+      store.set(endFullDateAtom, initialEndTime);
       setSelectedTab(createdTab.index);
-      const runQuery = await createdTab.createdTab.readySignal.wait();
-      runQuery();
+      runQueryForStore(controller, createdTab.createdTab.store, true);
     },
   });
 
@@ -242,14 +246,11 @@ export const SearcherWrapper = () => {
         </Stack>
       </div>
       {selectedTabInfo && (
-        <QuerySpecificContext.Provider
-          value={selectedTabInfo.querySpecificStore}
-        >
+        <QuerySpecificContext.Provider value={selectedTabInfo.store}>
           <Provider store={selectedTabInfo.store}>
             <Searcher
               key={selectedTabInfo.key}
               {...selectedTabInfo.props}
-              readySignal={selectedTabInfo.readySignal}
             />
           </Provider>
         </QuerySpecificContext.Provider>

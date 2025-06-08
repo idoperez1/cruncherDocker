@@ -1,6 +1,6 @@
 import { Mutex } from "async-mutex";
 import equal from "fast-deep-equal";
-import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
+import { atom, createStore, useAtom, useAtomValue } from "jotai";
 import merge from "merge-k-sorted-arrays";
 import React, { useEffect } from "react";
 import { useAsync } from "react-use";
@@ -15,7 +15,7 @@ import { QueryProvider } from "./common/interface";
 import { openIndexesAtom } from "./events/state";
 import { notifyError, notifySuccess } from "./notifyError";
 import { actualEndTimeAtom, actualStartTimeAtom, compareFullDates, endFullDateAtom, startFullDateAtom } from "./store/dateState";
-import { dataViewModelAtom, searchQueryAtom, useQuerySpecificStore, useQuerySpecificStoreInternal, viewSelectedForQueryAtom } from "./store/queryState";
+import { dataViewModelAtom, indexAtom, originalDataAtom, searchQueryAtom, useQuerySpecificStoreInternal, viewSelectedForQueryAtom } from "./store/queryState";
 import { QueryState, useApplicationStore } from "./store/store";
 
 export type FormValues = {
@@ -188,31 +188,19 @@ export const getShareLink = (queryState: QueryState) => {
 
 export const useRunQuery = () => {
     const controller = useController();
-    const [abortController, setAbortController] = useAtom(abortControllerAtom);
-    const [isLoading, setIsLoading] = useAtom(isLoadingAtom);
-    const [submitMutex] = useAtom(submitMutexAtom);
-    const setActualStartTime = useSetAtom(actualStartTimeAtom);
-    const setActualEndTime = useSetAtom(actualEndTimeAtom);
-    const [lastExecutedQuery, setLastExecutedQuery] = useAtom(lastQueryAtom);
-    const setLastExecutedQueryState = useSetAtom(lastExecutedQueryStateAtom);
-    const setQueryStartTime = useSetAtom(queryStartTimeAtom);
-    const setQueryEndTime = useSetAtom(queryEndTimeAtom);
-    const originalData = useQuerySpecificStore((state) => state.originalData);
     const store = useQuerySpecificStoreInternal();
-    const setIsQuerySuccess = useSetAtom(isQuerySuccessAtom);
-    const setOpenIndexes = useSetAtom(openIndexesAtom);
-    const setViewSelectedForQuery = useSetAtom(viewSelectedForQueryAtom);
-    const setDataViewModel = useSetAtom(dataViewModelAtom);
 
-    const startFullDate = useAtomValue(startFullDateAtom);
-    const endFullDate = useAtomValue(endFullDateAtom);
-    const searchTerm = useAtomValue(searchQueryAtom);
-    const tree = useQuerySpecificStore((state) => state.index);
+    return React.useCallback((isForced: boolean) => {
+        return runQueryForStore(controller, store, isForced);
+    }, [controller, store]);
+}
 
+export const runQueryForStore = async (controller: QueryProvider, store: ReturnType<typeof createStore>, isForced: boolean) => {
+    const tree = store.get(indexAtom);
     const resetBeforeNewBackendQuery = () => {
-        setOpenIndexes([]);
+        store.set(openIndexesAtom, []);
         tree.clear();
-        setViewSelectedForQuery(false);
+        store.set(viewSelectedForQueryAtom, false);
     }
 
     const startProcessingData = (
@@ -223,7 +211,7 @@ export const useRunQuery = () => {
     ) => {
         try {
             const finalData = getPipelineItems(data, pipeline, startTime, endTime);
-            setDataViewModel(finalData)
+            store.set(dataViewModelAtom, finalData);
         } catch (error) {
             // check error is of type Error
             if (!(error instanceof Error)) {
@@ -234,120 +222,126 @@ export const useRunQuery = () => {
         }
     };
 
-    return async (isForced: boolean) => {
-        if (isLoading) {
-            abortController.abort("New query submitted");
-        }
-        // reset abort controller
-        const newAbortController = new AbortController();
-        setAbortController(newAbortController);
-
-        await submitMutex.runExclusive(async () => {
-            if (startFullDate === undefined) {
-                // TODO: return error
-                return;
-            }
-
-            if (endFullDate === undefined) {
-                // TODO: return error
-                return;
-            }
-
-            const fromTime = isTimeNow(startFullDate) ? new Date() : startFullDate;
-            const toTime = isTimeNow(endFullDate) ? new Date() : endFullDate;
-
-            if (fromTime.getTime() > toTime.getTime()) {
-                // TODO: return error
-                return;
-            }
-
-            setActualStartTime(fromTime);
-            setActualEndTime(toTime);
-
-            const state: QueryState = {
-                startTime: startFullDate,
-                endTime: endFullDate,
-                searchQuery: searchTerm,
-            };
-
-            setLastExecutedQueryState(state);
-
-            try {
-                const parsedTree = parse(searchTerm);
-                const cancelToken = newAbortController.signal;
-                try {
-                    setIsLoading(true);
-                    setQueryStartTime(new Date());
-                    setQueryEndTime(undefined);
-
-                    const executionQuery: QueryExecutionHistory = {
-                        search: parsedTree.search,
-                        start: fromTime,
-                        end: toTime,
-                        params: parsedTree.controllerParams,
-                    };
-
-                    if (!isForced && compareExecutions(executionQuery, lastExecutedQuery)) {
-                        console.log("using cached data");
-                        startProcessingData(originalData, parsedTree.pipeline, fromTime, toTime);
-                    } else {
-                        // new search initiated - we can reset
-                        resetBeforeNewBackendQuery();
-                        try {
-                            setLastExecutedQuery(executionQuery);
-                            await controller.query(parsedTree.controllerParams, parsedTree.search, {
-                                fromTime: fromTime,
-                                toTime: toTime,
-                                cancelToken: cancelToken,
-                                limit: 100000,
-                                onBatchDone: (data) => {
-                                    // get current data and merge it with the existing data - memory leak risk!!
-                                    const updatedState = store.getState();
-                                    const existingData = updatedState.originalData
-                                    const dataForPipelines = merge<ProcessedData>(
-                                        [existingData, data],
-                                        compareProcessedData,
-                                    );
-                                    data.forEach((data) => {
-                                        const timestamp = asDateField(data.object._time).value;
-                                        const toAppendTo = tree.get(timestamp) ?? [];
-                                        toAppendTo.push(data);
-                                        tree.set(timestamp, toAppendTo);
-                                    });
-
-                                    updatedState.setOriginalData(dataForPipelines);
-                                    startProcessingData(dataForPipelines, parsedTree.pipeline, fromTime, toTime);
-                                },
-                            });
-
-                            setIsQuerySuccess(true);
-                        } catch (error) {
-                            setIsQuerySuccess(false);
-                            console.log(error);
-                            if (cancelToken.aborted) {
-                                return; // don't continue if the request was aborted
-                            }
-
-                            console.error("Error executing query: ", error);
-                            throw error;
-                        }
-                    }
-                    notifySuccess("Query executed successfully");
-                } finally {
-                    setIsLoading(false);
-                    setQueryEndTime(new Date());
-                }
-            } catch (error) {
-                if (!(error instanceof Error)) {
-                    throw error;
-                }
-
-                console.error("Error parsing query: ", error);
-                notifyError("Error parsing query", error);
-            }
-        });
+    const isLoading = store.get(isLoadingAtom);
+    if (isLoading) {
+        store.get(abortControllerAtom).abort("New query submitted");
     }
+    // reset abort controller
+    const newAbortController = new AbortController();
+    store.set(abortControllerAtom, newAbortController);
+
+    const submitMutex = store.get(submitMutexAtom);
+
+    await submitMutex.runExclusive(async () => {
+        const startFullDate = store.get(startFullDateAtom);
+        const endFullDate = store.get(endFullDateAtom);
+        const searchTerm = store.get(searchQueryAtom);
+        if (startFullDate === undefined) {
+            // TODO: return error
+            return;
+        }
+
+        if (endFullDate === undefined) {
+            // TODO: return error
+            return;
+        }
+
+        const fromTime = isTimeNow(startFullDate) ? new Date() : startFullDate;
+        const toTime = isTimeNow(endFullDate) ? new Date() : endFullDate;
+
+        if (fromTime.getTime() > toTime.getTime()) {
+            // TODO: return error
+            return;
+        }
+
+        store.set(actualStartTimeAtom, fromTime);
+        store.set(actualEndTimeAtom, toTime);
+
+        const state: QueryState = {
+            startTime: startFullDate,
+            endTime: endFullDate,
+            searchQuery: searchTerm,
+        };
+
+        store.set(lastExecutedQueryStateAtom, state);
+
+        try {
+            const parsedTree = parse(searchTerm);
+            const cancelToken = newAbortController.signal;
+            try {
+                store.set(isLoadingAtom, true);
+                store.set(queryStartTimeAtom, new Date());
+                store.set(queryEndTimeAtom, undefined);
+
+                const executionQuery: QueryExecutionHistory = {
+                    search: parsedTree.search,
+                    start: fromTime,
+                    end: toTime,
+                    params: parsedTree.controllerParams,
+                };
+
+                const lastExecutedQuery = store.get(lastQueryAtom);
+                if (!isForced && compareExecutions(executionQuery, lastExecutedQuery)) {
+                    console.log("using cached data");
+                    const originalData = store.get(originalDataAtom);
+                    startProcessingData(originalData, parsedTree.pipeline, fromTime, toTime);
+                } else {
+                    // new search initiated - we can reset
+                    resetBeforeNewBackendQuery();
+                    try {
+                        store.set(lastQueryAtom, executionQuery);
+                        await controller.query(parsedTree.controllerParams, parsedTree.search, {
+                            fromTime: fromTime,
+                            toTime: toTime,
+                            cancelToken: cancelToken,
+                            limit: 100000,
+                            onBatchDone: (data) => {
+                                // get current data and merge it with the existing data - memory leak risk!!
+                                const existingData = store.get(originalDataAtom);
+                                const dataForPipelines = merge<ProcessedData>(
+                                    [existingData, data],
+                                    compareProcessedData,
+                                );
+                                data.forEach((data) => {
+                                    const timestamp = asDateField(data.object._time).value;
+                                    const toAppendTo = tree.get(timestamp) ?? [];
+                                    toAppendTo.push(data);
+                                    tree.set(timestamp, toAppendTo);
+                                });
+
+                                store.set(originalDataAtom, dataForPipelines);
+                                startProcessingData(dataForPipelines, parsedTree.pipeline, fromTime, toTime);
+                            },
+                        });
+
+                        store.set(isQuerySuccessAtom, true);
+                    } catch (error) {
+                        store.set(isQuerySuccessAtom, false);
+                        console.log(error);
+                        if (cancelToken.aborted) {
+                            return; // don't continue if the request was aborted
+                        }
+
+                        console.error("Error executing query: ", error);
+                        throw error;
+                    }
+                }
+                notifySuccess("Query executed successfully");
+            } finally {
+                store.set(isLoadingAtom, false);
+                store.set(queryEndTimeAtom, new Date());
+            }
+        } catch (error) {
+            if (!(error instanceof Error)) {
+                throw error;
+            }
+
+            console.error("Error parsing query: ", error);
+            notifyError("Error parsing query", error);
+        }
+    });
 }
+
 
 const compareExecutions = (
     exec1: QueryExecutionHistory,

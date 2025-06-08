@@ -17,7 +17,7 @@ import { formatDataTimeShort } from "~lib/adapters/formatters";
 import { asDateField } from "~lib/adapters/logTypes";
 import { scrollToIndexAtom } from "./events/DataLog";
 import { rangeInViewAtom } from "./events/state";
-import { dataBucketsAtom, eventsAtom, scaleAtom, useQuerySpecificStore } from "./store/queryState";
+import { dataBucketsAtom, eventsAtom, indexAtom, scaleAtom } from "./store/queryState";
 
 export const TimeChart = () => {
   const events = useAtomValue(eventsAtom);
@@ -38,7 +38,7 @@ export const TimeChart = () => {
   const rangeInView = useAtomValue(rangeInViewAtom);
   const scale = useAtomValue(scaleAtom);
   const dataBuckets = useAtomValue(dataBucketsAtom);
-  const tree = useQuerySpecificStore((state) => state.index);
+  const tree = useAtomValue(indexAtom);
 
   if (!scale) {
     return null;

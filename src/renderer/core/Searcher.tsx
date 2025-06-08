@@ -1,12 +1,10 @@
 import { Badge, Tabs } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import styled from "@emotion/styled";
-import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { LuChartArea, LuLogs, LuTable } from "react-icons/lu";
-import { useEffectOnce } from "react-use";
 import { FullDate } from "~lib/dateUtils";
-import { createSignal } from "~lib/utils";
 import { isDateSelectorOpenAtom } from "./DateSelector";
 import { queryEditorAtom } from "./Editor";
 import DataLog from "./events/DataLog";
@@ -15,15 +13,12 @@ import { searcherShortcuts, useShortcuts } from "./keymaps";
 import {
   getShareLink,
   useQueryActions,
-  useQueryExecutedEffect,
-  useRunQuery,
+  useQueryExecutedEffect
 } from "./search";
-import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import {
   dataViewModelAtom,
   eventsAtom,
-  searchQueryAtom,
-  viewSelectedForQueryAtom,
+  viewSelectedForQueryAtom
 } from "./store/queryState";
 import { QueryState } from "./store/store";
 import { TableView } from "./table/TableView";
@@ -46,51 +41,11 @@ const onQueryExecuted = (state: QueryState) => {
 };
 
 export type SearcherProps = {
-  readySignal: ReturnType<typeof createSignal<() => void>>;
   initialQuery?: {
     startFullDate?: FullDate;
     endFullDate?: FullDate;
     searchQuery: string;
   };
-};
-
-const isInitializedAtom = atom(false);
-
-const useSetupQuery = (props: SearcherProps) => {
-  const [isInitialized, setIsInitialized] = useAtom(isInitializedAtom);
-  const runQuery = useRunQuery();
-
-  const setSearchTerm = useSetAtom(searchQueryAtom);
-  const setStartFullDate = useSetAtom(startFullDateAtom);
-  const setEndFullDate = useSetAtom(endFullDateAtom);
-
-  useEffectOnce(() => {
-    if (isInitialized) {
-      return; // already initialized
-    }
-
-    console.log("Initializing Searcher with props:", props);
-    try {
-      if (!props.initialQuery) {
-        return; // no initial query, nothing to do
-      }
-
-      setSearchTerm(props.initialQuery.searchQuery);
-      if (props.initialQuery.startFullDate) {
-        setStartFullDate(props.initialQuery.startFullDate);
-      }
-      if (props.initialQuery.endFullDate) {
-        setEndFullDate(props.initialQuery.endFullDate);
-      }
-
-      // signal that the query is ready to be run
-      props.readySignal.signal(() => {
-        runQuery(true);
-      })
-    } finally {
-      setIsInitialized(true);
-    }
-  });
 };
 
 export const Searcher: React.FC<SearcherProps> = (props) => {
@@ -112,7 +67,6 @@ export const Searcher: React.FC<SearcherProps> = (props) => {
     setSelectedTab(tab);
   };
 
-  useSetupQuery(props);
   useQueryExecutedEffect(onQueryExecuted);
 
   useEffect(() => {
