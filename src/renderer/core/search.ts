@@ -196,8 +196,8 @@ export const useRunQuery = () => {
 }
 
 export const runQueryForStore = async (controller: QueryProvider, store: ReturnType<typeof createStore>, isForced: boolean) => {
-    const tree = store.get(indexAtom);
     const resetBeforeNewBackendQuery = () => {
+        const tree = store.get(indexAtom);
         store.set(openIndexesAtom, []);
         tree.clear();
         store.set(viewSelectedForQueryAtom, false);
@@ -290,6 +290,7 @@ export const runQueryForStore = async (controller: QueryProvider, store: ReturnT
                     resetBeforeNewBackendQuery();
                     try {
                         store.set(lastQueryAtom, executionQuery);
+                        let newData: ProcessedData[] = [];
                         await controller.query(parsedTree.controllerParams, parsedTree.search, {
                             fromTime: fromTime,
                             toTime: toTime,
@@ -297,11 +298,11 @@ export const runQueryForStore = async (controller: QueryProvider, store: ReturnT
                             limit: 100000,
                             onBatchDone: (data) => {
                                 // get current data and merge it with the existing data - memory leak risk!!
-                                const existingData = store.get(originalDataAtom);
-                                const dataForPipelines = merge<ProcessedData>(
-                                    [existingData, data],
+                                newData = merge<ProcessedData>(
+                                    [newData, data],
                                     compareProcessedData,
                                 );
+                                const tree = store.get(indexAtom);
                                 data.forEach((data) => {
                                     const timestamp = asDateField(data.object._time).value;
                                     const toAppendTo = tree.get(timestamp) ?? [];
@@ -309,8 +310,8 @@ export const runQueryForStore = async (controller: QueryProvider, store: ReturnT
                                     tree.set(timestamp, toAppendTo);
                                 });
 
-                                store.set(originalDataAtom, dataForPipelines);
-                                startProcessingData(dataForPipelines, parsedTree.pipeline, fromTime, toTime);
+                                store.set(originalDataAtom, newData);
+                                startProcessingData(newData, parsedTree.pipeline, fromTime, toTime);
                             },
                         });
 
