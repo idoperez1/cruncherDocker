@@ -1,18 +1,17 @@
 import { Box, IconButton, Stack } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import { atom, createStore, Provider, useAtom } from "jotai";
-import { VscClose } from "react-icons/vsc";
+import { VscAdd, VscClose } from "react-icons/vsc";
 import { UrlNavigationSchema } from "src/plugins_engine/protocol_out";
 import { v4 as uuidv4 } from "uuid";
+import { Shortcut } from "~components/ui/shortcut";
+import { Tooltip } from "~components/ui/tooltip";
 import { parseDate } from "~lib/dateUtils";
 import { Searcher, SearcherProps } from "./Searcher";
 import { globalShortcuts, useShortcuts } from "./keymaps";
 import { runQueryForStore, useController, useMessageEvent } from "./search";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
-import {
-  QuerySpecificContext,
-  searchQueryAtom,
-} from "./store/queryState";
+import { QuerySpecificContext, searchQueryAtom } from "./store/queryState";
 
 const createNewTab = (props: Omit<SearcherProps, "readySignal">) => {
   return {
@@ -120,8 +119,6 @@ export const SearcherWrapper = () => {
         searchQuery: initialQuery,
       });
 
-
-
       // create new tab
       const createdTab = addTab({
         initialQuery: {
@@ -186,7 +183,7 @@ export const SearcherWrapper = () => {
           }
         `}
       >
-        <Stack direction="row" gap={0}>
+        <Stack direction="row" gap={0} alignItems="center">
           {tabs.map((tab, index) => (
             <Stack
               direction="row"
@@ -230,28 +227,65 @@ export const SearcherWrapper = () => {
               onClick={() => setSelectedTab(index)}
             >
               <span>{tab.label}</span>
-              <IconButton
-                size="2xs"
-                variant="ghost"
-                aria-label="Close tab"
-                onClick={(e) => {
-                  e.stopPropagation(); // prevent the button click from selecting the tab
-                  removeTab(tab.key);
+              <Tooltip
+                content={
+                  <span>
+                    Close {selectedTab === index && ("Active")} Tab{" "}
+                    {selectedTab === index && (
+                      <Shortcut keys={globalShortcuts.getAlias("close-tab")} />
+                    )}
+                  </span>
+                }
+                showArrow
+                positioning={{
+                  placement: "bottom",
                 }}
               >
-                <VscClose />
-              </IconButton>
+                <IconButton
+                  size="2xs"
+                  variant="ghost"
+                  aria-label="Close tab"
+                  onClick={(e) => {
+                    e.stopPropagation(); // prevent the button click from selecting the tab
+                    removeTab(tab.key);
+                  }}
+                >
+                  <VscClose />
+                </IconButton>
+              </Tooltip>
             </Stack>
           ))}
+          <Tooltip
+            content={
+              <span>
+                Add Tab{" "}
+                <Shortcut keys={globalShortcuts.getAlias("create-new-tab")} />
+              </span>
+            }
+            showArrow
+            positioning={{
+              placement: "bottom",
+            }}
+          >
+            <IconButton
+              size="2xs"
+              variant="surface"
+              aria-label="Create new tab"
+              onClick={() => {
+                const created = addTab({});
+                setSelectedTab(created.index);
+              }}
+              margin={2}
+            >
+              <VscAdd />
+            </IconButton>
+          </Tooltip>
         </Stack>
       </div>
       {selectedTabInfo && (
         <QuerySpecificContext.Provider value={selectedTabInfo.store}>
           <Provider store={selectedTabInfo.store}>
-            <Searcher
-              key={selectedTabInfo.key}
-              {...selectedTabInfo.props}
-            />
+            <Searcher key={selectedTabInfo.key} {...selectedTabInfo.props} />
           </Provider>
         </QuerySpecificContext.Provider>
       )}
