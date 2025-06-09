@@ -367,7 +367,7 @@ const MiniButtons = () => {
             showArrow
             positioning={{ placement: "bottom" }}
           >
-            <IconButton aria-label="Export" size="2xs" variant="surface">
+            <IconButton aria-label="Export" size="2xs" variant="surface" as={"div"} disabled={isDisabled}>
               <CiExport />
             </IconButton>
           </Tooltip>

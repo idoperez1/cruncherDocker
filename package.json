@@ -68,7 +68,8 @@
     "vitest": "^2.1.8"
   },
   "dependencies": {
-    "@chakra-ui/react": "^3.2.3",
+    "@chakra-ui/react": "^3.20.0",
+    "@date-fns/utc": "^2.1.0",
     "@emotion/cache": "^11.13.5",
     "@emotion/css": "^11.13.5",
     "@emotion/react": "^11.13.5",
