@@ -17,7 +17,7 @@ const TimerHolder = styled.div`
   display: flex;
   position: absolute;
   right: 0.4rem;
-  top: 0.4rem;
+  bottom: 0.4rem;
 `;
 
 const formatElapsedTime = (elapsedMilliseconds: number) => {
