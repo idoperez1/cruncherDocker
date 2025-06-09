@@ -146,7 +146,7 @@ const Header: React.FC<HeaderProps> = ({}) => {
           size="xs"
           colorPalette={loaderColor}
         >
-          <ProgressBar />
+          <ProgressBar borderRadius={0}/>
         </ProgressRoot>
       </LoaderHolder>
       <StyledHeader
