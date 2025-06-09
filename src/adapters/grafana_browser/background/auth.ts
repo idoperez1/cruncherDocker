@@ -1,6 +1,5 @@
 import { BrowserWindow } from 'electron';
 
-
 export const createAuthWindow = async (url: string) => {
     const authWindow = new BrowserWindow({
         width: 400,
@@ -57,16 +56,20 @@ export const createAuthWindow = async (url: string) => {
 }
 
 const checkValidCookies = (grafanaExpiryCookie?: Electron.Cookie, grafanaSessionCookie?: Electron.Cookie) => {
-    if (grafanaExpiryCookie) {
-        const expiryTime = new Date(parseInt(grafanaExpiryCookie.value) * 1000); // Convert seconds to milliseconds
-        console.log('Grafana Expiry Time:', expiryTime);
-        if (expiryTime > new Date() && grafanaSessionCookie) {
-            console.log('Grafana session is valid, expiry time is in the future.');
-            return {
-                sessionCookie: grafanaSessionCookie.value,
-                expiryTime: expiryTime,
-            };
+    try {
+        if (grafanaExpiryCookie) {
+            const expiryTime = new Date(parseInt(grafanaExpiryCookie.value) * 1000); // Convert seconds to milliseconds
+            console.log('Grafana Expiry Time:', expiryTime);
+            if (expiryTime > new Date() && grafanaSessionCookie) {
+                console.log('Grafana session is valid, expiry time is in the future.');
+                return {
+                    sessionCookie: grafanaSessionCookie.value,
+                    expiryTime: expiryTime,
+                };
+            }
         }
+    } catch (error) {
+        console.error('Error parsing Grafana cookies:', error);
     }
 
     console.info('Grafana expiry cookie not found or expired - prompting user to login again.');
