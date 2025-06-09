@@ -22,7 +22,7 @@ import {
   LuLink,
   LuSearch,
   LuSearchX,
-  LuSigma
+  LuSigma,
 } from "react-icons/lu";
 import {
   MenuContent,
@@ -36,7 +36,11 @@ import { DateType } from "~lib/dateUtils";
 import { DateSelector, isDateSelectorOpenAtom } from "./DateSelector";
 import { SettingsDrawer } from "./drawer/Drawer";
 import { Editor } from "./Editor";
-import { createShortcutsHandler, headerShortcuts, searcherShortcuts } from "./keymaps";
+import {
+  createShortcutsHandler,
+  headerShortcuts,
+  searcherShortcuts,
+} from "./keymaps";
 import { notifySuccess } from "./notifyError";
 import {
   FormValues,
@@ -45,7 +49,7 @@ import {
   queryEndTimeAtom,
   queryStartTimeAtom,
   useQueryActions,
-  useRunQuery
+  useRunQuery,
 } from "./search";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { dataViewModelAtom, searchQueryAtom } from "./store/queryState";
@@ -95,7 +99,7 @@ const Header: React.FC<HeaderProps> = ({}) => {
   const queryEndTime = useAtomValue(queryEndTimeAtom);
   const setDateSelectorOpen = useSetAtom(isDateSelectorOpenAtom);
   const runQuery = useRunQuery();
-  const {abortRunningQuery} = useQueryActions();
+  const { abortRunningQuery } = useQueryActions();
 
   const { handleSubmit } = useForm<FormValues>({
     values: {
@@ -109,20 +113,23 @@ const Header: React.FC<HeaderProps> = ({}) => {
     (isForced: boolean): SubmitHandler<FormValues> =>
     async () => {
       await runQuery(isForced);
-    }
+    };
 
-  const onHeaderKeyDown = createShortcutsHandler(headerShortcuts, (shortcut) => {
-    switch (shortcut) {
-      case "search":
-        setDateSelectorOpen(false);
-        handleSubmit(onSubmit(true))();
-        break;
-      case "re-evaluate":
-        setDateSelectorOpen(false);
-        handleSubmit(onSubmit(false))();
-        break;
+  const onHeaderKeyDown = createShortcutsHandler(
+    headerShortcuts,
+    (shortcut) => {
+      switch (shortcut) {
+        case "search":
+          setDateSelectorOpen(false);
+          handleSubmit(onSubmit(true))();
+          break;
+        case "re-evaluate":
+          setDateSelectorOpen(false);
+          handleSubmit(onSubmit(false))();
+          break;
+      }
     }
-  });
+  );
 
   const loaderValue = isLoading ? null : 100;
   const loaderColor = useMemo(() => {
@@ -146,7 +153,7 @@ const Header: React.FC<HeaderProps> = ({}) => {
           size="xs"
           colorPalette={loaderColor}
         >
-          <ProgressBar borderRadius={0}/>
+          <ProgressBar borderRadius={0} />
         </ProgressRoot>
       </LoaderHolder>
       <StyledHeader
@@ -224,7 +231,11 @@ const SearchBarButtons: React.FC<SearchBarButtonsProps> = ({
             </Tooltip>
             {isRelativeTimeSelected && (
               <Tooltip
-                content={<span>Relative time is selected, full refresh is required!</span>}
+                content={
+                  <span>
+                    Relative time is selected, full refresh is required!
+                  </span>
+                }
                 showArrow
                 contentProps={{ css: { "--tooltip-bg": "tomato" } }}
               >
@@ -293,7 +304,7 @@ const downloadFile = (filename: string, data: string, mimeType: string) => {
 const MiniButtons = () => {
   const { table: tableView } = useAtomValue(dataViewModelAtom);
 
-  const {copyCurrentShareLink} = useQueryActions();
+  const { copyCurrentShareLink } = useQueryActions();
 
   const isDisabled = tableView === undefined;
 
@@ -331,7 +342,6 @@ const MiniButtons = () => {
     notifySuccess("CSV copied to clipboard");
   };
 
-
   const getJson = () => {
     const data = dataAsArray();
 
@@ -351,17 +361,17 @@ const MiniButtons = () => {
   return (
     <Stack gap={3} direction="row">
       <MenuRoot lazyMount unmountOnExit>
-        <Tooltip
-          content={<span>Export</span>}
-          showArrow
-          positioning={{ placement: "bottom" }}
-        >
-          <MenuTrigger asChild disabled={isDisabled}>
+        <MenuTrigger disabled={isDisabled}>
+          <Tooltip
+            content={<span>Export</span>}
+            showArrow
+            positioning={{ placement: "bottom" }}
+          >
             <IconButton aria-label="Export" size="2xs" variant="surface">
               <CiExport />
             </IconButton>
-          </MenuTrigger>
-        </Tooltip>
+          </Tooltip>
+        </MenuTrigger>
         <MenuContent>
           <MenuItem value="json-copy" cursor="pointer" onClick={copyJson}>
             <LuClipboardCopy /> Copy JSON

@@ -106,7 +106,7 @@ export const DateSelector = () => {
               placement: "bottom",
             }}
           >
-            <Stack direction="row">
+            <Stack direction="row" alignItems="center">
               <LuClock2 />
               <span style={{ flex: 1 }}>{selectedRenderedStartDate}</span>
               <span> - </span>
