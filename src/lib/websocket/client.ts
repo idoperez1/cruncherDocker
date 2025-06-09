@@ -38,14 +38,26 @@ export const invokeSyncRequest = (consumer: WebsocketClientWrapper, kind: string
     // remove the event listener after the response is received
     // to avoid memory leaks
     return new Promise<unknown>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+            reject(new Error(`Timeout waiting for response for request ${kind} with ID ${requestId}`));
+        }, 10000); // 10 seconds timeout
+
         const handleResponse = (message: unknown) => {
-            const response = SyncResponsesSchema.parse(message);
-            if (response.type === "sync_response") {
-                resolve(response.payload);
-            } else if (response.type === "sync_error") {
-                reject(new Error(response.payload.error));
+            try {
+                const response = SyncResponsesSchema.parse(message);
+                if (response.type === "sync_response") {
+                    resolve(response.payload);
+                } else if (response.type === "sync_error") {
+                    reject(new Error(response.payload.error));
+                }
+            } catch (error) {
+                console.error('Error parsing response:', error);
+                reject(new Error('Invalid response format'));
+            } finally {
+                clearTimeout(timeout); // Clear the timeout once we have a response
             }
         };
+
         const callback = (event: unknown) => handleResponse(event);
         consumer.once({
             shouldMatch: (message: unknown) => {
@@ -53,7 +65,7 @@ export const invokeSyncRequest = (consumer: WebsocketClientWrapper, kind: string
                 if (!parsed.success) {
                     return false;
                 }
-                
+
                 return parsed.data.uuid === requestId
             },
             callback,
@@ -89,8 +101,12 @@ export const getWebsocketConnection = (url: string) => {
             measureTime("WebSocket message processing", () => {
                 // Notify all consumers about the received message
                 consumers.forEach(consumer => {
-                    if (consumer.shouldMatch(parsedRawMessage)) {
-                        consumer.callback(parsedRawMessage);
+                    try {
+                        if (consumer.shouldMatch(parsedRawMessage)) {
+                            consumer.callback(parsedRawMessage);
+                        }
+                    } catch (error) {
+                        console.error('Error in consumer callback:', error);
                     }
                 });
             })

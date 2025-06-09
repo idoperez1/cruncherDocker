@@ -58,6 +58,9 @@ export const createSignal = <T = void>() => {
 				promise.then((value) => {
 					clearTimeout(timer);
 					res(value);
+				}).catch((error) => {
+					clearTimeout(timer);
+					rej(error);
 				});
 			});
 		}
