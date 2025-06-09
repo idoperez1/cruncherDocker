@@ -90,9 +90,9 @@ export const useControllerInitializer = () => {
     useAsync(async () => {
         console.log("waiting for controller to be ready...");
         await controller.waitForReady?.();
+        setIsInitialized(true);
         const params = await controller.getControllerParams();
         setControllerParams(params);
-        setIsInitialized(true);
     }, [setIsInitialized, setControllerParams, controller]);
 }
 
