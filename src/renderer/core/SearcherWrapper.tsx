@@ -7,17 +7,16 @@ import { v4 as uuidv4 } from "uuid";
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
 import { parseDate } from "~lib/dateUtils";
-import { Searcher, SearcherProps } from "./Searcher";
+import { Searcher } from "./Searcher";
 import { globalShortcuts, useShortcuts } from "./keymaps";
 import { runQueryForStore, useController, useMessageEvent } from "./search";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { QuerySpecificContext, searchQueryAtom } from "./store/queryState";
 
-const createNewTab = (props: Omit<SearcherProps, "readySignal">) => {
+const createNewTab = () => {
   return {
     store: createStore(),
     label: "New Search",
-    props: props,
     key: uuidv4(),
   };
 };
@@ -25,19 +24,18 @@ const createNewTab = (props: Omit<SearcherProps, "readySignal">) => {
 type Tab = {
   store: ReturnType<typeof createStore>;
   label: string;
-  props: Omit<SearcherProps, "readySignal">;
   key: string;
 };
 
-const tabsAtom = atom<Tab[]>([createNewTab({})]);
+const tabsAtom = atom<Tab[]>([createNewTab()]);
 const selectedAtom = atom(0);
 
 export const useTabs = () => {
   const [tabs, setTabs] = useAtom(tabsAtom);
   const [selectedTab, setSelectedTab] = useAtom(selectedAtom);
 
-  const addTab = (props: Omit<SearcherProps, "readySignal">) => {
-    const createdTab = createNewTab(props);
+  const addTab = () => {
+    const createdTab = createNewTab();
     setTabs((prev) => [...prev, createdTab]);
 
     return {
@@ -120,13 +118,7 @@ export const SearcherWrapper = () => {
       });
 
       // create new tab
-      const createdTab = addTab({
-        initialQuery: {
-          startFullDate: initialStartTime,
-          endFullDate: initialEndTime,
-          searchQuery: initialQuery,
-        },
-      });
+      const createdTab = addTab();
 
       const store = createdTab.createdTab.store;
 
@@ -141,7 +133,7 @@ export const SearcherWrapper = () => {
   useShortcuts(globalShortcuts, (shortcut) => {
     switch (shortcut) {
       case "create-new-tab": {
-        const created = addTab({});
+        const created = addTab();
         setSelectedTab(created.index);
         break;
       }
@@ -272,7 +264,7 @@ export const SearcherWrapper = () => {
               variant="surface"
               aria-label="Create new tab"
               onClick={() => {
-                const created = addTab({});
+                const created = addTab();
                 setSelectedTab(created.index);
               }}
               margin={2}
@@ -285,7 +277,7 @@ export const SearcherWrapper = () => {
       {selectedTabInfo && (
         <QuerySpecificContext.Provider value={selectedTabInfo.store}>
           <Provider store={selectedTabInfo.store}>
-            <Searcher key={selectedTabInfo.key} {...selectedTabInfo.props} />
+            <Searcher key={selectedTabInfo.key} />
           </Provider>
         </QuerySpecificContext.Provider>
       )}

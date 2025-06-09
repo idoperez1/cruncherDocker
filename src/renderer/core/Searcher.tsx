@@ -41,14 +41,9 @@ const onQueryExecuted = (state: QueryState) => {
 };
 
 export type SearcherProps = {
-  initialQuery?: {
-    startFullDate?: FullDate;
-    endFullDate?: FullDate;
-    searchQuery: string;
-  };
 };
 
-export const Searcher: React.FC<SearcherProps> = (props) => {
+export const Searcher: React.FC<SearcherProps> = () => {
   const [selectedTab, setSelectedTab] = useState<string | null>("logs");
   const events = useAtomValue(eventsAtom);
   const { table: tableView, view: viewChart } = useAtomValue(dataViewModelAtom);
