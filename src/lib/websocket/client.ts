@@ -102,8 +102,9 @@ export const getWebsocketConnection = (url: string) => {
                 // Notify all consumers about the received message
                 consumers.forEach(consumer => {
                     try {
-                        if (consumer.shouldMatch(parsedRawMessage)) {
-                            consumer.callback(parsedRawMessage);
+                        const parsedMessage = consumer.shouldMatch(parsedRawMessage)
+                        if (parsedMessage !== null) {
+                            consumer.callback(parsedRawMessage, parsedMessage);
                         }
                     } catch (error) {
                         console.error('Error in consumer callback:', error);
@@ -146,20 +147,19 @@ export const getWebsocketConnection = (url: string) => {
             shouldMatch: (message: unknown) => {
                 const payload = schema.safeParse(message)
                 if (!payload.success) {
-                    return false;
+                    return null;
                 }
 
                 const predicate = options.predicate ?? (() => true);
 
                 const matches = predicate(payload.data);
                 if (!matches) {
-                    return false;
+                    return null;
                 }
 
-                return true;
+                return payload.data;
             },
-            callback: (message: unknown) => {
-                const parsedMessage = schema.parse(message);
+            callback: (_message: unknown, parsedMessage: unknown) => {
                 options.callback(parsedMessage);
             },
         };
@@ -178,9 +178,9 @@ export const getWebsocketConnection = (url: string) => {
         subscribe: subscribeMessage,
         once: (consumer: WebsocketMessageCustomer) => {
             const originalCallback = consumer.callback;
-            consumer.callback = (message: unknown) => {
+            consumer.callback = (message: unknown, parsedRawMessage: unknown) => {
                 try {
-                    originalCallback(message);
+                    originalCallback(message, parsedRawMessage);
                 }
                 finally {
                     // Remove the consumer after the first match

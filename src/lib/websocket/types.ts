@@ -1,8 +1,8 @@
 import z from "zod";
 
 export type WebsocketMessageCustomer = {
-    shouldMatch: (message: unknown) => boolean;
-    callback: (message: unknown) => void;
+    shouldMatch: (message: unknown) => unknown | null;
+    callback: (message: unknown, parsedMessage: unknown) => void;
 }
 
 export const GenericMessageSchema = z.object({
