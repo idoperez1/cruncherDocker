@@ -8,7 +8,7 @@ import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
 import { parseDate } from "~lib/dateUtils";
 import { Searcher } from "./Searcher";
-import { globalShortcuts, useShortcuts } from "./keymaps";
+import { searcherGlobalShortcuts, useShortcuts } from "./keymaps";
 import { runQueryForStore, useController, useMessageEvent } from "./search";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { QuerySpecificContext, searchQueryAtom } from "./store/queryState";
@@ -130,7 +130,7 @@ export const SearcherWrapper = () => {
     },
   });
 
-  useShortcuts(globalShortcuts, (shortcut) => {
+  useShortcuts(searcherGlobalShortcuts, (shortcut) => {
     switch (shortcut) {
       case "create-new-tab": {
         const created = addTab();
@@ -224,7 +224,7 @@ export const SearcherWrapper = () => {
                   <span>
                     Close {selectedTab === index && ("Active")} Tab{" "}
                     {selectedTab === index && (
-                      <Shortcut keys={globalShortcuts.getAlias("close-tab")} />
+                      <Shortcut keys={searcherGlobalShortcuts.getAlias("close-tab")} />
                     )}
                   </span>
                 }
@@ -251,7 +251,7 @@ export const SearcherWrapper = () => {
             content={
               <span>
                 Add Tab{" "}
-                <Shortcut keys={globalShortcuts.getAlias("create-new-tab")} />
+                <Shortcut keys={searcherGlobalShortcuts.getAlias("create-new-tab")} />
               </span>
             }
             showArrow

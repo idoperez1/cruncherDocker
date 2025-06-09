@@ -52,6 +52,8 @@ export class ShortcutHolder<T extends ShortcutDefinitions> {
           return event.ctrlKey;
         case "Enter":
           return event.code === "Enter";
+        case "Slash":
+          return event.code === "Slash";
 
         default:
           return event.code === `Key${key}`;
@@ -102,7 +104,7 @@ export const searcherShortcuts = new ShortcutHolder({
   },
 });
 
-export const globalShortcuts = new ShortcutHolder({
+export const searcherGlobalShortcuts = new ShortcutHolder({
   "create-new-tab": {
     Mac: "Meta + T",
     Windows: "Control + T",
@@ -110,6 +112,13 @@ export const globalShortcuts = new ShortcutHolder({
   "close-tab": {
     Mac: "Meta + W",
     Windows: "Control + W",
+  },
+});
+
+export const globalShortcuts = new ShortcutHolder({
+  "toggle-help": {
+    Mac: "Meta + Slash",
+    Windows: "Control + Slash",
   },
 });
 
