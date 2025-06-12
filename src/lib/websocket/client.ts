@@ -1,4 +1,4 @@
-import { BaseStreamClient } from '~lib/baseStreamClient';
+import { BaseStreamClient } from '~lib/BaseStreamClient';
 import { UnsubscribeFunction } from '~lib/network';
 
 

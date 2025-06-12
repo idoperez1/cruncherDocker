@@ -2,7 +2,6 @@ import { Box, IconButton, Stack } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import { atom, createStore, Provider, useAtom } from "jotai";
 import { VscAdd, VscClose } from "react-icons/vsc";
-import { UrlNavigationSchema } from "src/plugins_engine/protocol_out";
 import { v4 as uuidv4 } from "uuid";
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
@@ -12,6 +11,7 @@ import { searcherGlobalShortcuts, useShortcuts } from "./keymaps";
 import { runQueryForStore, useMessageEvent, useQueryProvider } from "./search";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { QuerySpecificContext, searchQueryAtom } from "./store/queryState";
+import { UrlNavigationSchema } from "src/plugins_engine/protocolOut";
 
 const createNewTab = () => {
   return {

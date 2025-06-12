@@ -1,5 +1,4 @@
 import { v4 as uuidv4 } from 'uuid';
-import { supportedPlugins } from "./supported_plugins"
 import { PluginInstance, QueryTask, SerializeableParams, SupportedPlugin } from "./types";
 import { QueryProvider } from "~lib/adapters";
 import fs from "node:fs";
@@ -7,6 +6,7 @@ import YAML from 'yaml'
 import { CruncherConfigSchema } from "src/config/types";
 import { ControllerIndexParam, Search } from "~lib/qql/grammar";
 import { ProcessedData } from "~lib/adapters/logTypes";
+import { supportedPlugins } from './supported_plugins';
 
 
 const configFilePath = 'cruncher.config.yaml';

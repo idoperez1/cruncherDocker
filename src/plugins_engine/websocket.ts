@@ -3,7 +3,7 @@ import { measureTime } from "~lib/utils";
 import { getAsyncRequestHandler, getSyncRequestHandler } from "~lib/websocket/server";
 import { ResponseHandler } from "~lib/networkTypes";
 import { MessageSender } from "./controller";
-import { QueryBatchDone, QueryJobUpdated, UrlNavigation } from "./protocol_out";
+import { QueryBatchDone, QueryJobUpdated, UrlNavigation } from "./protocolOut";
 import { SerializeableParams } from "./types";
 
 export const getRoutes = async (messageSender: MessageSender) => {

@@ -1,5 +1,5 @@
 import { StreamConnection, StreamMessageConsumer, SubscribeOptions, UnsubscribeFunction } from "./network";
-import { StreamAsyncHandler, StreamBridge, StreamBridgeSyncRequest, StreamSyncHandler } from "./stream_messages";
+import { StreamAsyncHandler, StreamBridge, StreamBridgeSyncRequest, StreamSyncHandler } from "./streamMessages";
 
 import { pack, unpack } from 'msgpackr';
 import { v4 as uuidv4 } from 'uuid';

@@ -1,5 +1,5 @@
 import z from "zod";
-import { StreamAsyncHandler, StreamBridge, StreamBridgeSyncRequest, StreamSyncHandler } from "./stream_messages";
+import { StreamAsyncHandler, StreamBridge, StreamBridgeSyncRequest, StreamSyncHandler } from "./streamMessages";
 
 export interface StreamMessageConsumer {
     shouldMatch(message: unknown): unknown | null;

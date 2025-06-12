@@ -1,4 +1,4 @@
-import { QueryBatchDoneSchema, QueryJobUpdatedSchema } from "src/plugins_engine/protocol_out";
+import { QueryBatchDoneSchema, QueryJobUpdatedSchema } from "src/plugins_engine/protocolOut";
 import { PluginInstance } from "src/plugins_engine/types";
 import z from "zod";
 import { StreamConnection, SubscribeOptions, UnsubscribeFunction } from "~lib/network";
