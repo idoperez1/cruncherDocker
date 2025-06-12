@@ -96,7 +96,7 @@ export const useTabs = () => {
 export const SearcherWrapper = () => {
   // TODO: Implement tab selection logic
   const { tabs, addTab, removeTab, selectedTab, setSelectedTab } = useTabs();
-  const controller = useQueryProvider();
+  const provider = useQueryProvider();
 
   useMessageEvent(UrlNavigationSchema, {
     callback: async (urlNavigationMessage) => {
@@ -126,7 +126,7 @@ export const SearcherWrapper = () => {
       store.set(startFullDateAtom, initialStartTime);
       store.set(endFullDateAtom, initialEndTime);
       setSelectedTab(createdTab.index);
-      runQueryForStore(controller, createdTab.createdTab.store, true);
+      runQueryForStore(provider, createdTab.createdTab.store, true);
     },
   });
 

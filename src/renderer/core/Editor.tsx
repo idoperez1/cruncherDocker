@@ -11,11 +11,8 @@ import {
 } from "~lib/pipelineEngine/logicalExpression";
 import { HighlightData as ParserHighlightData } from "~lib/qql/grammar";
 import { getPopperRoot } from "./shadowUtils";
-import {
-  availableColumnsAtom,
-  queryDataAtom,
-} from "./store/queryState";
-import { useControllerParams } from "./store/store";
+import { availableColumnsAtom, queryDataAtom } from "./store/queryState";
+import { useControllerParams } from "./search";
 
 export const queryEditorAtom = atom<HTMLTextAreaElement | null>(null);
 
@@ -47,7 +44,14 @@ export const Editor = ({ value, onChange }: EditorProps) => {
   const availableColumns = useAtomValue(availableColumnsAtom);
   const data = useAtomValue(queryDataAtom);
   const setQueryEditor = useSetAtom(queryEditorAtom);
-  const controllerParams = useControllerParams();
+  const controllerParamsResp = useControllerParams();
+  const controllerParams = useMemo(() => {
+    if (controllerParamsResp.state !== "hasData") {
+      return {};
+    }
+
+    return controllerParamsResp.data;
+  }, [controllerParamsResp]);
 
   // Get the controller params from the context
   const highlightData = useMemo<HighlightData[]>(() => {

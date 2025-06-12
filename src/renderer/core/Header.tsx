@@ -49,10 +49,13 @@ import {
   FormValues,
   isLoadingAtom,
   isQuerySuccessAtom,
+  isSelectedInstanceLoadingAtom,
   queryEndTimeAtom,
   queryStartTimeAtom,
+  selectedInstanceIndexAtom,
   useQueryActions,
   useRunQuery,
+  useSelectedInstance,
 } from "./search";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { dataViewModelAtom, searchQueryAtom } from "./store/queryState";
@@ -436,21 +439,18 @@ const MiniButtons = () => {
   );
 };
 
+
+
 const ProviderSelector = () => {
-  const selectedInstanceId = useApplicationStore(
-    (state) => state.selectedInstanceId
-  );
-  const setSelectedInstanceId = useApplicationStore(
-    (state) => state.setSelectedInstanceId
-  );
+  const setSelectedInstanceIndex = useSetAtom(selectedInstanceIndexAtom);
+  const selectedInstance = useSelectedInstance();
+  const isSelectedInstanceIdLoading = useAtomValue(isSelectedInstanceLoadingAtom);
+
   const initializedInstances = useApplicationStore(
     (state) => state.initializedInstances
   );
   const supportedPlugins = useApplicationStore(
     (state) => state.supportedPlugins
-  );
-  const isSelectionLoading = useApplicationStore(
-    (state) => state.isSelectionLoading
   );
 
   const instances = useMemo(() => {
@@ -471,9 +471,25 @@ const ProviderSelector = () => {
     <Select.Root
       size="xs"
       collection={instances}
-      value={selectedInstanceId ? [selectedInstanceId] : []}
-      onValueChange={(value) => setSelectedInstanceId(value.items[0].value)}
-      disabled={isSelectionLoading}
+      value={selectedInstance ? [selectedInstance.id] : []}
+      onValueChange={(value) => {
+        if (value.items.length === 0) {
+          setSelectedInstanceIndex(0);
+          return;
+        }
+
+        const index = instances.items.findIndex(
+          (item) => item.value === value.items[0].value
+        );
+        if (index === -1) {
+          throw new Error(
+            `Selected instance with value ${value.items[0].value} not found in instances list.`
+          );
+        }
+
+        setSelectedInstanceIndex(index);
+      }}
+      disabled={isSelectedInstanceIdLoading}
     >
       <Select.HiddenSelect />
       <Select.Control>
@@ -481,7 +497,7 @@ const ProviderSelector = () => {
           <Select.ValueText />
         </Select.Trigger>
         <Select.IndicatorGroup>
-          {isSelectionLoading && (
+          {isSelectedInstanceIdLoading && (
             <Spinner size="xs" borderWidth="1.5px" color="fg.muted" />
           )}
           <Select.Indicator />

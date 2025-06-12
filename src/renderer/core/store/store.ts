@@ -43,10 +43,6 @@ export type ApplicationStore = {
     initializedInstances: PluginInstance[];
     setSupportedPlugins: (plugins: SupportedPlugin[]) => void;
     setInitializedInstances: (instances: PluginInstance[]) => void;
-
-    isSelectionLoading: boolean;
-    selectedInstanceId: string | undefined;
-    setSelectedInstanceId: (id: string) => void;
 }
 
 export const useApplicationStore = create<ApplicationStore>((set, get) => ({
@@ -95,65 +91,5 @@ export const useApplicationStore = create<ApplicationStore>((set, get) => ({
     setSupportedPlugins: (plugins: SupportedPlugin[]) => set({ supportedPlugins: plugins }),
 
     initializedInstances: [],
-    setInitializedInstances: (instances: PluginInstance[]) => {
-        const selectedInstance = get().selectedInstanceId ?? instances[0]?.id;
-        set({ initializedInstances: instances });
-        get().setSelectedInstanceId(selectedInstance);
-    },
-
-    isSelectionLoading: false,
-    selectedInstanceId: undefined,
-    setSelectedInstanceId: async (id: string) => {
-        const state = get();
-        // if controller is not set, throw an error
-        if (!state.controller) {
-            throw new Error('Controller is not set. Please initialize the controller first.');
-        }
-
-        const instance = state.initializedInstances.find(instance => instance.id === id);
-        if (!instance) {
-            console.warn(`Instance with id ${id} not found in initialized instances.`);
-            return;
-        }
-
-        if (!id) {
-            console.warn('No instance id provided, skipping selection.');
-            return;
-        }
-
-        // wait for the controller to be ready
-        const provider = state.providers[id];
-        if (!provider) {
-            throw new Error(`Controller for instance with id ${id} is not initialized.`);
-        }
-
-        set({ isSelectionLoading: true, selectedInstanceId: id });
-        try {
-            console.log(`Setting selected instance id to ${id}`);
-            await provider.waitForReady();
-            // check if there are any controller params for the selected instance
-            if (state.controllerParams[id]) {
-                console.log(`Controller params for instance ${id} already set, skipping fetch.`);
-                return;
-            }
-
-            console.log(`Controller for instance ${id} is ready, fetching controller params...`);
-            const controllerParams = await provider.getControllerParams();
-            get().setControllerParams(id, controllerParams);
-        } finally {
-            set({ isSelectionLoading: false });
-        }
-    },
+    setInitializedInstances: (instances: PluginInstance[]) => set({ initializedInstances: instances }),
 }));
-
-
-export const useControllerParams = () => {
-    const controllerParams = useApplicationStore((state) => state.controllerParams);
-    const selectedInstanceId = useApplicationStore((state) => state.selectedInstanceId);
-
-    if (!selectedInstanceId) {
-        return {};
-    }
-
-    return controllerParams[selectedInstanceId] || {};
-}

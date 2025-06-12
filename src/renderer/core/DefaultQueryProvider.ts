@@ -1,5 +1,4 @@
-import { ControllerIndexParam, Search } from "~lib/qql/grammar";
-import { QueryOptions, QueryProvider } from "./common/interface";
+import { QueryProvider } from "./common/interface";
 
 
 class DefaultQueryProvider implements QueryProvider {
@@ -9,11 +8,7 @@ class DefaultQueryProvider implements QueryProvider {
   getControllerParams(): Promise<Record<string, string[]>> {
     throw new Error("No query provider available - please configure ~/.config/cruncher/cruncher.config.yaml");
   }
-  query(
-    params: ControllerIndexParam[],
-    searchTerm: Search,
-    queryOptions: QueryOptions
-  ): Promise<void> {
+  query(): Promise<void> {
     throw new Error("No query provider available - please configure ~/.config/cruncher/cruncher.config.yaml");
   }
 }

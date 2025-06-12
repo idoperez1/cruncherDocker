@@ -17,6 +17,8 @@ import { notifyError, notifySuccess } from "./notifyError";
 import { actualEndTimeAtom, actualStartTimeAtom, compareFullDates, endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { dataViewModelAtom, indexAtom, originalDataAtom, searchQueryAtom, useQuerySpecificStoreInternal, viewSelectedForQueryAtom } from "./store/queryState";
 import { QueryState, useApplicationStore } from "./store/store";
+import { atomWithStore } from 'jotai-zustand'
+import { loadable } from "jotai/utils"
 
 export type FormValues = {
     searchTerm: string;
@@ -34,6 +36,51 @@ export type QueryExecutionHistory = {
 const submitMutexAtom = atom(new Mutex());
 const abortControllerAtom = atom(new AbortController());
 
+const stateAtom = atomWithStore(useApplicationStore);
+const initializedInstancesAtom = atom((get) => get(stateAtom).initializedInstances);
+const allControllerParamsAtom = atom((get) => get(stateAtom).controllerParams);
+const providersAtom = atom((get) => get(stateAtom).providers);
+
+export const selectedInstanceIndexAtom = atom<number>(0);
+
+const controllerParamsAtom = atom(async (get) => {
+    const initializedInstances = get(initializedInstancesAtom);
+    const selectedInstanceIndex = get(selectedInstanceIndexAtom);
+    const providers = get(providersAtom);
+    if (selectedInstanceIndex === -1 || selectedInstanceIndex >= initializedInstances.length) {
+        return {};
+    }
+
+    const allControllerParams = get(allControllerParamsAtom);
+
+    const selectedInstance = initializedInstances[selectedInstanceIndex];
+    if (allControllerParams[selectedInstance.id] !== undefined) {
+        return allControllerParams[selectedInstance.id];
+    }
+
+    // If the controller params are not set, we can return an empty object
+    const provider = providers[selectedInstance.id];
+    // If the provider is not ready, we can return an empty object
+    await provider.waitForReady();
+    console.log(`Fetching controller params for instance ${selectedInstance.id}...`);
+    const controllerParams = await provider.getControllerParams();
+    useApplicationStore.getState().setControllerParams(selectedInstance.id, controllerParams);
+    console.log(`Controller params for instance ${selectedInstance.id} fetched successfully.`);
+
+    return controllerParams;
+});
+
+export const loadingControllerParamsAtom = loadable(controllerParamsAtom);
+export const isSelectedInstanceLoadingAtom = atom((get) => {
+    const loadingControllerParams = get(loadingControllerParamsAtom);
+    return loadingControllerParams.state === "loading";
+});
+
+export const useControllerParams = () => {
+    return useAtomValue(loadingControllerParamsAtom);
+}
+
+
 export const lastQueryAtom = atom<QueryExecutionHistory | undefined>(undefined);
 
 export const lastExecutedQueryStateAtom = atom<QueryState | undefined>(undefined);
@@ -45,7 +92,7 @@ export const queryEndTimeAtom = atom<Date | undefined>(undefined);
 export const isQuerySuccessAtom = atom(true);
 
 export const useInitializedController = () => {
-    const controller =  useApplicationStore((state) => state.controller);
+    const controller = useApplicationStore((state) => state.controller);
     const isInitialized = useApplicationStore((state) => state.isInitialized);
     if (!isInitialized) {
         throw new Error("Controller is not initialized yet. Please wait for the application to load.");
@@ -55,13 +102,13 @@ export const useInitializedController = () => {
 }
 
 export const useSelectedInstance = () => {
+    const selectedInstanceIndex = useAtomValue(selectedInstanceIndexAtom);
     return useApplicationStore((state) => {
-        const instanceId = state.selectedInstanceId;
-        if (!instanceId) {
+        if (selectedInstanceIndex === -1 || selectedInstanceIndex >= state.initializedInstances.length) {
             return undefined;
         }
 
-        return state.initializedInstances.find((instance) => instance.id === instanceId);
+        return state.initializedInstances[selectedInstanceIndex] || undefined;
     })
 }
 
@@ -180,7 +227,7 @@ export const useRunQuery = () => {
     }, [controller, store]);
 }
 
-export const runQueryForStore = async (controller: QueryProvider, store: ReturnType<typeof createStore>, isForced: boolean) => {
+export const runQueryForStore = async (provider: QueryProvider, store: ReturnType<typeof createStore>, isForced: boolean) => {
     const resetBeforeNewBackendQuery = () => {
         const tree = store.get(indexAtom);
         store.set(openIndexesAtom, []);
@@ -277,7 +324,7 @@ export const runQueryForStore = async (controller: QueryProvider, store: ReturnT
                     try {
                         store.set(lastQueryAtom, executionQuery);
                         let newData: ProcessedData[] = [];
-                        await controller.query(parsedTree.controllerParams, parsedTree.search, {
+                        await provider.query(parsedTree.controllerParams, parsedTree.search, {
                             fromTime: fromTime,
                             toTime: toTime,
                             cancelToken: cancelToken,
