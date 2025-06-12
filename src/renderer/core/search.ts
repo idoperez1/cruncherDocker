@@ -1,6 +1,7 @@
 import { Mutex } from "async-mutex";
 import equal from "fast-deep-equal";
 import { atom, createStore, useAtom, useAtomValue } from "jotai";
+import { loadable } from "jotai/utils";
 import merge from "merge-k-sorted-arrays";
 import React, { useEffect } from "react";
 import z from "zod";
@@ -10,15 +11,34 @@ import { getPipelineItems } from "~lib/pipelineEngine/root";
 import { parse, PipelineItem } from "~lib/qql";
 import { ControllerIndexParam, Search } from "~lib/qql/grammar";
 import { asDateField, compareProcessedData, ProcessedData } from "../../lib/adapters/logTypes";
-import { QueryProvider } from "./common/interface";
 import { DEFAULT_QUERY_PROVIDER } from "./DefaultQueryProvider";
 import { openIndexesAtom } from "./events/state";
 import { notifyError, notifySuccess } from "./notifyError";
 import { actualEndTimeAtom, actualStartTimeAtom, compareFullDates, endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { dataViewModelAtom, indexAtom, originalDataAtom, searchQueryAtom, useQuerySpecificStoreInternal, viewSelectedForQueryAtom } from "./store/queryState";
-import { QueryState, useApplicationStore } from "./store/store";
-import { atomWithStore } from 'jotai-zustand'
-import { loadable } from "jotai/utils"
+import { ApplicationStore, appStore, useApplicationStore } from "./store/store";
+
+export type QueryState = {
+    searchQuery: string;
+    startTime: FullDate | undefined;
+    endTime: FullDate | undefined;
+
+    selectedProfile: string | undefined;
+}
+
+export const queryStateAtom = atom<QueryState>((get) => {
+    const searchQuery = get(searchQueryAtom);
+    const startTime = get(startFullDateAtom);
+    const endTime = get(endFullDateAtom);
+    const selectedProfile = get(selectedInstanceAtom);
+
+    return {
+        searchQuery,
+        startTime,
+        endTime,
+        selectedProfile: selectedProfile ? selectedProfile.name : undefined,
+    };
+});
 
 export type FormValues = {
     searchTerm: string;
@@ -36,22 +56,39 @@ export type QueryExecutionHistory = {
 const submitMutexAtom = atom(new Mutex());
 const abortControllerAtom = atom(new AbortController());
 
-const stateAtom = atomWithStore(useApplicationStore);
-const initializedInstancesAtom = atom((get) => get(stateAtom).initializedInstances);
-const allControllerParamsAtom = atom((get) => get(stateAtom).controllerParams);
-const providersAtom = atom((get) => get(stateAtom).providers);
+const initializedInstancesSelector = (state: ApplicationStore) => state.initializedInstances;
+const allControllerParamsSelector = (state: ApplicationStore) => state.controllerParams;
+const providersSelector = (state: ApplicationStore) => state.providers;
 
 export const selectedInstanceIndexAtom = atom<number>(0);
 
-const controllerParamsAtom = atom(async (get) => {
-    const initializedInstances = get(initializedInstancesAtom);
+export const useSelectedInstance = () => {
+    const selectedIndex = useAtomValue(selectedInstanceIndexAtom);
+    const initializedInstances = useApplicationStore((state) => state.initializedInstances);
+    return initializedInstances[selectedIndex];
+}
+
+export const selectedInstanceAtom = atom((get) => {
+    const initializedInstances = initializedInstancesSelector(appStore.getState());
+    console.log("initializedInstances", initializedInstances);
     const selectedInstanceIndex = get(selectedInstanceIndexAtom);
-    const providers = get(providersAtom);
+    if (selectedInstanceIndex === -1 || selectedInstanceIndex >= initializedInstances.length) {
+        return undefined;
+    }
+
+    return initializedInstances[selectedInstanceIndex];
+})
+
+
+const controllerParamsAtom = atom(async (get) => {
+    const initializedInstances = initializedInstancesSelector(appStore.getState());
+    const selectedInstanceIndex = get(selectedInstanceIndexAtom);
+    const providers = providersSelector(appStore.getState());
     if (selectedInstanceIndex === -1 || selectedInstanceIndex >= initializedInstances.length) {
         return {};
     }
 
-    const allControllerParams = get(allControllerParamsAtom);
+    const allControllerParams = allControllerParamsSelector(appStore.getState());
 
     const selectedInstance = initializedInstances[selectedInstanceIndex];
     if (allControllerParams[selectedInstance.id] !== undefined) {
@@ -64,7 +101,7 @@ const controllerParamsAtom = atom(async (get) => {
     await provider.waitForReady();
     console.log(`Fetching controller params for instance ${selectedInstance.id}...`);
     const controllerParams = await provider.getControllerParams();
-    useApplicationStore.getState().setControllerParams(selectedInstance.id, controllerParams);
+    appStore.getState().setControllerParams(selectedInstance.id, controllerParams);
     console.log(`Controller params for instance ${selectedInstance.id} fetched successfully.`);
 
     return controllerParams;
@@ -101,31 +138,22 @@ export const useInitializedController = () => {
     return controller;
 }
 
-export const useSelectedInstance = () => {
-    const selectedInstanceIndex = useAtomValue(selectedInstanceIndexAtom);
-    return useApplicationStore((state) => {
-        if (selectedInstanceIndex === -1 || selectedInstanceIndex >= state.initializedInstances.length) {
-            return undefined;
-        }
-
-        return state.initializedInstances[selectedInstanceIndex] || undefined;
-    })
-}
-
-export const useQueryProvider = () => {
-    // Use the selectedInstanceId from the application store
-    const selectedInstance = useSelectedInstance();
+export const providerAtom = atom((get) => {
+    const selectedInstance = get(selectedInstanceAtom);
     if (!selectedInstance) {
         return DEFAULT_QUERY_PROVIDER;
     }
-
-    const providers = useApplicationStore((state) => state.providers);
+    const providers = providersSelector(appStore.getState());
     if (!providers[selectedInstance.id]) {
         console.warn(`No provider found for instance with id ${selectedInstance.id}. Using default provider.`);
         return DEFAULT_QUERY_PROVIDER;
     }
 
     return providers[selectedInstance.id];
+});
+
+export const useQueryProvider = () => {
+    return useAtomValue(providerAtom);
 }
 
 export const useMessageEvent = <T extends z.ZodTypeAny>(schema: T, options: SubscribeOptions<T>) => {
@@ -146,6 +174,7 @@ export const useQueryExecutedEffect = (callback: (state: QueryState) => void) =>
             searchQuery: lastExecutedQueryState?.searchQuery ?? '',
             startTime: lastExecutedQueryState?.startTime,
             endTime: lastExecutedQueryState?.endTime,
+            selectedProfile: lastExecutedQueryState?.selectedProfile,
         });
     }, [lastExecutedQueryState, callback]);
 }
@@ -185,14 +214,8 @@ export const useQueryActions = () => {
 }
 
 export const useCurrentShareLink = () => {
-    const [searchQuery] = useAtom(searchQueryAtom);
-    const [startTime] = useAtom(startFullDateAtom);
-    const [endTime] = useAtom(endFullDateAtom);
-    return getShareLink({
-        searchQuery,
-        startTime,
-        endTime,
-    });
+    const queryState = useAtomValue(queryStateAtom);
+    return getShareLink(queryState)
 }
 
 
@@ -200,8 +223,12 @@ export const getShareLink = (queryState: QueryState) => {
     const startTime = queryState.startTime;
     const endTime = queryState.endTime;
     const searchTerm = queryState.searchQuery;
+    const selectedProfile = queryState.selectedProfile;
 
     const queryParams = [];
+    if (selectedProfile) {
+        queryParams.push(`profile=${encodeURIComponent(selectedProfile)}`);
+    }
     if (startTime) {
         queryParams.push(`startTime=${dateAsString(startTime)}`);
     }
@@ -219,15 +246,15 @@ export const getShareLink = (queryState: QueryState) => {
 
 
 export const useRunQuery = () => {
-    const controller = useQueryProvider();
     const store = useQuerySpecificStoreInternal();
 
     return React.useCallback((isForced: boolean) => {
-        return runQueryForStore(controller, store, isForced);
-    }, [controller, store]);
+        return runQueryForStore(store, isForced);
+    }, [store]);
 }
 
-export const runQueryForStore = async (provider: QueryProvider, store: ReturnType<typeof createStore>, isForced: boolean) => {
+export const runQueryForStore = async (store: ReturnType<typeof createStore>, isForced: boolean) => {
+    const provider = store.get(providerAtom);
     const resetBeforeNewBackendQuery = () => {
         const tree = store.get(indexAtom);
         store.set(openIndexesAtom, []);
@@ -268,6 +295,11 @@ export const runQueryForStore = async (provider: QueryProvider, store: ReturnTyp
         const startFullDate = store.get(startFullDateAtom);
         const endFullDate = store.get(endFullDateAtom);
         const searchTerm = store.get(searchQueryAtom);
+        const selectedProfile = store.get(selectedInstanceAtom);
+        if (!selectedProfile) {
+            // TODO: return error
+            return;
+        }
         if (startFullDate === undefined) {
             // TODO: return error
             return;
@@ -293,6 +325,7 @@ export const runQueryForStore = async (provider: QueryProvider, store: ReturnTyp
             startTime: startFullDate,
             endTime: endFullDate,
             searchQuery: searchTerm,
+            selectedProfile: selectedProfile.name,
         };
 
         store.set(lastExecutedQueryStateAtom, state);

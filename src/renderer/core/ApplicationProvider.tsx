@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useAsync } from "react-use";
 import { WebsocketStreamConnection } from "~lib/websocket/client";
-import { useApplicationStore } from "./store/store";
+import { appStore } from "./store/store";
 
 export const ApplicationProvider: React.FC<{
   children: React.ReactNode;
@@ -21,7 +21,7 @@ export const ApplicationProvider: React.FC<{
     server.initialize();
     const cancelReady = server.onReady(async () => {
       console.log("Stream server connection established");
-      await useApplicationStore.getState().initialize(server);
+      await appStore.getState().initialize(server);
     });
 
     const cancelOnClose = server.onClose(() => {

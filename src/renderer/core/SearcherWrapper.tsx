@@ -2,16 +2,22 @@ import { Box, IconButton, Stack } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import { atom, createStore, Provider, useAtom } from "jotai";
 import { VscAdd, VscClose } from "react-icons/vsc";
+import { UrlNavigationSchema } from "src/plugins_engine/protocolOut";
 import { v4 as uuidv4 } from "uuid";
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
 import { parseDate } from "~lib/dateUtils";
 import { Searcher } from "./Searcher";
 import { searcherGlobalShortcuts, useShortcuts } from "./keymaps";
-import { runQueryForStore, useMessageEvent, useQueryProvider } from "./search";
+import { notifyError } from "./notifyError";
+import {
+  runQueryForStore,
+  selectedInstanceIndexAtom,
+  useMessageEvent
+} from "./search";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { QuerySpecificContext, searchQueryAtom } from "./store/queryState";
-import { UrlNavigationSchema } from "src/plugins_engine/protocolOut";
+import { appStore } from "./store/store";
 
 const createNewTab = () => {
   return {
@@ -96,8 +102,6 @@ export const useTabs = () => {
 export const SearcherWrapper = () => {
   // TODO: Implement tab selection logic
   const { tabs, addTab, removeTab, selectedTab, setSelectedTab } = useTabs();
-  const provider = useQueryProvider();
-
   useMessageEvent(UrlNavigationSchema, {
     callback: async (urlNavigationMessage) => {
       console.log("URL Navigation message received:", urlNavigationMessage);
@@ -107,6 +111,7 @@ export const SearcherWrapper = () => {
       const startFullDate = parsedUrl.searchParams.get("startTime");
       const endFullDate = parsedUrl.searchParams.get("endTime");
       const searchQuery = parsedUrl.searchParams.get("searchQuery");
+      const selectedProfile = parsedUrl.searchParams.get("profile");
       const initialStartTime = parseDate(startFullDate) ?? undefined;
       const initialEndTime = parseDate(endFullDate) ?? undefined;
       const initialQuery = searchQuery || "";
@@ -115,18 +120,33 @@ export const SearcherWrapper = () => {
         startFullDate: initialStartTime,
         endFullDate: initialEndTime,
         searchQuery: initialQuery,
+        profile: selectedProfile,
       });
 
       // create new tab
       const createdTab = addTab();
 
-      const store = createdTab.createdTab.store;
+      const querySpecificStore = createdTab.createdTab.store;
 
-      store.set(searchQueryAtom, initialQuery);
-      store.set(startFullDateAtom, initialStartTime);
-      store.set(endFullDateAtom, initialEndTime);
+      querySpecificStore.set(searchQueryAtom, initialQuery);
+      querySpecificStore.set(startFullDateAtom, initialStartTime);
+      querySpecificStore.set(endFullDateAtom, initialEndTime);
+
+      if (selectedProfile) {
+        // for backward compatibility
+        const instances = appStore.getState().initializedInstances;
+        const selectedInstanceIndex = instances.findIndex((instance) => instance.name === selectedProfile);
+        if (selectedInstanceIndex === -1) {
+          notifyError(
+            `Profile "${selectedProfile}" not found. Please select a valid profile.`,
+            new Error(`Profile "${selectedProfile}" not found.`)
+          );
+        }
+
+        querySpecificStore.set(selectedInstanceIndexAtom, selectedInstanceIndex);
+      }
       setSelectedTab(createdTab.index);
-      runQueryForStore(provider, createdTab.createdTab.store, true);
+      runQueryForStore(createdTab.createdTab.store, true);
     },
   });
 
@@ -222,9 +242,11 @@ export const SearcherWrapper = () => {
               <Tooltip
                 content={
                   <span>
-                    Close {selectedTab === index && ("Active")} Tab{" "}
+                    Close {selectedTab === index && "Active"} Tab{" "}
                     {selectedTab === index && (
-                      <Shortcut keys={searcherGlobalShortcuts.getAlias("close-tab")} />
+                      <Shortcut
+                        keys={searcherGlobalShortcuts.getAlias("close-tab")}
+                      />
                     )}
                   </span>
                 }
@@ -251,7 +273,9 @@ export const SearcherWrapper = () => {
             content={
               <span>
                 Add Tab{" "}
-                <Shortcut keys={searcherGlobalShortcuts.getAlias("create-new-tab")} />
+                <Shortcut
+                  keys={searcherGlobalShortcuts.getAlias("create-new-tab")}
+                />
               </span>
             }
             showArrow

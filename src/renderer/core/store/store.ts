@@ -1,31 +1,12 @@
-import { atom } from 'jotai';
 import { PluginInstance, SupportedPlugin } from 'src/plugins_engine/types';
-import { create } from 'zustand';
+import { useStore } from 'zustand';
+import { createStore } from 'zustand/vanilla';
 import { QueryProvider } from '~core/common/interface';
 import { notifyError } from '~core/notifyError';
 import { ApiController } from '~core/store/ApiController';
-import { FullDate } from '~lib/dateUtils';
 import { StreamConnection } from '~lib/network';
-import { endFullDateAtom, startFullDateAtom } from './dateState';
-import { searchQueryAtom } from './queryState';
 
-export type QueryState = {
-    searchQuery: string;
-    startTime: FullDate | undefined;
-    endTime: FullDate | undefined;
-}
 
-export const queryStateAtom = atom<QueryState>((get) => {
-    const searchQuery = get(searchQueryAtom);
-    const startTime = get(startFullDateAtom);
-    const endTime = get(endFullDateAtom);
-
-    return {
-        searchQuery,
-        startTime,
-        endTime,
-    };
-});
 
 type ControllerParams = Record<string, string[]>;
 
@@ -45,7 +26,7 @@ export type ApplicationStore = {
     setInitializedInstances: (instances: PluginInstance[]) => void;
 }
 
-export const useApplicationStore = create<ApplicationStore>((set, get) => ({
+export const appStore = createStore<ApplicationStore>((set, get) => ({
     controller: null as unknown as ApiController,
 
     isInitialized: false,
@@ -93,3 +74,7 @@ export const useApplicationStore = create<ApplicationStore>((set, get) => ({
     initializedInstances: [],
     setInitializedInstances: (instances: PluginInstance[]) => set({ initializedInstances: instances }),
 }));
+
+export const useApplicationStore = <T>(selector: (state: ApplicationStore) => T): T => {
+    return useStore(appStore, selector);
+};
