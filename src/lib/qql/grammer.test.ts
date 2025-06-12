@@ -971,9 +971,9 @@ test("support controller params", () => {
   const result = parser.query();
   expect(result).toEqual({
     controllerParams: [
-      { name: "param1", value: "abc", type: "controllerIndexParam", operator: "=" },
-      { name: "param2", value: "def", type: "controllerIndexParam", operator: "=" },
-      { name: "third", value: "something", type: "controllerIndexParam", operator: "!=" },
+      { name: "param1", value: {type: "regex", pattern: "abc"}, type: "controllerIndexParam", operator: "=" },
+      { name: "param2", value: {type: "regex", pattern: "def"}, type: "controllerIndexParam", operator: "=" },
+      { name: "third", value: {type: "regex", pattern: "something"}, type: "controllerIndexParam", operator: "!=" },
     ],
     search: {
       type: "search",

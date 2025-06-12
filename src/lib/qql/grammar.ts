@@ -282,7 +282,7 @@ export type SuggestionData = {
 export type ControllerIndexParam = {
   type: "controllerIndexParam";
   name: string;
-  value: string;
+  value: LiteralString | RegexLiteral;
   operator: string;
 }
 export type Search = {
@@ -930,7 +930,12 @@ export class QQLParser extends EmbeddedActionsParser {
       key: token.image,
     });
 
-    const value = this.SUBRULE(this.regexString);
+    const value = this.OR1<LiteralString | RegexLiteral>({
+      DEF: [
+        { ALT: () => this.SUBRULE(this.doubleQuotedString) },
+        { ALT: () => this.SUBRULE(this.regexLiteral) },
+      ],
+    });
 
     autoCompleteValue.closePreviousEnd();
 

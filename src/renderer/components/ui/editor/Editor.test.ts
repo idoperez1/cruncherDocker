@@ -8,7 +8,7 @@ test("split string to highlight chunks", () => {
             type: "keyword",
             token: {
                 startOffset: 0,
-                endOffset: 5,
+                endOffset: 4,
             },
         }
     ])

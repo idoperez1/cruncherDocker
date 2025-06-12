@@ -101,7 +101,9 @@ const composeLabelFilter = (filter: GrafanaLabelFilter[], controllerParams: Cont
         throw new Error(`Invalid operator - ${param.operator}`);
     }
 
-    filters.push(`${param.name}${operator}"${escapeQuotes(escapeBackslash(param.value))}"`);
+    const value = param.value.type === "string" ? param.value.value : param.value.pattern;
+
+    filters.push(`${param.name}${operator}"${escapeQuotes(escapeBackslash(value))}"`);
   });
 
   return `{ ${filters.join(", ")} }`;
