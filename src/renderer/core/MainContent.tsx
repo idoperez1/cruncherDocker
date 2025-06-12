@@ -1,16 +1,15 @@
+import { Box, ProgressCircle } from "@chakra-ui/react";
 import styled from "@emotion/styled";
 import { Provider as JotaiProvider, useAtomValue } from "jotai";
+import { useMemo, useState } from "react";
 import { Provider } from "~components/ui/provider";
 import { Toaster } from "~components/ui/toaster";
-import { selectedMenuItemAtom, SideMenu } from "./SideMenu";
-import { useMemo, useState } from "react";
+import { ApplicationProvider } from "./ApplicationProvider";
 import { SearcherWrapper } from "./SearcherWrapper";
-import { useControllerInitializer } from "./search";
-import { Box, ProgressCircle } from "@chakra-ui/react";
-import { useApplicationStore } from "./store/store";
-import { WebsocketProvider } from "./websocket_bridge";
 import { Shortcuts } from "./Shortcuts";
+import { selectedMenuItemAtom, SideMenu } from "./SideMenu";
 import { globalShortcuts, useShortcuts } from "./keymaps";
+import { useApplicationStore } from "./store/store";
 
 const Wrapper = styled.div`
   flex: 1;
@@ -22,7 +21,6 @@ const Wrapper = styled.div`
 `;
 
 const MainContentInner = () => {
-  useControllerInitializer();
   const selectedItem = useAtomValue(selectedMenuItemAtom);
   const isInitialized = useApplicationStore((state) => state.isInitialized);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -75,13 +73,13 @@ const MainContentInner = () => {
 
 const MainContent = () => {
   return (
-    <WebsocketProvider>
+    <ApplicationProvider>
       <Provider>
         <JotaiProvider>
           <MainContentInner />
         </JotaiProvider>
       </Provider>
-    </WebsocketProvider>
+    </ApplicationProvider>
   );
 };
 

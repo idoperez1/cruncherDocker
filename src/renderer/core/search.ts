@@ -3,15 +3,15 @@ import equal from "fast-deep-equal";
 import { atom, createStore, useAtom, useAtomValue } from "jotai";
 import merge from "merge-k-sorted-arrays";
 import React, { useEffect } from "react";
-import { useAsync } from "react-use";
 import z from "zod";
 import { dateAsString, DateType, FullDate, isTimeNow } from "~lib/dateUtils";
+import { SubscribeOptions } from "~lib/network";
 import { getPipelineItems } from "~lib/pipelineEngine/root";
 import { parse, PipelineItem } from "~lib/qql";
 import { ControllerIndexParam, Search } from "~lib/qql/grammar";
-import { SubscribeOptions } from "~lib/websocket/client";
 import { asDateField, compareProcessedData, ProcessedData } from "../../lib/adapters/logTypes";
 import { QueryProvider } from "./common/interface";
+import { DEFAULT_QUERY_PROVIDER } from "./DefaultQueryProvider";
 import { openIndexesAtom } from "./events/state";
 import { notifyError, notifySuccess } from "./notifyError";
 import { actualEndTimeAtom, actualStartTimeAtom, compareFullDates, endFullDateAtom, startFullDateAtom } from "./store/dateState";
@@ -44,56 +44,52 @@ export const queryStartTimeAtom = atom<Date | undefined>(undefined);
 export const queryEndTimeAtom = atom<Date | undefined>(undefined);
 export const isQuerySuccessAtom = atom(true);
 
-export type ControllerProviderContextType = {
-    provider: QueryProvider | undefined;
-    subscribeToMessages: <T extends z.ZodTypeAny>(schema: T, options: SubscribeOptions<T>) => () => void;
+export const useInitializedController = () => {
+    const controller =  useApplicationStore((state) => state.controller);
+    const isInitialized = useApplicationStore((state) => state.isInitialized);
+    if (!isInitialized) {
+        throw new Error("Controller is not initialized yet. Please wait for the application to load.");
+    }
+
+    return controller;
 }
-export const ControllerProviderContext = React.createContext<ControllerProviderContextType | undefined>(undefined);
+
+export const useSelectedInstance = () => {
+    return useApplicationStore((state) => {
+        const instanceId = state.selectedInstanceId;
+        if (!instanceId) {
+            return undefined;
+        }
+
+        return state.initializedInstances.find((instance) => instance.id === instanceId);
+    })
+}
 
 export const useQueryProvider = () => {
-    const context = React.useContext(ControllerProviderContext);
-    if (context === undefined) {
-        throw new Error("useQueryProvider must be used within a ControllerProvider");
-    }
-    if (context.provider === undefined) {
-        throw new Error("Query provider is not set. Please ensure the provider is initialized.");
+    // Use the selectedInstanceId from the application store
+    const selectedInstance = useSelectedInstance();
+    if (!selectedInstance) {
+        return DEFAULT_QUERY_PROVIDER;
     }
 
-    return context.provider;
+    const providers = useApplicationStore((state) => state.providers);
+    if (!providers[selectedInstance.id]) {
+        console.warn(`No provider found for instance with id ${selectedInstance.id}. Using default provider.`);
+        return DEFAULT_QUERY_PROVIDER;
+    }
+
+    return providers[selectedInstance.id];
 }
 
 export const useMessageEvent = <T extends z.ZodTypeAny>(schema: T, options: SubscribeOptions<T>) => {
-    const context = React.useContext(ControllerProviderContext);
-    if (context === undefined) {
-        throw new Error("useMessageEvent must be used within a ControllerProvider");
-    }
-    if (context.subscribeToMessages === undefined) {
-        throw new Error("subscribeToMessages is not available in the current context");
-    }
+    const controller = useInitializedController();
 
     useEffect(() => {
-        const unsubscribe = context.subscribeToMessages(schema, options);
+        const unsubscribe = controller.subscribeToMessages(schema, options);
         return () => {
             unsubscribe();
         };
-    }, [context, schema, options]);
-}
-
-export const useController = () => {
-    return useQueryProvider();
-}
-
-export const useControllerInitializer = () => {
-    const controller = useController();
-    const setIsInitialized = useApplicationStore((state) => state.setIsInitialized);
-    const setControllerParams = useApplicationStore((state) => state.setControllerParams);
-    useAsync(async () => {
-        console.log("waiting for controller to be ready...");
-        await controller.waitForReady?.();
-        setIsInitialized(true);
-        const params = await controller.getControllerParams();
-        setControllerParams(params);
-    }, [setIsInitialized, setControllerParams, controller]);
+    }, [controller, schema, options]);
 }
 
 export const useQueryExecutedEffect = (callback: (state: QueryState) => void) => {
@@ -175,19 +171,8 @@ export const getShareLink = (queryState: QueryState) => {
 }
 
 
-
-// export const setup = async () => {
-//     const controller = useController();
-//     await controller?.waitForReady?.();
-//     // this can be done async to the loading of the app - no need to block
-//     // TODO: this needs to be smarter
-//     controller.getControllerParams().then((params) => {
-//         store.set(availableControllerParamsAtom, params);
-//     });
-// }
-
 export const useRunQuery = () => {
-    const controller = useController();
+    const controller = useQueryProvider();
     const store = useQuerySpecificStoreInternal();
 
     return React.useCallback((isForced: boolean) => {
@@ -285,6 +270,7 @@ export const runQueryForStore = async (controller: QueryProvider, store: ReturnT
                     console.log("using cached data");
                     const originalData = store.get(originalDataAtom);
                     startProcessingData(originalData, parsedTree.pipeline, fromTime, toTime);
+                    notifySuccess("Pipeline re-evaluated successfully");
                 } else {
                     // new search initiated - we can reset
                     resetBeforeNewBackendQuery();
@@ -316,6 +302,7 @@ export const runQueryForStore = async (controller: QueryProvider, store: ReturnT
                         });
 
                         store.set(isQuerySuccessAtom, true);
+                        notifySuccess("Query executed successfully");
                     } catch (error) {
                         store.set(isQuerySuccessAtom, false);
                         console.log(error);
@@ -327,7 +314,6 @@ export const runQueryForStore = async (controller: QueryProvider, store: ReturnT
                         throw error;
                     }
                 }
-                notifySuccess("Query executed successfully");
             } finally {
                 store.set(isLoadingAtom, false);
                 store.set(queryEndTimeAtom, new Date());
