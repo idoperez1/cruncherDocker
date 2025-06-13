@@ -1,6 +1,7 @@
 import { Box, IconButton, Stack } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import { atom, createStore, Provider, useAtom } from "jotai";
+import React, { useState } from "react";
 import { VscAdd, VscClose } from "react-icons/vsc";
 import { UrlNavigationSchema } from "src/plugins_engine/protocolOut";
 import { v4 as uuidv4 } from "uuid";
@@ -13,23 +14,28 @@ import { notifyError } from "./notifyError";
 import {
   runQueryForStore,
   selectedInstanceIndexAtom,
-  useMessageEvent
+  useMessageEvent,
 } from "./search";
+import { appStore } from "./store/appStore";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
-import { QuerySpecificContext, searchQueryAtom } from "./store/queryState";
-import { appStore } from "./store/store";
+import {
+  QuerySpecificContext,
+  searchQueryAtom,
+  tabNameAtom,
+} from "./store/queryState";
 
-const createNewTab = () => {
+const createNewTab = (label?: string) => {
+  const store = createStore();
+  const tabLabel = label || "New Search";
+  store.set(tabNameAtom, tabLabel);
   return {
-    store: createStore(),
-    label: "New Search",
+    store,
     key: uuidv4(),
   };
 };
 
 type Tab = {
   store: ReturnType<typeof createStore>;
-  label: string;
   key: string;
 };
 
@@ -40,8 +46,8 @@ export const useTabs = () => {
   const [tabs, setTabs] = useAtom(tabsAtom);
   const [selectedTab, setSelectedTab] = useAtom(selectedAtom);
 
-  const addTab = () => {
-    const createdTab = createNewTab();
+  const addTab = (label?: string) => {
+    const createdTab = createNewTab(label);
     setTabs((prev) => [...prev, createdTab]);
 
     return {
@@ -96,18 +102,32 @@ export const useTabs = () => {
     }
   };
 
-  return { tabs, addTab, removeTab, selectedTab, setSelectedTab };
+  const renameTab = (key: string, newLabel: string) => {
+    const tab = tabs.find((tab) => tab.key === key);
+    if (!tab) {
+      notifyError(
+        `Tab with key ${key} not found`,
+        new Error(`Tab with key ${key} not found`)
+      );
+      return;
+    }
+
+    tab.store.set(tabNameAtom, newLabel || "New Search");
+  };
+
+  return { tabs, addTab, removeTab, selectedTab, setSelectedTab, renameTab };
 };
 
 export const SearcherWrapper = () => {
   // TODO: Implement tab selection logic
   const { tabs, addTab, removeTab, selectedTab, setSelectedTab } = useTabs();
+
   useMessageEvent(UrlNavigationSchema, {
     callback: async (urlNavigationMessage) => {
       console.log("URL Navigation message received:", urlNavigationMessage);
 
       const parsedUrl = new URL(urlNavigationMessage.payload.url);
-
+      const tabName = parsedUrl.searchParams.get("name") || "New Search";
       const startFullDate = parsedUrl.searchParams.get("startTime");
       const endFullDate = parsedUrl.searchParams.get("endTime");
       const searchQuery = parsedUrl.searchParams.get("searchQuery");
@@ -121,10 +141,11 @@ export const SearcherWrapper = () => {
         endFullDate: initialEndTime,
         searchQuery: initialQuery,
         profile: selectedProfile,
+        tabName,
       });
 
-      // create new tab
-      const createdTab = addTab();
+      // create new tab with label from URL
+      const createdTab = addTab(tabName);
 
       const querySpecificStore = createdTab.createdTab.store;
 
@@ -135,15 +156,20 @@ export const SearcherWrapper = () => {
       if (selectedProfile) {
         // for backward compatibility
         const instances = appStore.getState().initializedInstances;
-        const selectedInstanceIndex = instances.findIndex((instance) => instance.name === selectedProfile);
+        const selectedInstanceIndex = instances.findIndex(
+          (instance) => instance.name === selectedProfile
+        );
         if (selectedInstanceIndex === -1) {
           notifyError(
-            `Profile "${selectedProfile}" not found. Please select a valid profile.`,
-            new Error(`Profile "${selectedProfile}" not found.`)
+            `Profile \"${selectedProfile}\" not found. Please select a valid profile.`,
+            new Error(`Profile \"${selectedProfile}\" not found.`)
           );
         }
 
-        querySpecificStore.set(selectedInstanceIndexAtom, selectedInstanceIndex);
+        querySpecificStore.set(
+          selectedInstanceIndexAtom,
+          selectedInstanceIndex
+        );
       }
       setSelectedTab(createdTab.index);
       runQueryForStore(createdTab.createdTab.store, true);
@@ -167,6 +193,7 @@ export const SearcherWrapper = () => {
 
   const selectedTabInfo = tabs[selectedTab];
 
+  // Tab bar rendering
   return (
     <Box
       flex={1}
@@ -184,9 +211,6 @@ export const SearcherWrapper = () => {
           box-sizing: border-box;
           width: 100%;
           gap: 0;
-          /* scrollbar-gutter: stable; */
-          /* scrollbar-color: rgba(255, 255, 255, 0.2) transparent; */
-
           &::-webkit-scrollbar {
             height: 4px;
           }
@@ -197,77 +221,7 @@ export const SearcherWrapper = () => {
       >
         <Stack direction="row" gap={0} alignItems="center">
           {tabs.map((tab, index) => (
-            <Stack
-              direction="row"
-              key={tab.key}
-              css={css`
-                padding: 0.5rem;
-                color: ${selectedTab === index ? "white" : "gray"};
-                background-color: ${selectedTab === index
-                  ? "rgba(255, 255, 255, 0.1)"
-                  : "transparent"};
-                border-top: ${selectedTab === index
-                  ? "4px solid #3182ce"
-                  : "4px solid transparent"};
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                flex-shrink: 0;
-                min-width: 0;
-                gap: 0.5rem;
-                border-radius: 0;
-                transition: background-color 0.2s ease-in-out;
-                &:focus,
-                &:focus-visible {
-                  outline: none;
-                  background-color: rgba(255, 255, 255, 0.1);
-                }
-                &:focus-visible {
-                  box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.6);
-                }
-                &:active {
-                  background-color: rgba(255, 255, 255, 0.2);
-                }
-                &:active,
-                &:focus,
-                &:focus-visible,
-                &:hover {
-                  background-color: rgba(255, 255, 255, 0.1);
-                }
-              `}
-              onClick={() => setSelectedTab(index)}
-            >
-              <span>{tab.label}</span>
-              <Tooltip
-                content={
-                  <span>
-                    Close {selectedTab === index && "Active"} Tab{" "}
-                    {selectedTab === index && (
-                      <Shortcut
-                        keys={searcherGlobalShortcuts.getAlias("close-tab")}
-                      />
-                    )}
-                  </span>
-                }
-                showArrow
-                positioning={{
-                  placement: "bottom",
-                }}
-              >
-                <IconButton
-                  size="2xs"
-                  variant="ghost"
-                  aria-label="Close tab"
-                  onClick={(e) => {
-                    e.stopPropagation(); // prevent the button click from selecting the tab
-                    removeTab(tab.key);
-                  }}
-                >
-                  <VscClose />
-                </IconButton>
-              </Tooltip>
-            </Stack>
+            <DisplayTab key={tab.key} tab={tab} index={index} />
           ))}
           <Tooltip
             content={
@@ -306,5 +260,127 @@ export const SearcherWrapper = () => {
         </QuerySpecificContext.Provider>
       )}
     </Box>
+  );
+};
+
+const DisplayTab: React.FC<{
+  tab: Tab;
+  index: number;
+}> = ({ tab, index }) => {
+  const { removeTab, selectedTab, setSelectedTab, renameTab } = useTabs();
+  const [editingTabKey, setEditingTabKey] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState("");
+
+  const onTabRename = (key: string, newLabel: string) => {
+    if (!newLabel || newLabel.trim() === "") {
+      notifyError(
+        "Tab name cannot be empty",
+        new Error("Tab name cannot be empty")
+      );
+      return;
+    }
+    renameTab(key, newLabel);
+    setEditingTabKey(null);
+  };
+
+  return (
+    <Stack
+      direction="row"
+      key={tab.key}
+      css={css`
+        padding: 0.5rem;
+        color: ${selectedTab === index ? "white" : "gray"};
+        background-color: ${selectedTab === index
+          ? "rgba(255, 255, 255, 0.1)"
+          : "transparent"};
+        border-top: ${selectedTab === index
+          ? "4px solid #3182ce"
+          : "4px solid transparent"};
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        min-width: 0;
+        gap: 0.5rem;
+        border-radius: 0;
+        transition: background-color 0.2s ease-in-out;
+        &:focus,
+        &:focus-visible {
+          outline: none;
+          background-color: rgba(255, 255, 255, 0.1);
+        }
+        &:focus-visible {
+          box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.6);
+        }
+        &:active {
+          background-color: rgba(255, 255, 255, 0.2);
+        }
+        &:active,
+        &:focus,
+        &:focus-visible,
+        &:hover {
+          background-color: rgba(255, 255, 255, 0.1);
+        }
+      `}
+      onClick={() => setSelectedTab(index)}
+      onDoubleClick={() => {
+        setEditingTabKey(tab.key);
+        const label = tab.store.get(tabNameAtom);
+        setEditingValue(label);
+      }}
+    >
+      {editingTabKey === tab.key ? (
+        <input
+          autoFocus
+          value={editingValue}
+          style={{
+            width: Math.max(80, editingValue.length * 8),
+            background: "rgba(0,0,0,0.3)",
+            color: "white",
+            border: "1px solid #3182ce",
+            borderRadius: 4,
+            padding: "2px 6px",
+          }}
+          onChange={(e) => setEditingValue(e.target.value)}
+          onBlur={() => onTabRename(tab.key, editingValue)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              onTabRename(tab.key, editingValue);
+            } else if (e.key === "Escape") {
+              setEditingTabKey(null);
+            }
+          }}
+        />
+      ) : (
+        <span>{tab.store.get(tabNameAtom)}</span>
+      )}
+      <Tooltip
+        content={
+          <span>
+            Close {selectedTab === index && "Active"} Tab{" "}
+            {selectedTab === index && (
+              <Shortcut keys={searcherGlobalShortcuts.getAlias("close-tab")} />
+            )}
+          </span>
+        }
+        showArrow
+        positioning={{
+          placement: "bottom",
+        }}
+      >
+        <IconButton
+          size="2xs"
+          variant="ghost"
+          aria-label="Close tab"
+          onClick={(e) => {
+            e.stopPropagation();
+            removeTab(tab.key);
+          }}
+        >
+          <VscClose />
+        </IconButton>
+      </Tooltip>
+    </Stack>
   );
 };

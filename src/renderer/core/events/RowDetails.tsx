@@ -17,7 +17,7 @@ import {
   asDisplayString,
   Field,
   ProcessedData,
-} from "../../../lib/adapters/logTypes";
+} from "~lib/adapters/logTypes";
 import { searchQueryAtom } from "../store/queryState";
 import { useIsIndexOpen } from "./state";
 

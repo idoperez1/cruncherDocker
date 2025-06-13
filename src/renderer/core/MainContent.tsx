@@ -9,7 +9,7 @@ import { SearcherWrapper } from "./SearcherWrapper";
 import { Shortcuts } from "./Shortcuts";
 import { selectedMenuItemAtom, SideMenu } from "./SideMenu";
 import { globalShortcuts, useShortcuts } from "./keymaps";
-import { useApplicationStore } from "./store/store";
+import { useApplicationStore } from "./store/appStore";
 
 const Wrapper = styled.div`
   flex: 1;

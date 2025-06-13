@@ -59,7 +59,7 @@ import {
 } from "./search";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { dataViewModelAtom, searchQueryAtom } from "./store/queryState";
-import { useApplicationStore } from "./store/store";
+import { useApplicationStore } from "./store/appStore";
 import { Timer } from "./Timer";
 
 const StyledHeader = styled.form`
@@ -93,7 +93,7 @@ const LoaderHolder = styled.div`
 
 type HeaderProps = {};
 
-const Header: React.FC<HeaderProps> = ({}) => {
+const Header: React.FC<HeaderProps> = () => {
   const isLoading = useAtomValue(isLoadingAtom);
 
   const [searchValue, setSearchValue] = useAtom(searchQueryAtom);

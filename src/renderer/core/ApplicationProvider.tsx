@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useAsync } from "react-use";
 import { WebsocketStreamConnection } from "~lib/websocket/client";
-import { appStore } from "./store/store";
+import { appStore } from "./store/appStore";
 
 export const ApplicationProvider: React.FC<{
   children: React.ReactNode;

@@ -11,6 +11,7 @@ import Header from "./Header";
 import { searcherShortcuts, useShortcuts } from "./keymaps";
 import {
   getShareLink,
+  QueryState,
   useQueryActions,
   useQueryExecutedEffect
 } from "./search";
@@ -19,7 +20,6 @@ import {
   eventsAtom,
   viewSelectedForQueryAtom
 } from "./store/queryState";
-import { QueryState } from "./store/store";
 import { TableView } from "./table/TableView";
 import { TimeChart } from "./TimeChart";
 import { ViewChart } from "./view/ViewChart";
@@ -39,8 +39,7 @@ const onQueryExecuted = (state: QueryState) => {
   console.log("shareable link:", getShareLink(state));
 };
 
-export type SearcherProps = {
-};
+export type SearcherProps = {};
 
 export const Searcher: React.FC<SearcherProps> = () => {
   const [selectedTab, setSelectedTab] = useState<string | null>("logs");

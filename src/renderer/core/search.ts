@@ -15,8 +15,8 @@ import { DEFAULT_QUERY_PROVIDER } from "./DefaultQueryProvider";
 import { openIndexesAtom } from "./events/state";
 import { notifyError, notifySuccess } from "./notifyError";
 import { actualEndTimeAtom, actualStartTimeAtom, compareFullDates, endFullDateAtom, startFullDateAtom } from "./store/dateState";
-import { dataViewModelAtom, indexAtom, originalDataAtom, searchQueryAtom, useQuerySpecificStoreInternal, viewSelectedForQueryAtom } from "./store/queryState";
-import { ApplicationStore, appStore, useApplicationStore } from "./store/store";
+import { dataViewModelAtom, indexAtom, originalDataAtom, searchQueryAtom, tabNameAtom, useQuerySpecificStoreInternal, viewSelectedForQueryAtom } from "./store/queryState";
+import { ApplicationStore, appStore, useApplicationStore } from "./store/appStore";
 
 export type QueryState = {
     searchQuery: string;
@@ -24,6 +24,7 @@ export type QueryState = {
     endTime: FullDate | undefined;
 
     selectedProfile: string | undefined;
+    tabName: string | undefined; // Optional tab name for the query
 }
 
 export const queryStateAtom = atom<QueryState>((get) => {
@@ -31,12 +32,14 @@ export const queryStateAtom = atom<QueryState>((get) => {
     const startTime = get(startFullDateAtom);
     const endTime = get(endFullDateAtom);
     const selectedProfile = get(selectedInstanceAtom);
+    const tabName = get(tabNameAtom);
 
     return {
         searchQuery,
         startTime,
         endTime,
         selectedProfile: selectedProfile ? selectedProfile.name : undefined,
+        tabName,
     };
 });
 
@@ -175,6 +178,7 @@ export const useQueryExecutedEffect = (callback: (state: QueryState) => void) =>
             startTime: lastExecutedQueryState?.startTime,
             endTime: lastExecutedQueryState?.endTime,
             selectedProfile: lastExecutedQueryState?.selectedProfile,
+            tabName: lastExecutedQueryState?.tabName,
         });
     }, [lastExecutedQueryState, callback]);
 }
@@ -210,22 +214,24 @@ export const useQueryActions = () => {
             abortController.abort(reason);
         }
     }
-
 }
 
 export const useCurrentShareLink = () => {
     const queryState = useAtomValue(queryStateAtom);
-    return getShareLink(queryState)
+    return getShareLink(queryState);
 }
-
 
 export const getShareLink = (queryState: QueryState) => {
     const startTime = queryState.startTime;
     const endTime = queryState.endTime;
     const searchTerm = queryState.searchQuery;
     const selectedProfile = queryState.selectedProfile;
+    const tabName = queryState.tabName;
 
     const queryParams = [];
+    if (tabName) {
+        queryParams.push(`name=${encodeURIComponent(tabName)}`);
+    }
     if (selectedProfile) {
         queryParams.push(`profile=${encodeURIComponent(selectedProfile)}`);
     }
@@ -326,6 +332,7 @@ export const runQueryForStore = async (store: ReturnType<typeof createStore>, is
             endTime: endFullDate,
             searchQuery: searchTerm,
             selectedProfile: selectedProfile.name,
+            tabName: store.get(tabNameAtom),
         };
 
         store.set(lastExecutedQueryStateAtom, state);

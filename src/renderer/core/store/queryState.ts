@@ -7,6 +7,7 @@ import { DisplayResults, Events } from '~lib/displayTypes';
 import { allData } from '~lib/qql';
 import { actualEndTimeAtom, actualStartTimeAtom } from './dateState';
 
+export const tabNameAtom = atom<string>("New Search");
 export const searchQueryAtom = atom(''); // search query
 
 export const queryDataAtom = atom((get) => {
@@ -111,3 +112,4 @@ export const dataBucketsAtom = atom((get) => {
 
 
 export const viewSelectedForQueryAtom = atom<boolean>(false);
+
