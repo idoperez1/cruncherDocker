@@ -76,7 +76,6 @@ export const appStoreAtom = atomWithStore(appStore);
 
 export const selectedInstanceAtom = atom((get) => {
     const initializedInstances = initializedInstancesSelector(get(appStoreAtom));
-    console.log("initializedInstances", initializedInstances);
     const selectedInstanceIndex = get(selectedInstanceIndexAtom);
     if (selectedInstanceIndex === -1 || selectedInstanceIndex >= initializedInstances.length) {
         return undefined;
