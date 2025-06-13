@@ -17,6 +17,7 @@ import { notifyError, notifySuccess } from "./notifyError";
 import { actualEndTimeAtom, actualStartTimeAtom, compareFullDates, endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { dataViewModelAtom, indexAtom, originalDataAtom, searchQueryAtom, tabNameAtom, useQuerySpecificStoreInternal, viewSelectedForQueryAtom } from "./store/queryState";
 import { ApplicationStore, appStore, useApplicationStore } from "./store/appStore";
+import { atomWithStore } from 'jotai-zustand'
 
 export type QueryState = {
     searchQuery: string;
@@ -71,8 +72,10 @@ export const useSelectedInstance = () => {
     return initializedInstances[selectedIndex];
 }
 
+export const appStoreAtom = atomWithStore(appStore);
+
 export const selectedInstanceAtom = atom((get) => {
-    const initializedInstances = initializedInstancesSelector(appStore.getState());
+    const initializedInstances = initializedInstancesSelector(get(appStoreAtom));
     console.log("initializedInstances", initializedInstances);
     const selectedInstanceIndex = get(selectedInstanceIndexAtom);
     if (selectedInstanceIndex === -1 || selectedInstanceIndex >= initializedInstances.length) {
@@ -84,14 +87,14 @@ export const selectedInstanceAtom = atom((get) => {
 
 
 const controllerParamsAtom = atom(async (get) => {
-    const initializedInstances = initializedInstancesSelector(appStore.getState());
+    const initializedInstances = initializedInstancesSelector(get(appStoreAtom));
     const selectedInstanceIndex = get(selectedInstanceIndexAtom);
-    const providers = providersSelector(appStore.getState());
+    const providers = providersSelector(get(appStoreAtom));
     if (selectedInstanceIndex === -1 || selectedInstanceIndex >= initializedInstances.length) {
         return {};
     }
 
-    const allControllerParams = allControllerParamsSelector(appStore.getState());
+    const allControllerParams = allControllerParamsSelector(get(appStoreAtom));
 
     const selectedInstance = initializedInstances[selectedInstanceIndex];
     if (allControllerParams[selectedInstance.id] !== undefined) {
@@ -104,7 +107,7 @@ const controllerParamsAtom = atom(async (get) => {
     await provider.waitForReady();
     console.log(`Fetching controller params for instance ${selectedInstance.id}...`);
     const controllerParams = await provider.getControllerParams();
-    appStore.getState().setControllerParams(selectedInstance.id, controllerParams);
+    get(appStoreAtom).setControllerParams(selectedInstance.id, controllerParams);
     console.log(`Controller params for instance ${selectedInstance.id} fetched successfully.`);
 
     return controllerParams;
@@ -146,7 +149,7 @@ export const providerAtom = atom((get) => {
     if (!selectedInstance) {
         return DEFAULT_QUERY_PROVIDER;
     }
-    const providers = providersSelector(appStore.getState());
+    const providers = providersSelector(get(appStoreAtom));
     if (!providers[selectedInstance.id]) {
         console.warn(`No provider found for instance with id ${selectedInstance.id}. Using default provider.`);
         return DEFAULT_QUERY_PROVIDER;

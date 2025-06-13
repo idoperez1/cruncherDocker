@@ -1,6 +1,6 @@
 import { Box, IconButton, Stack } from "@chakra-ui/react";
 import { css } from "@emotion/react";
-import { atom, createStore, Provider, useAtom } from "jotai";
+import { atom, createStore, Provider, useAtom, useAtomValue } from "jotai";
 import React, { useState } from "react";
 import { VscAdd, VscClose } from "react-icons/vsc";
 import { UrlNavigationSchema } from "src/plugins_engine/protocolOut";
@@ -12,6 +12,7 @@ import { Searcher } from "./Searcher";
 import { searcherGlobalShortcuts, useShortcuts } from "./keymaps";
 import { notifyError } from "./notifyError";
 import {
+  appStoreAtom,
   runQueryForStore,
   selectedInstanceIndexAtom,
   useMessageEvent,
@@ -23,6 +24,8 @@ import {
   searchQueryAtom,
   tabNameAtom,
 } from "./store/queryState";
+import { Store } from "./store/createIsolation";
+import { createSignal, Signal } from "~lib/utils";
 
 const createNewTab = (label?: string) => {
   const store = createStore();
@@ -30,12 +33,14 @@ const createNewTab = (label?: string) => {
   store.set(tabNameAtom, tabLabel);
   return {
     store,
+    readySignal: createSignal<void>(),
     key: uuidv4(),
   };
 };
 
 type Tab = {
   store: ReturnType<typeof createStore>;
+  readySignal: Signal<void>;
   key: string;
 };
 
@@ -118,6 +123,12 @@ export const useTabs = () => {
   return { tabs, addTab, removeTab, selectedTab, setSelectedTab, renameTab };
 };
 
+const useInitializeAtoms = (tab: Tab) => {
+  // this force initializes atoms in the store
+  useAtomValue(appStoreAtom, {store: tab.store});
+  tab.readySignal.signal();
+}
+
 export const SearcherWrapper = () => {
   // TODO: Implement tab selection logic
   const { tabs, addTab, removeTab, selectedTab, setSelectedTab } = useTabs();
@@ -172,7 +183,10 @@ export const SearcherWrapper = () => {
         );
       }
       setSelectedTab(createdTab.index);
-      runQueryForStore(createdTab.createdTab.store, true);
+      await createdTab.createdTab.readySignal.wait({
+        timeout: 5000,
+      });
+      await runQueryForStore(createdTab.createdTab.store, true);
     },
   });
 
@@ -270,6 +284,7 @@ const DisplayTab: React.FC<{
   const { removeTab, selectedTab, setSelectedTab, renameTab } = useTabs();
   const [editingTabKey, setEditingTabKey] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
+  useInitializeAtoms(tab);
 
   const onTabRename = (key: string, newLabel: string) => {
     if (!newLabel || newLabel.trim() === "") {

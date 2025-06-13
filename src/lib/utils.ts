@@ -76,6 +76,8 @@ export const createSignal = <T = void>() => {
 	};
 }
 
+export type Signal<T = void> = ReturnType<typeof createSignal<T>>;
+
 
 export const atLeastOneConnectionSignal = () => {
 	const signal = createSignal();
