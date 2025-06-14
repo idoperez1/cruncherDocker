@@ -1,55 +1,17 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { Box, Button, Card, DataList, Field, Heading, Input, Stack } from "@chakra-ui/react";
+import { Button, Card, DataList, Heading, Stack } from "@chakra-ui/react";
 import { css } from "@emotion/react";
+import { createFileRoute } from '@tanstack/react-router';
 import { useMemo } from "react";
 import { PluginInstance } from "src/plugins_engine/types";
 import { ProgressBar, ProgressRoot } from "~components/ui/progress";
 import { useInitializedInstances } from "~core/search";
-import { useApplicationStore, useGeneralSettings } from "~core/store/appStore";
+import { useApplicationStore } from "~core/store/appStore";
 
-export const Route = createFileRoute('/settings')({
-  component: Settings,
+export const Route = createFileRoute('/settings/initialized-datasets')({
+  component: InitializedDatasetsSection,
 })
 
-function Settings() {
-  return (
-    <Box
-      p={2}
-      overflow={"auto"}
-      css={css`
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-      `}
-    >
-      <Heading>Settings</Heading>
-      <GeneralSettingsSection />
-      <InitializedDatasetsSection />
-    </Box>
-  );
-};
-
-const GeneralSettingsSection = () => {
-  const generalSettings = useGeneralSettings();
-  return (
-    <Stack maxW={500}>
-      <Heading size="md">General Settings</Heading>
-      <Stack direction="row" gap={4}>
-        <Field.Root disabled={true}>
-          <Field.Label>
-            Config File Path
-            <Field.RequiredIndicator />
-          </Field.Label>
-          <Input value={generalSettings.configFilePath} />
-          <Field.HelperText />
-          <Field.ErrorText />
-        </Field.Root>
-      </Stack>
-    </Stack>
-  );
-};
-
-const InitializedDatasetsSection = () => {
+function InitializedDatasetsSection() {
   const initializedPlugins = useInitializedInstances();
   const reload = useApplicationStore((state) => state.reload);
   return (

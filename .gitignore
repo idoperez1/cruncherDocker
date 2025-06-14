@@ -98,3 +98,4 @@ dist/
 
 
 cruncher.config.yaml
+.tanstack/
