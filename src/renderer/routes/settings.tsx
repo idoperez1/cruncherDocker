@@ -1,11 +1,17 @@
+import { createFileRoute } from '@tanstack/react-router'
 import { Box, Button, Card, DataList, Field, Heading, Input, Stack } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import { useMemo } from "react";
 import { PluginInstance } from "src/plugins_engine/types";
 import { ProgressBar, ProgressRoot } from "~components/ui/progress";
-import { useInitializedInstances } from "./search";
-import { useApplicationStore, useGeneralSettings } from "./store/appStore";
-export const Settings = () => {
+import { useInitializedInstances } from "~core/search";
+import { useApplicationStore, useGeneralSettings } from "~core/store/appStore";
+
+export const Route = createFileRoute('/settings')({
+  component: Settings,
+})
+
+function Settings() {
   return (
     <Box
       p={2}

@@ -1,6 +1,6 @@
 import { Badge, Icon, IconButton, Separator, Stack } from "@chakra-ui/react";
-import { atom, useAtom } from "jotai";
-import { ReactNode, useCallback, useMemo } from "react";
+import { createLink, Link } from "@tanstack/react-router";
+import { forwardRef, ReactNode, useMemo } from "react";
 import { LuBolt, LuFileSearch } from "react-icons/lu";
 import { useAsync } from "react-use";
 import logo from "src/icons/png/256x256.png";
@@ -8,10 +8,7 @@ import { Tooltip } from "~components/ui/tooltip";
 
 export type MenuItem = "searcher" | "settings";
 
-export const selectedMenuItemAtom = atom<MenuItem>("searcher");
-
 export const SideMenu = () => {
-  const { selectedItem, itemProps } = useMenu();
   const versionResult = useAsync(async () => {
     return await window.electronAPI.getVersion();
   }, []);
@@ -37,22 +34,30 @@ export const SideMenu = () => {
           </Icon>
           <Separator />
           <Stack gap={2}>
-            <MenuButton
-              tooltip="Searcher"
-              icon={<LuFileSearch />}
-              {...itemProps("searcher")}
-            />
+            <Link to="/">
+              {({ isActive }) => (
+                <MenuButton
+                  isActive={isActive}
+                  tooltip="Searcher"
+                  icon={<LuFileSearch />}
+                />
+              )}
+            </Link>
           </Stack>
         </Stack>
 
         <Stack>
           <Separator />
           <Stack gap={2}>
-            <MenuButton
-              tooltip="Settings"
-              icon={<LuBolt />}
-              {...itemProps("settings")}
-            />
+            <Link to={"/settings"}>
+              {({ isActive }) => (
+                <MenuButton
+                  isActive={isActive}
+                  tooltip="Settings"
+                  icon={<LuBolt />}
+                />
+              )}
+            </Link>
           </Stack>
           <Badge size="xs" variant="surface" justifyContent="center">
             {version}
@@ -64,33 +69,11 @@ export const SideMenu = () => {
   );
 };
 
-const useMenu = () => {
-  const [selectedItem, setSelectedItems] = useAtom(selectedMenuItemAtom);
-
-  const itemProps = useCallback(
-    (itemKey: MenuItem) => {
-      return {
-        onClick: () => {
-          setSelectedItems(itemKey);
-        },
-        isSelected: selectedItem === itemKey,
-      };
-    },
-    [selectedItem]
-  );
-
-  return {
-    itemProps,
-    selectedItem,
-  };
-};
-
 const MenuButton: React.FC<{
-  isSelected?: boolean;
-  onClick?: () => void;
+  isActive?: boolean;
   tooltip: string;
   icon: ReactNode;
-}> = ({ isSelected, onClick, tooltip, icon }) => {
+}> = ({ isActive: isSelected, tooltip, icon }) => {
   return (
     <Tooltip
       content={tooltip}
@@ -99,9 +82,7 @@ const MenuButton: React.FC<{
         placement: "right",
       }}
     >
-      <IconButton variant={isSelected ? "solid" : "outline"} onClick={onClick}>
-        {icon}
-      </IconButton>
+      <IconButton variant={isSelected ? "solid" : "outline"}>{icon}</IconButton>
     </Tooltip>
   );
 };

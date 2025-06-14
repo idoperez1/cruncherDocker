@@ -1,16 +1,19 @@
 import { Box, ProgressCircle } from "@chakra-ui/react";
+import { css } from "@emotion/react";
 import styled from "@emotion/styled";
-import { Provider as JotaiProvider, useAtomValue } from "jotai";
-import { useMemo, useState } from "react";
+import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { Provider as JotaiProvider } from "jotai";
+import { useState } from "react";
 import { Provider } from "~components/ui/provider";
 import { Toaster } from "~components/ui/toaster";
-import { ApplicationProvider } from "./ApplicationProvider";
-import { SearcherWrapper } from "./SearcherWrapper";
-import { Shortcuts } from "./Shortcuts";
-import { selectedMenuItemAtom, SideMenu } from "./SideMenu";
-import { globalShortcuts, useShortcuts } from "./keymaps";
-import { useApplicationStore } from "./store/appStore";
-import { Settings } from "./Settings";
+import { ApplicationProvider } from "~core/ApplicationProvider";
+import { globalShortcuts, useShortcuts } from "~core/keymaps";
+import { Shortcuts } from "~core/Shortcuts";
+import { SideMenu } from "~core/SideMenu";
+import { useApplicationStore } from "~core/store/appStore";
+
+import "../index.css";
 
 const Wrapper = styled.div`
   flex: 1;
@@ -20,9 +23,29 @@ const Wrapper = styled.div`
   position: relative;
   background-color: rgb(17, 18, 23);
 `;
+export const Route = createRootRoute({
+  component: () => (
+    <div
+      css={css`
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      `}
+    >
+      <ApplicationProvider>
+        <Provider>
+          <JotaiProvider>
+            <MainContent />
+          </JotaiProvider>
+        </Provider>
+      </ApplicationProvider>
+      <TanStackRouterDevtools position="bottom-right"/>
+    </div>
+  ),
+});
 
-const MainContentInner = () => {
-  const selectedItem = useAtomValue(selectedMenuItemAtom);
+const MainContent = () => {
   const isInitialized = useApplicationStore((state) => state.isInitialized);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
@@ -33,16 +56,6 @@ const MainContentInner = () => {
         break;
     }
   });
-
-  const component = useMemo(() => {
-    switch (selectedItem) {
-      case "searcher":
-        return <SearcherWrapper />;
-
-      default:
-        return <Settings/>;
-    }
-  }, [selectedItem]);
 
   if (!isInitialized) {
     return (
@@ -67,21 +80,7 @@ const MainContentInner = () => {
       <Shortcuts open={isHelpOpen} onOpenChange={setIsHelpOpen} />
       <Toaster />
       <SideMenu />
-      {component}
+      <Outlet />
     </Wrapper>
   );
 };
-
-const MainContent = () => {
-  return (
-    <ApplicationProvider>
-      <Provider>
-        <JotaiProvider>
-          <MainContentInner />
-        </JotaiProvider>
-      </Provider>
-    </ApplicationProvider>
-  );
-};
-
-export default MainContent;
