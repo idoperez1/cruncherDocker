@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
 import { parseDate } from "~lib/dateUtils";
+import { createSignal, Signal } from "~lib/utils";
 import { Searcher } from "./Searcher";
 import { searcherGlobalShortcuts, useShortcuts } from "./keymaps";
 import { notifyError } from "./notifyError";
@@ -24,8 +25,6 @@ import {
   searchQueryAtom,
   tabNameAtom,
 } from "./store/queryState";
-import { Store } from "./store/createIsolation";
-import { createSignal, Signal } from "~lib/utils";
 
 const createNewTab = (label?: string) => {
   const store = createStore();

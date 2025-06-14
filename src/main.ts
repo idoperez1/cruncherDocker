@@ -118,7 +118,6 @@ const ready = async () => {
     }
   });
 
-  setupPluginsFromConfig();
   createWindow();
 }
 

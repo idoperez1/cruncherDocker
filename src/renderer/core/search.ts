@@ -61,8 +61,16 @@ const submitMutexAtom = atom(new Mutex());
 const abortControllerAtom = atom(new AbortController());
 
 const initializedInstancesSelector = (state: ApplicationStore) => state.initializedInstances;
-const allControllerParamsSelector = (state: ApplicationStore) => state.controllerParams;
 const providersSelector = (state: ApplicationStore) => state.providers;
+const supportedPluginsSelector = (state: ApplicationStore) => state.supportedPlugins;
+
+export const useInitializedInstances = () => {
+    return useApplicationStore(initializedInstancesSelector);
+}
+
+export const useAvailablePlugins = () => {
+    return useApplicationStore(supportedPluginsSelector);
+}
 
 export const selectedInstanceIndexAtom = atom<number>(0);
 
@@ -88,35 +96,15 @@ export const selectedInstanceAtom = atom((get) => {
 const controllerParamsAtom = atom(async (get) => {
     const initializedInstances = initializedInstancesSelector(get(appStoreAtom));
     const selectedInstanceIndex = get(selectedInstanceIndexAtom);
-    const providers = providersSelector(get(appStoreAtom));
     if (selectedInstanceIndex === -1 || selectedInstanceIndex >= initializedInstances.length) {
         return {};
     }
 
-    const allControllerParams = allControllerParamsSelector(get(appStoreAtom));
-
     const selectedInstance = initializedInstances[selectedInstanceIndex];
-    if (allControllerParams[selectedInstance.id] !== undefined) {
-        return allControllerParams[selectedInstance.id];
-    }
-
-    // If the controller params are not set, we can return an empty object
-    const provider = providers[selectedInstance.id];
-    // If the provider is not ready, we can return an empty object
-    await provider.waitForReady();
-    console.log(`Fetching controller params for instance ${selectedInstance.id}...`);
-    const controllerParams = await provider.getControllerParams();
-    get(appStoreAtom).setControllerParams(selectedInstance.id, controllerParams);
-    console.log(`Controller params for instance ${selectedInstance.id} fetched successfully.`);
-
-    return controllerParams;
+    return get(appStoreAtom).datasets[selectedInstance.id]?.controllerParams ?? {};
 });
 
 export const loadingControllerParamsAtom = loadable(controllerParamsAtom);
-export const isSelectedInstanceLoadingAtom = atom((get) => {
-    const loadingControllerParams = get(loadingControllerParamsAtom);
-    return loadingControllerParams.state === "loading";
-});
 
 export const useControllerParams = () => {
     return useAtomValue(loadingControllerParamsAtom);

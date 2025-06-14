@@ -31,6 +31,13 @@ export const getRoutes = async (messageSender: MessageSender) => {
         getAsyncRequestHandler("hey", async (params: { name: string }) => {
             console.log(`Hello, ${params.name}!`);
         }),
+        getSyncRequestHandler("reloadConfig", async () => {
+            await controller.reload();
+            return { success: true };
+        }),
+        getSyncRequestHandler("getGeneralSettings", async () => {
+            return controller.getAppGeneralSettings();
+        }),
     ] as const;
 }
 

@@ -49,7 +49,6 @@ import {
   FormValues,
   isLoadingAtom,
   isQuerySuccessAtom,
-  isSelectedInstanceLoadingAtom,
   queryEndTimeAtom,
   queryStartTimeAtom,
   selectedInstanceIndexAtom,
@@ -57,9 +56,9 @@ import {
   useRunQuery,
   useSelectedInstance,
 } from "./search";
+import { useApplicationStore } from "./store/appStore";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { dataViewModelAtom, searchQueryAtom } from "./store/queryState";
-import { useApplicationStore } from "./store/appStore";
 import { Timer } from "./Timer";
 
 const StyledHeader = styled.form`
@@ -439,12 +438,12 @@ const MiniButtons = () => {
   );
 };
 
-
-
 const ProviderSelector = () => {
   const setSelectedInstanceIndex = useSetAtom(selectedInstanceIndexAtom);
   const selectedInstance = useSelectedInstance();
-  const isSelectedInstanceIdLoading = useAtomValue(isSelectedInstanceLoadingAtom);
+  const isSelectedLoading = useApplicationStore(
+    (state) => state.datasets[selectedInstance.id]?.status === "loading"
+  );
 
   const initializedInstances = useApplicationStore(
     (state) => state.initializedInstances
@@ -489,7 +488,6 @@ const ProviderSelector = () => {
 
         setSelectedInstanceIndex(index);
       }}
-      disabled={isSelectedInstanceIdLoading}
     >
       <Select.HiddenSelect />
       <Select.Control>
@@ -497,7 +495,7 @@ const ProviderSelector = () => {
           <Select.ValueText />
         </Select.Trigger>
         <Select.IndicatorGroup>
-          {isSelectedInstanceIdLoading && (
+          {isSelectedLoading && (
             <Spinner size="xs" borderWidth="1.5px" color="fg.muted" />
           )}
           <Select.Indicator />
@@ -507,15 +505,34 @@ const ProviderSelector = () => {
 
       <Select.Positioner>
         <Select.Content>
-          {instances.items.map((instance) => (
-            <Select.Item item={instance} key={instance.value}>
-              {instance.label}
-              <Select.ItemIndicator />
-            </Select.Item>
+          {instances.items.map((item) => (
+            <InstanceSelectItem item={item} key={item.value} />
           ))}
         </Select.Content>
       </Select.Positioner>
     </Select.Root>
+  );
+};
+
+const InstanceSelectItem: React.FC<{
+  item: {
+    value: string;
+    label: string;
+  };
+}> = ({ item }) => {
+  const isLoading = useApplicationStore(
+    (state) => state.datasets[item.value]?.status === "loading"
+  );
+
+  return (
+    <Select.Item item={item} key={item.value}>
+      {item.label}
+      {isLoading ? (
+        <Spinner size="xs" borderWidth="1.5px" color="fg.muted" />
+      ) : (
+        <Select.ItemIndicator />
+      )}
+    </Select.Item>
   );
 };
 

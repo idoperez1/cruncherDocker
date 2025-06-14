@@ -34,7 +34,18 @@ export type MessageSender = {
     urlNavigate: (url: string) => void;
 }
 
+export type AppGeneralSettings = {
+    configFilePath: string;
+}
+
+const appGeneralSettings: AppGeneralSettings = {
+    configFilePath: defaultConfigFilePath,
+};
+
 export const controller = {
+    reset() {
+        initializedPlugins.length = 0; // Clear the initialized plugins
+    },
     initializePlugin: (pluginRef: string, name: string, params: Record<string, unknown>): PluginInstance => {
         const plugin = supportedPlugins.find(p => p.ref === pluginRef);
         if (!plugin) {
@@ -140,19 +151,26 @@ export const controller = {
             return plugin.instance;
         });
     },
+    reload: async () => {
+        // Load plugins from the configuration file
+        setupPluginsFromConfig(appGeneralSettings);
+    },
+    getAppGeneralSettings: () => {
+        return appGeneralSettings;
+    },
 }
 
 
-export const setupPluginsFromConfig = () => {
+export const setupPluginsFromConfig = (appGeneralSettings: AppGeneralSettings) => {
     // load default plugins from cruncher.config.yaml file
 
     // read file content
-    if (!fs.existsSync(defaultConfigFilePath)) {
-        console.warn(`Configuration file not found at ${defaultConfigFilePath}`);
+    if (!fs.existsSync(appGeneralSettings.configFilePath)) {
+        console.warn(`Configuration file not found at ${appGeneralSettings.configFilePath}`);
         return;
     }
 
-    const fileContent = fs.readFileSync(defaultConfigFilePath, 'utf8');
+    const fileContent = fs.readFileSync(appGeneralSettings.configFilePath, 'utf8');
 
     // parse YAML content
     const config = YAML.parse(fileContent);
@@ -163,6 +181,7 @@ export const setupPluginsFromConfig = () => {
         return;
     }
 
+    controller.reset();
     for (const plugin of validated.data.connectors) {
         try {
             const pluginInstance = controller.initializePlugin(plugin.type, plugin.name, plugin.params);

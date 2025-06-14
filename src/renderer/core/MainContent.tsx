@@ -10,6 +10,7 @@ import { Shortcuts } from "./Shortcuts";
 import { selectedMenuItemAtom, SideMenu } from "./SideMenu";
 import { globalShortcuts, useShortcuts } from "./keymaps";
 import { useApplicationStore } from "./store/appStore";
+import { Settings } from "./Settings";
 
 const Wrapper = styled.div`
   flex: 1;
@@ -39,7 +40,7 @@ const MainContentInner = () => {
         return <SearcherWrapper />;
 
       default:
-        return "not implemented";
+        return <Settings/>;
     }
   }, [selectedItem]);
 

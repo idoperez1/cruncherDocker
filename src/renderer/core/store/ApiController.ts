@@ -8,6 +8,10 @@ import { QueryOptions, QueryProvider } from "../common/interface";
 
 export class ApiController {
     constructor(private connection: StreamConnection) {}
+    reload = async () => {
+        return await this.connection.invoke("reloadConfig", {});
+    }
+
     listPlugins = async () => {
         return await this.connection.invoke("getSupportedPlugins", {});
     }
@@ -15,6 +19,10 @@ export class ApiController {
     listInitializedPlugins = async () => {
         return await this.connection.invoke("getInitializedPlugins", {});
     }
+
+    getGeneralSettings = async () => {
+        return await this.connection.invoke("getGeneralSettings", {});
+    };
 
     subscribeToMessages = <T extends z.ZodTypeAny>(
         schema: T,
