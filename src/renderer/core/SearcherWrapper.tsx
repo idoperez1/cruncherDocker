@@ -1,7 +1,7 @@
 import { Box, IconButton, Stack } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import { atom, createStore, Provider, useAtom, useAtomValue } from "jotai";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { VscAdd, VscClose } from "react-icons/vsc";
 import { UrlNavigationSchema } from "src/plugins_engine/protocolOut";
 import { v4 as uuidv4 } from "uuid";
@@ -16,9 +16,10 @@ import {
   appStoreAtom,
   lastRanJobAtom,
   runQueryForStore,
+  selectedSearchProfileAtom,
   selectedSearchProfileIndexAtom,
   useMessageEvent,
-  useSelectedSearchProfile
+  useSelectedSearchProfile,
 } from "./search";
 import { appStore } from "./store/appStore";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
@@ -27,6 +28,7 @@ import {
   searchQueryAtom,
   tabNameAtom,
 } from "./store/queryState";
+import { useMount } from "react-use";
 
 const createNewTab = (label?: string) => {
   const store = createStore();
@@ -135,19 +137,9 @@ export const useTabs = () => {
 
 const useInitializeAtoms = (tab: Tab) => {
   // this force initializes atoms in the store
-  useAtomValue(appStoreAtom, {store: tab.store});
-  const selectedSearchProfile = useSelectedSearchProfile({store: tab.store});
-
-  useEffect(() => {
-    if (!selectedSearchProfile) {
-      return;
-    }
-
-    appStore.getState().initializeProfileDatasets(selectedSearchProfile.name);
-  }, [selectedSearchProfile]);
-
+  useAtomValue(appStoreAtom, { store: tab.store });
   tab.readySignal.signal();
-}
+};
 
 export const SearcherWrapper = () => {
   // TODO: Implement tab selection logic
@@ -207,6 +199,30 @@ export const SearcherWrapper = () => {
       });
       await runQueryForStore(createdTab.createdTab.store, true);
     },
+  });
+
+  const initializeProfiles = useCallback(debounceInitialize(async () => {
+    const profileNames = new Set(tabs.map(tab => {
+      const selectedSearchProfile = tab.store.get(selectedSearchProfileAtom);
+      if (!selectedSearchProfile) {
+        return;
+      }
+
+      return selectedSearchProfile.name;
+    }));
+
+    for (const profileName of profileNames) {
+      if (!profileName) {
+        continue;
+      }
+
+      // Initialize datasets for each profile
+      await appStore.getState().initializeProfileDatasets(profileName);
+    }
+  }, 200), [tabs]);
+
+  useMount(() => {
+    initializeProfiles();
   });
 
   useShortcuts(searcherGlobalShortcuts, (shortcut) => {
@@ -417,4 +433,14 @@ const DisplayTab: React.FC<{
       </Tooltip>
     </Stack>
   );
+};
+
+const debounceInitialize = (fn: () => void, delay: number) => {
+  let timeoutId: NodeJS.Timeout;
+  return () => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      fn();
+    }, delay);
+  };
 };
