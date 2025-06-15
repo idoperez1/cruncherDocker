@@ -84,27 +84,29 @@ export const DateSelector = () => {
       lazyMount
       unmountOnExit
     >
-      <PopoverTrigger asChild>
-        <Button
-          size="sm"
-          variant="outline"
-          style={{
-            display: "flex",
-            width: `41ch`,
+      <PopoverTrigger>
+        <Tooltip
+          content={
+            <span>
+              Change time range
+              <Shortcut keys={searcherShortcuts.getAlias("select-time")} />
+            </span>
+          }
+          portalled
+          showArrow
+          positioning={{
+            placement: "bottom",
           }}
-          onClick={() => setIsOpen(!isOpen)}
         >
-          <Tooltip
-            content={
-              <span>
-                Change time range
-                <Shortcut keys={searcherShortcuts.getAlias("select-time")} />
-              </span>
-            }
-            showArrow
-            positioning={{
-              placement: "bottom",
+          <Button
+            size="sm"
+            variant="outline"
+            style={{
+              display: "flex",
+              width: `41ch`,
             }}
+            as={"div"}
+            onClick={() => setIsOpen(!isOpen)}
           >
             <Stack direction="row" alignItems="center">
               <LuClock2 />
@@ -112,8 +114,8 @@ export const DateSelector = () => {
               <span> - </span>
               <span style={{ flex: 1 }}>{selectedRenderedEndDate}</span>
             </Stack>
-          </Tooltip>
-        </Button>
+          </Button>
+        </Tooltip>
       </PopoverTrigger>
       <PopoverContent width={400} ref={wrapperRef}>
         <PopoverArrow />

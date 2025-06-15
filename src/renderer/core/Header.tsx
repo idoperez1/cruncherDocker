@@ -444,11 +444,15 @@ const ProviderSelector = () => {
   const setSearchProfileIndex = useSetAtom(selectedSearchProfileIndexAtom);
   const selectedSearchProfile = useSelectedSearchProfile();
   const isSelectedLoading = useApplicationStore(
-    createSearchProfileIsLoadingSelector(selectedSearchProfile?.name ?? ("" as SearchProfileRef))
+    createSearchProfileIsLoadingSelector(
+      selectedSearchProfile?.name ?? ("" as SearchProfileRef)
+    )
   );
 
   const initializedSearchProfiles = useApplicationStore(searchProfilesSelector);
-  const initializeProfileDatasets = useApplicationStore((state) => state.initializeProfileDatasets);
+  const initializeProfileDatasets = useApplicationStore(
+    (state) => state.initializeProfileDatasets
+  );
 
   const profiles = useMemo(() => {
     return createListCollection({
@@ -478,7 +482,7 @@ const ProviderSelector = () => {
 
     setSearchProfileIndex(index);
     const selectedProfile = initializedSearchProfiles[index];
-    initializeProfileDatasets(selectedProfile.name); 
+    initializeProfileDatasets(selectedProfile.name);
   };
 
   return (
@@ -489,18 +493,24 @@ const ProviderSelector = () => {
       onValueChange={onSelect}
     >
       <Select.HiddenSelect />
-      <Select.Control>
-        <Select.Trigger>
-          <Select.ValueText />
-        </Select.Trigger>
-        <Select.IndicatorGroup>
-          {isSelectedLoading && (
-            <Spinner size="xs" borderWidth="1.5px" color="fg.muted" />
-          )}
-          <Select.Indicator />
-          {/* <Select.ClearTrigger /> */}
-        </Select.IndicatorGroup>
-      </Select.Control>
+      <Tooltip
+        content={<span>Select Search Profile</span>}
+        showArrow
+        positioning={{ placement: "bottom" }}
+      >
+        <Select.Control>
+          <Select.Trigger>
+            <Select.ValueText />
+          </Select.Trigger>
+          <Select.IndicatorGroup>
+            {isSelectedLoading && (
+              <Spinner size="xs" borderWidth="1.5px" color="fg.muted" />
+            )}
+            <Select.Indicator />
+            {/* <Select.ClearTrigger /> */}
+          </Select.IndicatorGroup>
+        </Select.Control>
+      </Tooltip>
 
       <Select.Positioner>
         <Select.Content>
