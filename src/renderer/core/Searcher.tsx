@@ -10,7 +10,6 @@ import DataLog from "./events/DataLog";
 import Header from "./Header";
 import { searcherShortcuts, useShortcuts } from "./keymaps";
 import {
-  getShareLink,
   QueryState,
   useQueryActions,
   useQueryExecutedEffect
@@ -19,9 +18,9 @@ import {
   jobMetadataAtom,
   viewSelectedForQueryAtom
 } from "./store/queryState";
+import { TableView } from "./table/TableView";
 import { TimeChart } from "./TimeChart";
 import { ViewChart } from "./view/ViewChart";
-import { TableView } from "./table/TableView";
 
 const MainContainer = styled.section`
   flex: 1;
@@ -32,10 +31,7 @@ const MainContainer = styled.section`
   overflow: hidden;
 `;
 
-const onQueryExecuted = (state: QueryState) => {
-  console.log("Query state updated:", state);
-
-  console.log("shareable link:", getShareLink(state));
+const onQueryExecuted = (_state: QueryState) => {
 };
 
 export type SearcherProps = {};

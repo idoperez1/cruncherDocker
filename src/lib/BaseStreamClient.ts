@@ -80,9 +80,7 @@ export abstract class BaseStreamClient implements StreamConnection {
 
     protected onMessage = (message: Buffer) => {
         try {
-            const parsedRawMessage = measureTime("WebSocket message parsing", () => {
-                return unpack(message)
-            });
+            const parsedRawMessage = unpack(message);
             if (!parsedRawMessage) {
                 console.warn('Received empty or invalid message:', message);
                 return;
@@ -91,19 +89,17 @@ export abstract class BaseStreamClient implements StreamConnection {
             // Check if the message is GenericMessageSchema compliant
             GenericMessageSchema.parse(parsedRawMessage);
 
-            measureTime("WebSocket message processing", () => {
-                // Notify all consumers about the received message
-                this.consumers.forEach(consumer => {
-                    try {
-                        const parsedMessage = consumer.shouldMatch(parsedRawMessage)
-                        if (parsedMessage) {
-                            consumer.callback(parsedRawMessage, parsedMessage);
-                        }
-                    } catch (error) {
-                        console.error('Error in consumer callback:', error);
+            // Notify all consumers about the received message
+            this.consumers.forEach(consumer => {
+                try {
+                    const parsedMessage = consumer.shouldMatch(parsedRawMessage)
+                    if (parsedMessage) {
+                        consumer.callback(parsedRawMessage, parsedMessage);
                     }
-                });
-            })
+                } catch (error) {
+                    console.error('Error in consumer callback:', error);
+                }
+            });
         } catch (error) {
             console.error('Error parsing message:', error);
         }

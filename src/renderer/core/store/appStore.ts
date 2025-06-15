@@ -69,10 +69,10 @@ export const appStore = createStore<ApplicationStore>((set, get) => ({
             datasets[instance.name] = { status: 'uninitialized', controllerParams: {} }; // Set initial status to uninitialized
         });
         set({ datasets, initializedInstances });
-        if (searchProfiles.find(profile => profile.name === 'default')) {
-            console.log('Default search profile found!');
-            get().initializeProfileDatasets('default' as SearchProfileRef); // Initialize datasets for the default search profile
-        }
+        // if (searchProfiles.find(profile => profile.name === 'default')) {
+        //     console.log('Default search profile found!');
+        //     get().initializeProfileDatasets('default' as SearchProfileRef); // Initialize datasets for the default search profile
+        // }
     },
     initializeDataset: async (instanceId: InstanceRef) => {
         const { controller } = get();
@@ -87,17 +87,18 @@ export const appStore = createStore<ApplicationStore>((set, get) => ({
             metadata.status = 'loaded';
             metadata.controllerParams = params;
             get().setDatasetMetadata(instanceId, metadata);
-            console.log(`Dataset initialized for instance ${instanceId}:`, metadata);
+            console.log(`Dataset initialized for instance '${instanceId}':`, metadata);
         } catch (error) {
             metadata.status = 'error';
-            console.error(`Error initializing dataset for instance ${instanceId}:`, error);
+            console.error(`Error initializing dataset for instance '${instanceId}':`, error);
             if (error instanceof Error) {
-                notifyError(`Failed to initialize dataset for instance ${instanceId}: ${error.message}`, error);
+                notifyError(`Failed to initialize dataset for instance '${instanceId}': ${error.message}`, error);
             }
             get().setDatasetMetadata(instanceId, metadata);
         }
     },
-    initializeProfileDatasets: async (searchProfileRef: SearchProfileRef) => {
+    initializeProfileDatasets: async (searchProfileRef: SearchProfileRef, force: boolean = false) => {
+        console.log(`Initializing datasets for search profile: '${searchProfileRef}'`);
         const { searchProfiles, initializeDataset } = get();
         const searchProfile = searchProfiles.find(profile => profile.name === searchProfileRef);
         if (!searchProfile) {
@@ -105,6 +106,14 @@ export const appStore = createStore<ApplicationStore>((set, get) => ({
         }
 
         searchProfile.instances.forEach(instance => {
+            // check if the dataset is already initialized
+            const existingMetadata = get().datasets[instance];
+            if (existingMetadata && existingMetadata.status === 'loaded' && !force) {
+                console.log(`Dataset for instance ${instance} is already initialized. Skipping.`);
+                return;
+            }
+
+            console.log(`Initializing dataset for instance ${instance}...`);
             initializeDataset(instance);
         });
 
@@ -130,7 +139,6 @@ export const appStore = createStore<ApplicationStore>((set, get) => ({
         const currentDatasets = get().datasets;
         currentDatasets[instanceId] = { ...metadata };
         set({ datasets: currentDatasets });
-        console.log(`Dataset metadata updated for instance ${instanceId}:`, metadata);
     },
 
     providers: {},

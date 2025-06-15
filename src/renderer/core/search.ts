@@ -3,7 +3,7 @@ import { atom, createStore, useAtom, useAtomValue } from "jotai";
 import { atomWithStore } from 'jotai-zustand';
 import { loadable } from "jotai/utils";
 import React, { useEffect } from "react";
-import { QueryTask } from "src/engineV2/types";
+import { QueryTask, SearchProfileRef } from "src/engineV2/types";
 import z from "zod";
 import { dateAsString, DateType, FullDate, isTimeNow } from "~lib/dateUtils";
 import { SubscribeOptions } from "~lib/network";
@@ -72,12 +72,6 @@ export const useAvailablePlugins = () => {
 
 export const selectedSearchProfileIndexAtom = atom<number>(0);
 
-export const useSelectedSearchProfile = () => {
-    const selectedIndex = useAtomValue(selectedSearchProfileIndexAtom);
-    const searchProfiles = useApplicationStore(searchProfilesSelector);
-    return searchProfiles[selectedIndex];
-}
-
 export const appStoreAtom = atomWithStore(appStore);
 
 export const selectedSearchProfileAtom = atom((get) => {
@@ -90,6 +84,9 @@ export const selectedSearchProfileAtom = atom((get) => {
     return searchProfiles[selectedProfileIndex];
 })
 
+export const useSelectedSearchProfile = (opts: { store?: ReturnType<typeof createStore> } = {}) => {
+    return useAtomValue(selectedSearchProfileAtom, { store: opts.store });
+}
 
 const controllerParamsAtom = atom(async (get) => {
     const initializedInstances = initializedInstancesSelector(get(appStoreAtom));

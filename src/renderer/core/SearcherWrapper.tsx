@@ -1,7 +1,7 @@
 import { Box, IconButton, Stack } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import { atom, createStore, Provider, useAtom, useAtomValue } from "jotai";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { VscAdd, VscClose } from "react-icons/vsc";
 import { UrlNavigationSchema } from "src/plugins_engine/protocolOut";
 import { v4 as uuidv4 } from "uuid";
@@ -17,7 +17,8 @@ import {
   lastRanJobAtom,
   runQueryForStore,
   selectedSearchProfileIndexAtom,
-  useMessageEvent
+  useMessageEvent,
+  useSelectedSearchProfile
 } from "./search";
 import { appStore } from "./store/appStore";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
@@ -135,6 +136,16 @@ export const useTabs = () => {
 const useInitializeAtoms = (tab: Tab) => {
   // this force initializes atoms in the store
   useAtomValue(appStoreAtom, {store: tab.store});
+  const selectedSearchProfile = useSelectedSearchProfile({store: tab.store});
+
+  useEffect(() => {
+    if (!selectedSearchProfile) {
+      return;
+    }
+
+    appStore.getState().initializeProfileDatasets(selectedSearchProfile.name);
+  }, [selectedSearchProfile]);
+
   tab.readySignal.signal();
 }
 
@@ -174,10 +185,9 @@ export const SearcherWrapper = () => {
       querySpecificStore.set(endFullDateAtom, initialEndTime);
 
       if (selectedProfile) {
-        // for backward compatibility
-        const instances = appStore.getState().initializedInstances;
-        const selectedInstanceIndex = instances.findIndex(
-          (instance) => instance.name === selectedProfile
+        const profiles = appStore.getState().searchProfiles;
+        const selectedInstanceIndex = profiles.findIndex(
+          (profile) => profile.name === selectedProfile
         );
         if (selectedInstanceIndex === -1) {
           notifyError(

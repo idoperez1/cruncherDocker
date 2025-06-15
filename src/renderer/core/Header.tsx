@@ -444,13 +444,13 @@ const ProviderSelector = () => {
   const setSearchProfileIndex = useSetAtom(selectedSearchProfileIndexAtom);
   const selectedSearchProfile = useSelectedSearchProfile();
   const isSelectedLoading = useApplicationStore(
-    createSearchProfileIsLoadingSelector(selectedSearchProfile?.name)
+    createSearchProfileIsLoadingSelector(selectedSearchProfile?.name ?? ("" as SearchProfileRef))
   );
 
   const initializedSearchProfiles = useApplicationStore(searchProfilesSelector);
   const initializeProfileDatasets = useApplicationStore((state) => state.initializeProfileDatasets);
 
-  const instances = useMemo(() => {
+  const profiles = useMemo(() => {
     return createListCollection({
       items: initializedSearchProfiles.map((profile) => {
         return {
@@ -467,7 +467,7 @@ const ProviderSelector = () => {
       return;
     }
 
-    const index = instances.items.findIndex(
+    const index = profiles.items.findIndex(
       (item) => item.value === details.items[0].value
     );
     if (index === -1) {
@@ -484,7 +484,7 @@ const ProviderSelector = () => {
   return (
     <Select.Root
       size="xs"
-      collection={instances}
+      collection={profiles}
       value={selectedSearchProfile ? [selectedSearchProfile.name] : []}
       onValueChange={onSelect}
     >
@@ -504,7 +504,7 @@ const ProviderSelector = () => {
 
       <Select.Positioner>
         <Select.Content>
-          {instances.items.map((item) => (
+          {profiles.items.map((item) => (
             <InstanceSelectItem item={item} key={item.value} />
           ))}
         </Select.Content>
