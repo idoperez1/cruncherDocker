@@ -12,11 +12,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Bucket } from "~lib/displayTypes";
+import { useViewDataQuery } from "~core/api";
+import { actualEndTimeAtom, actualStartTimeAtom } from "~core/store/dateState";
 import { formatDataTimeShort } from "~lib/adapters/formatters";
 import { toJsonObject } from "~lib/adapters/logTypes";
-import { actualEndTimeAtom, actualStartTimeAtom } from "~core/store/dateState";
-import { dataViewModelAtom } from "~core/store/queryState";
+import { Bucket } from "~lib/displayTypes";
 
 const LIMIT = 10000;
 
@@ -26,7 +26,7 @@ export const ViewChart = ({}: ViewChartProps) => {
   const selectedStartTime = useAtomValue(actualStartTimeAtom);
   const selectedEndTime = useAtomValue(actualEndTimeAtom);
 
-  const { view } = useAtomValue(dataViewModelAtom);
+  const {data: view} = useViewDataQuery();
 
   const scale = useMemo(() => {
     if (!selectedStartTime || !selectedEndTime) {

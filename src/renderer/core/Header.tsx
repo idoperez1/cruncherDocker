@@ -15,7 +15,6 @@ import {
   createListCollection,
 } from "@chakra-ui/react";
 import { css } from "@emotion/react";
-import { generateCsv, mkConfig } from "export-to-csv";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useMemo } from "react";
 import { CiExport } from "react-icons/ci";
@@ -49,17 +48,22 @@ import {
   FormValues,
   isLoadingAtom,
   isQuerySuccessAtom,
+  lastRanJobAtom,
   queryEndTimeAtom,
   queryStartTimeAtom,
-  selectedInstanceIndexAtom,
+  searchProfilesSelector,
+  selectedSearchProfileIndexAtom,
+  useInitializedController,
   useQueryActions,
   useRunQuery,
-  useSelectedInstance,
+  useSelectedSearchProfile,
 } from "./search";
-import { useApplicationStore } from "./store/appStore";
+import { ApplicationStore, useApplicationStore } from "./store/appStore";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
-import { dataViewModelAtom, searchQueryAtom } from "./store/queryState";
+import { jobMetadataAtom, searchQueryAtom } from "./store/queryState";
 import { Timer } from "./Timer";
+import { SearchProfileRef } from "src/engineV2/types";
+import type { ValueChangeDetails } from "node_modules/@chakra-ui/react/dist/types/components/select/namespace";
 
 const StyledHeader = styled.form`
   display: flex;
@@ -303,8 +307,6 @@ const SearchBarButtons: React.FC<SearchBarButtonsProps> = ({
   );
 };
 
-const csvConfig = mkConfig({ useKeysAsHeaders: true });
-
 const downloadFile = (filename: string, data: string, mimeType: string) => {
   const blob = new Blob([data], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -318,60 +320,43 @@ const downloadFile = (filename: string, data: string, mimeType: string) => {
 };
 
 const MiniButtons = () => {
-  const { table: tableView } = useAtomValue(dataViewModelAtom);
+  const controller = useInitializedController();
+  const task = useAtomValue(lastRanJobAtom);
+  const batchCompleteStatus = useAtomValue(jobMetadataAtom);
+  const isDisabled = batchCompleteStatus?.views.table === undefined;
 
   const { copyCurrentShareLink } = useQueryActions();
 
-  const isDisabled = tableView === undefined;
-
-  const dataAsArray = () => {
-    if (tableView === undefined) {
-      throw new Error("Table view is undefined");
+  const exportData = async (format: "csv" | "json") => {
+    if (!task) {
+      throw new Error("No task available for export");
     }
 
-    return tableView.dataPoints.map((row) => {
-      const result: Record<string, unknown> = {};
-      for (const key in row.object) {
-        result[key] = row.object[key]?.value;
-      }
-
-      return result;
-    });
+    return await controller.exportTableResults(task.id, format);
   };
 
-  const getCSVValue = () => {
-    const data = dataAsArray();
-
-    // @ts-expect-error - generateCsv expects a config object
-    return generateCsv(csvConfig)(data) as unknown as string;
-  };
-
-  const downloadCsv = () => {
-    const csvValue = getCSVValue();
+  const downloadCsv = async () => {
+    const csvValue = await exportData("csv");
     const filename = `data-export-${new Date().toISOString()}.csv`;
-    downloadFile(filename, csvValue, "text/csv");
+    downloadFile(filename, csvValue.payload, csvValue.contentType);
   };
 
-  const copyCsv = () => {
-    const csvValue = getCSVValue();
-    navigator.clipboard.writeText(csvValue);
+  const copyCsv = async () => {
+    const csvValue = await exportData("csv");
+    navigator.clipboard.writeText(csvValue.payload);
     notifySuccess("CSV copied to clipboard");
   };
 
-  const getJson = () => {
-    const data = dataAsArray();
-
-    return JSON.stringify(data);
-  };
-
-  const copyJson = () => {
-    navigator.clipboard.writeText(getJson());
+  const copyJson = async () => {
+    const jsonValue = await exportData("json");
+    navigator.clipboard.writeText(jsonValue.payload);
     notifySuccess("JSON copied to clipboard");
   };
 
-  const downloadJson = () => {
+  const downloadJson = async () => {
+    const jsonValue = await exportData("json");
     const filename = `data-export-${new Date().toISOString()}.json`;
-    downloadFile(filename, getJson(), "application/json");
+    downloadFile(filename, jsonValue.payload, jsonValue.contentType);
   };
 
   return (
@@ -438,56 +423,70 @@ const MiniButtons = () => {
   );
 };
 
+const createSearchProfileIsLoadingSelector = (
+  profileRef: SearchProfileRef
+): ((state: ApplicationStore) => boolean) => {
+  return (state: ApplicationStore) => {
+    const profile = state.searchProfiles.find(
+      (profile) => profile.name === profileRef
+    );
+    if (!profile) {
+      return true;
+    }
+
+    return profile.instances.some((instance) => {
+      return state.datasets[instance]?.status === "loading";
+    });
+  };
+};
+
 const ProviderSelector = () => {
-  const setSelectedInstanceIndex = useSetAtom(selectedInstanceIndexAtom);
-  const selectedInstance = useSelectedInstance();
+  const setSearchProfileIndex = useSetAtom(selectedSearchProfileIndexAtom);
+  const selectedSearchProfile = useSelectedSearchProfile();
   const isSelectedLoading = useApplicationStore(
-    (state) => state.datasets[selectedInstance.id]?.status === "loading"
+    createSearchProfileIsLoadingSelector(selectedSearchProfile?.name)
   );
 
-  const initializedInstances = useApplicationStore(
-    (state) => state.initializedInstances
-  );
-  const supportedPlugins = useApplicationStore(
-    (state) => state.supportedPlugins
-  );
+  const initializedSearchProfiles = useApplicationStore(searchProfilesSelector);
+  const initializeProfileDatasets = useApplicationStore((state) => state.initializeProfileDatasets);
 
   const instances = useMemo(() => {
     return createListCollection({
-      items: initializedInstances.map((instance) => {
-        const plugin = supportedPlugins.find(
-          (p) => p.ref === instance.pluginRef
-        );
-
+      items: initializedSearchProfiles.map((profile) => {
         return {
-          value: instance.id,
-          label: instance.name + (plugin ? ` (${plugin.name})` : ""),
+          value: profile.name,
+          label: profile.name,
         };
       }),
     });
-  }, [initializedInstances, supportedPlugins]);
+  }, [initializedSearchProfiles]);
+
+  const onSelect = (details: ValueChangeDetails) => {
+    if (details.items.length === 0) {
+      setSearchProfileIndex(0);
+      return;
+    }
+
+    const index = instances.items.findIndex(
+      (item) => item.value === details.items[0].value
+    );
+    if (index === -1) {
+      throw new Error(
+        `Selected instance with value ${details.items[0].value} not found in instances list.`
+      );
+    }
+
+    setSearchProfileIndex(index);
+    const selectedProfile = initializedSearchProfiles[index];
+    initializeProfileDatasets(selectedProfile.name); 
+  };
+
   return (
     <Select.Root
       size="xs"
       collection={instances}
-      value={selectedInstance ? [selectedInstance.id] : []}
-      onValueChange={(value) => {
-        if (value.items.length === 0) {
-          setSelectedInstanceIndex(0);
-          return;
-        }
-
-        const index = instances.items.findIndex(
-          (item) => item.value === value.items[0].value
-        );
-        if (index === -1) {
-          throw new Error(
-            `Selected instance with value ${value.items[0].value} not found in instances list.`
-          );
-        }
-
-        setSelectedInstanceIndex(index);
-      }}
+      value={selectedSearchProfile ? [selectedSearchProfile.name] : []}
+      onValueChange={onSelect}
     >
       <Select.HiddenSelect />
       <Select.Control>
@@ -516,12 +515,12 @@ const ProviderSelector = () => {
 
 const InstanceSelectItem: React.FC<{
   item: {
-    value: string;
+    value: SearchProfileRef;
     label: string;
   };
 }> = ({ item }) => {
   const isLoading = useApplicationStore(
-    (state) => state.datasets[item.value]?.status === "loading"
+    createSearchProfileIsLoadingSelector(item.value)
   );
 
   return (

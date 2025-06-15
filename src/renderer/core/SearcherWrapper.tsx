@@ -14,9 +14,10 @@ import { searcherGlobalShortcuts, useShortcuts } from "./keymaps";
 import { notifyError } from "./notifyError";
 import {
   appStoreAtom,
+  lastRanJobAtom,
   runQueryForStore,
-  selectedInstanceIndexAtom,
-  useMessageEvent,
+  selectedSearchProfileIndexAtom,
+  useMessageEvent
 } from "./search";
 import { appStore } from "./store/appStore";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
@@ -78,7 +79,7 @@ export const useTabs = () => {
     return nextTab;
   };
 
-  const removeTab = (key: string) => {
+  const removeTab = async (key: string) => {
     if (tabs.length === 1) {
       console.warn("Cannot remove the last tab, at least one tab must remain");
       return;
@@ -89,6 +90,15 @@ export const useTabs = () => {
     if (originalTabIndex === -1) {
       console.warn(`Tab with key ${key} not found, cannot remove`);
       return;
+    }
+    const deletedTab = tabs[originalTabIndex];
+    const controller = deletedTab.store.get(appStoreAtom).controller;
+    const lastRanJob = deletedTab.store.get(lastRanJobAtom);
+    console.log(
+      `Removing tab with key ${key}, last ran job was ${lastRanJob?.id}`
+    );
+    if (lastRanJob) {
+      controller.releaseResources(lastRanJob.id);
     }
 
     const newTabs = tabs.filter((tab) => tab.key !== key);
@@ -177,7 +187,7 @@ export const SearcherWrapper = () => {
         }
 
         querySpecificStore.set(
-          selectedInstanceIndexAtom,
+          selectedSearchProfileIndexAtom,
           selectedInstanceIndex
         );
       }

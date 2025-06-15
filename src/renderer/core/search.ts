@@ -1,23 +1,21 @@
 import { Mutex } from "async-mutex";
-import equal from "fast-deep-equal";
 import { atom, createStore, useAtom, useAtomValue } from "jotai";
+import { atomWithStore } from 'jotai-zustand';
 import { loadable } from "jotai/utils";
-import merge from "merge-k-sorted-arrays";
 import React, { useEffect } from "react";
+import { QueryTask } from "src/engineV2/types";
 import z from "zod";
 import { dateAsString, DateType, FullDate, isTimeNow } from "~lib/dateUtils";
 import { SubscribeOptions } from "~lib/network";
-import { getPipelineItems } from "~lib/pipelineEngine/root";
-import { parse, PipelineItem } from "~lib/qql";
+import { parse } from "~lib/qql";
 import { ControllerIndexParam, Search } from "~lib/qql/grammar";
-import { asDateField, compareProcessedData, ProcessedData } from "../../lib/adapters/logTypes";
-import { DEFAULT_QUERY_PROVIDER } from "./DefaultQueryProvider";
+import { invalidateJobQueries } from "./api";
+import { AwaitableTask } from "./common/interface";
 import { openIndexesAtom } from "./events/state";
 import { notifyError, notifySuccess } from "./notifyError";
-import { actualEndTimeAtom, actualStartTimeAtom, compareFullDates, endFullDateAtom, startFullDateAtom } from "./store/dateState";
-import { dataViewModelAtom, indexAtom, originalDataAtom, searchQueryAtom, tabNameAtom, useQuerySpecificStoreInternal, viewSelectedForQueryAtom } from "./store/queryState";
 import { ApplicationStore, appStore, useApplicationStore } from "./store/appStore";
-import { atomWithStore } from 'jotai-zustand'
+import { actualEndTimeAtom, actualStartTimeAtom, endFullDateAtom, startFullDateAtom } from "./store/dateState";
+import { jobMetadataAtom, searchQueryAtom, tabNameAtom, useQuerySpecificStoreInternal, viewSelectedForQueryAtom } from "./store/queryState";
 
 export type QueryState = {
     searchQuery: string;
@@ -32,7 +30,7 @@ export const queryStateAtom = atom<QueryState>((get) => {
     const searchQuery = get(searchQueryAtom);
     const startTime = get(startFullDateAtom);
     const endTime = get(endFullDateAtom);
-    const selectedProfile = get(selectedInstanceAtom);
+    const selectedProfile = get(selectedSearchProfileAtom);
     const tabName = get(tabNameAtom);
 
     return {
@@ -60,9 +58,9 @@ export type QueryExecutionHistory = {
 const submitMutexAtom = atom(new Mutex());
 const abortControllerAtom = atom(new AbortController());
 
-const initializedInstancesSelector = (state: ApplicationStore) => state.initializedInstances;
-const providersSelector = (state: ApplicationStore) => state.providers;
-const supportedPluginsSelector = (state: ApplicationStore) => state.supportedPlugins;
+export const initializedInstancesSelector = (state: ApplicationStore) => state.initializedInstances;
+export const supportedPluginsSelector = (state: ApplicationStore) => state.supportedPlugins;
+export const searchProfilesSelector = (state: ApplicationStore) => state.searchProfiles;
 
 export const useInitializedInstances = () => {
     return useApplicationStore(initializedInstancesSelector);
@@ -72,36 +70,36 @@ export const useAvailablePlugins = () => {
     return useApplicationStore(supportedPluginsSelector);
 }
 
-export const selectedInstanceIndexAtom = atom<number>(0);
+export const selectedSearchProfileIndexAtom = atom<number>(0);
 
-export const useSelectedInstance = () => {
-    const selectedIndex = useAtomValue(selectedInstanceIndexAtom);
-    const initializedInstances = useApplicationStore((state) => state.initializedInstances);
-    return initializedInstances[selectedIndex];
+export const useSelectedSearchProfile = () => {
+    const selectedIndex = useAtomValue(selectedSearchProfileIndexAtom);
+    const searchProfiles = useApplicationStore(searchProfilesSelector);
+    return searchProfiles[selectedIndex];
 }
 
 export const appStoreAtom = atomWithStore(appStore);
 
-export const selectedInstanceAtom = atom((get) => {
-    const initializedInstances = initializedInstancesSelector(get(appStoreAtom));
-    const selectedInstanceIndex = get(selectedInstanceIndexAtom);
-    if (selectedInstanceIndex === -1 || selectedInstanceIndex >= initializedInstances.length) {
+export const selectedSearchProfileAtom = atom((get) => {
+    const searchProfiles = searchProfilesSelector(get(appStoreAtom));
+    const selectedProfileIndex = get(selectedSearchProfileIndexAtom);
+    if (selectedProfileIndex === -1 || selectedProfileIndex >= searchProfiles.length) {
         return undefined;
     }
 
-    return initializedInstances[selectedInstanceIndex];
+    return searchProfiles[selectedProfileIndex];
 })
 
 
 const controllerParamsAtom = atom(async (get) => {
     const initializedInstances = initializedInstancesSelector(get(appStoreAtom));
-    const selectedInstanceIndex = get(selectedInstanceIndexAtom);
+    const selectedInstanceIndex = get(selectedSearchProfileIndexAtom);
     if (selectedInstanceIndex === -1 || selectedInstanceIndex >= initializedInstances.length) {
         return {};
     }
 
     const selectedInstance = initializedInstances[selectedInstanceIndex];
-    return get(appStoreAtom).datasets[selectedInstance.id]?.controllerParams ?? {};
+    return get(appStoreAtom).datasets[selectedInstance.name]?.controllerParams ?? {};
 });
 
 export const loadingControllerParamsAtom = loadable(controllerParamsAtom);
@@ -120,6 +118,7 @@ export const isLoadingAtom = atom(false);
 export const queryStartTimeAtom = atom<Date | undefined>(undefined);
 export const queryEndTimeAtom = atom<Date | undefined>(undefined);
 export const isQuerySuccessAtom = atom(true);
+export const lastRanJobAtom = atom<QueryTask | undefined>(undefined);
 
 export const useInitializedController = () => {
     const controller = useApplicationStore((state) => state.controller);
@@ -131,23 +130,6 @@ export const useInitializedController = () => {
     return controller;
 }
 
-export const providerAtom = atom((get) => {
-    const selectedInstance = get(selectedInstanceAtom);
-    if (!selectedInstance) {
-        return DEFAULT_QUERY_PROVIDER;
-    }
-    const providers = providersSelector(get(appStoreAtom));
-    if (!providers[selectedInstance.id]) {
-        console.warn(`No provider found for instance with id ${selectedInstance.id}. Using default provider.`);
-        return DEFAULT_QUERY_PROVIDER;
-    }
-
-    return providers[selectedInstance.id];
-});
-
-export const useQueryProvider = () => {
-    return useAtomValue(providerAtom);
-}
 
 export const useMessageEvent = <T extends z.ZodTypeAny>(schema: T, options: SubscribeOptions<T>) => {
     const controller = useInitializedController();
@@ -250,32 +232,11 @@ export const useRunQuery = () => {
 }
 
 export const runQueryForStore = async (store: ReturnType<typeof createStore>, isForced: boolean) => {
-    const provider = store.get(providerAtom);
+    const controller = store.get(appStoreAtom).controller;
     const resetBeforeNewBackendQuery = () => {
-        const tree = store.get(indexAtom);
         store.set(openIndexesAtom, []);
-        tree.clear();
         store.set(viewSelectedForQueryAtom, false);
     }
-
-    const startProcessingData = (
-        data: ProcessedData[],
-        pipeline: PipelineItem[],
-        startTime: Date,
-        endTime: Date
-    ) => {
-        try {
-            const finalData = getPipelineItems(data, pipeline, startTime, endTime);
-            store.set(dataViewModelAtom, finalData);
-        } catch (error) {
-            // check error is of type Error
-            if (!(error instanceof Error)) {
-                throw error;
-            }
-
-            notifyError("Error processing pipeline", error);
-        }
-    };
 
     const isLoading = store.get(isLoadingAtom);
     if (isLoading) {
@@ -291,7 +252,7 @@ export const runQueryForStore = async (store: ReturnType<typeof createStore>, is
         const startFullDate = store.get(startFullDateAtom);
         const endFullDate = store.get(endFullDateAtom);
         const searchTerm = store.get(searchQueryAtom);
-        const selectedProfile = store.get(selectedInstanceAtom);
+        const selectedProfile = store.get(selectedSearchProfileAtom);
         if (!selectedProfile) {
             // TODO: return error
             return;
@@ -326,6 +287,17 @@ export const runQueryForStore = async (store: ReturnType<typeof createStore>, is
         };
 
         store.set(lastExecutedQueryStateAtom, state);
+        let awaitableJob: AwaitableTask | undefined = undefined;
+        const storeLastJob = async () => {
+            // get old job
+            const lastRanJob = store.get(lastRanJobAtom);
+            // release the old job
+            console.log("Releasing resources for last ran job: ", lastRanJob?.id);
+            if (lastRanJob && lastRanJob.id !== awaitableJob?.job.id) {
+                await controller.releaseResources(lastRanJob.id);
+            }
+            store.set(lastRanJobAtom, awaitableJob?.job);
+        }
 
         try {
             const parsedTree = parse(searchTerm);
@@ -342,56 +314,41 @@ export const runQueryForStore = async (store: ReturnType<typeof createStore>, is
                     params: parsedTree.controllerParams,
                 };
 
-                const lastExecutedQuery = store.get(lastQueryAtom);
-                if (!isForced && compareExecutions(executionQuery, lastExecutedQuery)) {
-                    console.log("using cached data");
-                    const originalData = store.get(originalDataAtom);
-                    startProcessingData(originalData, parsedTree.pipeline, fromTime, toTime);
-                    notifySuccess("Pipeline re-evaluated successfully");
-                } else {
-                    // new search initiated - we can reset
-                    resetBeforeNewBackendQuery();
-                    try {
-                        store.set(lastQueryAtom, executionQuery);
-                        let newData: ProcessedData[] = [];
-                        await provider.query(parsedTree.controllerParams, parsedTree.search, {
-                            fromTime: fromTime,
-                            toTime: toTime,
-                            cancelToken: cancelToken,
-                            limit: 100000,
-                            onBatchDone: (data) => {
-                                // get current data and merge it with the existing data - memory leak risk!!
-                                newData = merge<ProcessedData>(
-                                    [newData, data],
-                                    compareProcessedData,
-                                );
-                                const tree = store.get(indexAtom);
-                                data.forEach((data) => {
-                                    const timestamp = asDateField(data.object._time).value;
-                                    const toAppendTo = tree.get(timestamp) ?? [];
-                                    toAppendTo.push(data);
-                                    tree.set(timestamp, toAppendTo);
-                                });
+                // new search initiated - we can reset
+                resetBeforeNewBackendQuery();
+                try {
+                    store.set(lastQueryAtom, executionQuery);
 
-                                store.set(originalDataAtom, newData);
-                                startProcessingData(newData, parsedTree.pipeline, fromTime, toTime);
-                            },
-                        });
-
-                        store.set(isQuerySuccessAtom, true);
-                        notifySuccess("Query executed successfully");
-                    } catch (error) {
-                        store.set(isQuerySuccessAtom, false);
-                        console.log(error);
-                        if (cancelToken.aborted) {
-                            return; // don't continue if the request was aborted
-                        }
-
-                        console.error("Error executing query: ", error);
-                        throw error;
+                    awaitableJob = await controller.query(selectedProfile.name, searchTerm, {
+                        fromTime: fromTime,
+                        toTime: toTime,
+                        cancelToken: cancelToken,
+                        limit: 100000,
+                        isForced: isForced,
+                        onBatchDone: async (data) => {
+                            await storeLastJob();
+                            await invalidateJobQueries(awaitableJob?.job.id);
+                            // store.set(lastUpdateAtom, new Date());
+                            store.set(jobMetadataAtom, data);
+                            // store.set(dataViewModelAtom, data);
+                        },
+                    });
+                    await awaitableJob.promise;
+                    store.set(isQuerySuccessAtom, true);
+                    notifySuccess("Query executed successfully");
+                } catch (error) {
+                    store.set(isQuerySuccessAtom, false);
+                    console.log(error);
+                    if (cancelToken.aborted) {
+                        console.log("Query was aborted");
+                        return; // don't continue if the request was aborted
                     }
+
+                    console.error("Error executing query: ", error);
+                    throw error;
                 }
             } finally {
+                await storeLastJob();
                 store.set(isLoadingAtom, false);
                 store.set(queryEndTimeAtom, new Date());
             }
@@ -405,31 +362,3 @@ export const runQueryForStore = async (store: ReturnType<typeof createStore>, is
         }
     });
 }
-
-
-const compareExecutions = (
-    exec1: QueryExecutionHistory,
-    exec2: QueryExecutionHistory | undefined
-) => {
-    if (exec2 === undefined) {
-        return false;
-    }
-
-    if (!equal(exec1.params, exec2.params)) {
-        return false;
-    }
-
-    if (!equal(exec1.search, exec2.search)) {
-        return false;
-    }
-
-    if (compareFullDates(exec1.start, exec2.start) !== 0) {
-        return false;
-    }
-
-    if (compareFullDates(exec1.end, exec2.end) !== 0) {
-        return false;
-    }
-
-    return true;
-};

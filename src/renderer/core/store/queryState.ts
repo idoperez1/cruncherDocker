@@ -1,11 +1,8 @@
 import { scaleLinear } from 'd3-scale';
 import { atom, createStore } from 'jotai';
 import React from 'react';
-import BTree from 'sorted-btree';
-import { asDateField, ProcessedData } from '~lib/adapters/logTypes';
-import { DisplayResults, Events } from '~lib/displayTypes';
+import { JobBatchFinished } from 'src/engineV2/types';
 import { allData } from '~lib/qql';
-import { actualEndTimeAtom, actualStartTimeAtom } from './dateState';
 
 export const tabNameAtom = atom<string>("New Search");
 export const searchQueryAtom = atom(''); // search query
@@ -16,8 +13,6 @@ export const queryDataAtom = atom((get) => {
 });
 
 
-export const originalDataAtom = atom<ProcessedData[]>([]);
-export const indexAtom = atom(new BTree<number, ProcessedData[]>(undefined, (a, b) => b - a));
 export const QuerySpecificContext = React.createContext<ReturnType<typeof createStore> | null>(null);
 
 export const useQuerySpecificStoreInternal = () => {
@@ -29,85 +24,42 @@ export const useQuerySpecificStoreInternal = () => {
   return store;
 }
 
-export const dataViewModelAtom = atom<DisplayResults>(
-  {
-    events: {
-      type: "events",
-      data: [],
-    },
-    table: undefined,
-    view: undefined,
-  },
-);
+export const lastUpdateAtom = atom<Date | null>(null);
 
-export const eventsAtom = atom<Events>((get) => {
-  return get(dataViewModelAtom).events;
-})
+export const jobMetadataAtom = atom<JobBatchFinished | undefined>(undefined);
 
 export const availableColumnsAtom = atom((get) => {
-  const events = get(eventsAtom);
-  const data = events.data;
-  if (!data.length) {
+  const results = get(jobMetadataAtom);
+  if (!results) {
     return [];
   }
 
-  const columns = new Set<string>();
-  data.forEach((dataPoint) => {
-    for (const key in dataPoint.object) {
-      columns.add(key);
-    }
-  });
-
-  return Array.from(columns);
+  return results.views.events.autoCompleteKeys ?? [];
 });
 
 
 export const scaleAtom = atom((get) => {
-  const selectedStartTime = get(actualStartTimeAtom);
-  const selectedEndTime = get(actualEndTimeAtom);
+  const results = get(jobMetadataAtom);
+  const selectedStartTime = results?.scale.from;
+  const selectedEndTime = results?.scale.to;
 
   if (!selectedStartTime || !selectedEndTime) {
     return;
   }
 
   return scaleLinear().domain([
-    selectedStartTime.getTime(),
-    selectedEndTime.getTime(),
+    selectedStartTime,
+    selectedEndTime,
   ]);
 });
 
 export const dataBucketsAtom = atom((get) => {
-  const scale = get(scaleAtom);
-  if (!scale) {
+  const results = get(jobMetadataAtom);
+  if (!results) {
     return [];
   }
 
-
-  const buckets: Record<number, number> = {};
-  const ticks = scale.ticks(100);
-
-  const data = get(eventsAtom).data;
-
-  data.forEach((object) => {
-    // round timestamp to the nearest tick
-    const timestamp = ticks.reduce((prev, curr) => {
-      const thisTimestamp = asDateField(object.object._time).value;
-
-      return Math.abs(curr - thisTimestamp) < Math.abs(prev - thisTimestamp)
-        ? curr
-        : prev;
-    });
-    if (!buckets[timestamp]) {
-      buckets[timestamp] = 0;
-    }
-
-    buckets[timestamp] += 1;
-  });
-
-  return Object.entries(buckets).map(([timestamp, count]) => ({
-    timestamp: parseInt(timestamp),
-    count,
-  }));
+  return results.views.events.buckets;
 });
 
 

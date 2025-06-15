@@ -1,20 +1,18 @@
-import { AppGeneralSettings } from 'src/plugins_engine/controller';
-import { PluginInstance, SupportedPlugin } from 'src/plugins_engine/types';
+import { InstanceRef, PluginInstance, SearchProfile, SearchProfileRef, SerializableAdapter } from 'src/engineV2/types';
+import { AppGeneralSettings } from 'src/plugins_engine/config';
 import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
-import { QueryProvider } from '~core/common/interface';
+import { ApiController } from '~core/ApiController';
 import { notifyError } from '~core/notifyError';
-import { ApiController } from '~core/store/ApiController';
-import { StreamConnection } from '~lib/network';
-
 
 
 type ControllerParams = Record<string, string[]>;
 
-export type DatasetStatus = 
- | 'loading' 
- | 'loaded' 
- | 'error';
+export type DatasetStatus =
+    | 'uninitialized'
+    | 'loading'
+    | 'loaded'
+    | 'error';
 
 
 export type DatasetMetadata = {
@@ -28,19 +26,17 @@ export type ApplicationStore = {
     generalSettings: AppGeneralSettings;
     isInitialized: boolean;
     reload: () => Promise<void>;
-    initialize: (connection: StreamConnection) => void;
+    initialize: (controller: ApiController) => void;
 
-    initializeDataset: (instanceId: string) => Promise<void>;
-    initializeDatasets: () => Promise<void>;
+    initializeDataset: (instanceRef: InstanceRef) => Promise<void>;
+    initializeProfileDatasets: (searchProfileRef: SearchProfileRef) => Promise<void>;
 
     datasets: Record<string, DatasetMetadata>;
     setDatasetMetadata: (instanceId: string, metadata: DatasetMetadata) => void;
 
-    providers: Record<string, QueryProvider>;
-    supportedPlugins: SupportedPlugin[];
+    supportedPlugins: SerializableAdapter[];
     initializedInstances: PluginInstance[];
-    setSupportedPlugins: (plugins: SupportedPlugin[]) => void;
-    setInitializedInstances: (instances: PluginInstance[]) => void;
+    searchProfiles: SearchProfile[];
 }
 
 export const appStore = createStore<ApplicationStore>((set, get) => ({
@@ -54,7 +50,7 @@ export const appStore = createStore<ApplicationStore>((set, get) => ({
         const controller = get().controller;
         await controller.reload();
         // Reset the store state
-        set({ providers: {}, supportedPlugins: [], initializedInstances: [], datasets: {} });
+        set({ supportedPlugins: [], initializedInstances: [], datasets: {} });
         const generalSettings = await controller.getGeneralSettings();
         set({ generalSettings });
 
@@ -64,32 +60,30 @@ export const appStore = createStore<ApplicationStore>((set, get) => ({
         console.log('Supported plugins fetched:', supportedPlugins);
         const initializedInstances = await controller.listInitializedPlugins();
         console.log('Initialized instances fetched:', initializedInstances);
+        const searchProfiles = await controller.listInitializedSearchProfiles();
+        console.log('Search profiles fetched:', searchProfiles);
+        set({ searchProfiles });
         // Create providers for each initialized instance
-        const providers: Record<string, QueryProvider> = {};
-        const datasets: Record<string, DatasetMetadata> = {};
+        const datasets: Record<InstanceRef, DatasetMetadata> = {};
         initializedInstances.forEach(instance => {
-            providers[instance.id] = controller.createProvider(instance);
-            datasets[instance.id] = { status: 'loading', controllerParams: {} }; // Set initial status to loading
+            datasets[instance.name] = { status: 'uninitialized', controllerParams: {} }; // Set initial status to uninitialized
         });
-        set({ providers, datasets });
-        console.log('Providers created for initialized instances:', providers);
-        get().setInitializedInstances(initializedInstances);
-        get().initializeDatasets(); // dont await this, it shouldn't block the initialization
-    },
-    initializeDataset: async (instanceId: string) => {
-        const provider = get().providers[instanceId];
-        if (!provider) {
-            console.warn(`No provider found for instance ${instanceId}. Skipping dataset initialization.`);
-            return;
+        set({ datasets, initializedInstances });
+        if (searchProfiles.find(profile => profile.name === 'default')) {
+            console.log('Default search profile found!');
+            get().initializeProfileDatasets('default' as SearchProfileRef); // Initialize datasets for the default search profile
         }
+    },
+    initializeDataset: async (instanceId: InstanceRef) => {
+        const { controller } = get();
+
         const metadata: DatasetMetadata = {
             status: 'loading',
             controllerParams: {},
         };
         get().setDatasetMetadata(instanceId, metadata);
         try {
-            await provider.waitForReady();
-            const params = await provider.getControllerParams();
+            const params = await controller.getControllerParams(instanceId);
             metadata.status = 'loaded';
             metadata.controllerParams = params;
             get().setDatasetMetadata(instanceId, metadata);
@@ -103,21 +97,23 @@ export const appStore = createStore<ApplicationStore>((set, get) => ({
             get().setDatasetMetadata(instanceId, metadata);
         }
     },
-    initializeDatasets: async () => {
-        const initializedInstances = get().initializedInstances;
-        if (initializedInstances.length === 0) {
-            console.warn('No initialized instances found. Skipping dataset initialization.');
-            return;
+    initializeProfileDatasets: async (searchProfileRef: SearchProfileRef) => {
+        const { searchProfiles, initializeDataset } = get();
+        const searchProfile = searchProfiles.find(profile => profile.name === searchProfileRef);
+        if (!searchProfile) {
+            throw new Error(`Search profile ${searchProfileRef} not found.`);
         }
-        for (const instance of initializedInstances) {
-            await get().initializeDataset(instance.id);
-        }
+
+        searchProfile.instances.forEach(instance => {
+            initializeDataset(instance);
+        });
+
         console.log('All datasets initialized successfully.');
     },
-    initialize: async (connection: StreamConnection) => {
-        const controller = new ApiController(connection);
+    initialize: async (controller: ApiController) => {
         set({ isInitialized: false, controller });
         try {
+            await controller.resetQueries();
             await get().reload();
         } catch (error) {
             console.error('Error initializing controller:', error);
@@ -132,7 +128,7 @@ export const appStore = createStore<ApplicationStore>((set, get) => ({
 
     setDatasetMetadata: (instanceId: string, metadata: DatasetMetadata) => {
         const currentDatasets = get().datasets;
-        currentDatasets[instanceId] = {...metadata};
+        currentDatasets[instanceId] = { ...metadata };
         set({ datasets: currentDatasets });
         console.log(`Dataset metadata updated for instance ${instanceId}:`, metadata);
     },
@@ -140,10 +136,8 @@ export const appStore = createStore<ApplicationStore>((set, get) => ({
     providers: {},
 
     supportedPlugins: [],
-    setSupportedPlugins: (plugins: SupportedPlugin[]) => set({ supportedPlugins: plugins }),
-
     initializedInstances: [],
-    setInitializedInstances: (instances: PluginInstance[]) => set({ initializedInstances: instances }),
+    searchProfiles: [],
 }));
 
 export const useApplicationStore = <T>(selector: (state: ApplicationStore) => T): T => {
