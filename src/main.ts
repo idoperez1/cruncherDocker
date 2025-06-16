@@ -3,10 +3,9 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import log from 'electron-log/main';
 import started from 'electron-squirrel-startup';
 import path from 'node:path';
-import { ResponseHandler } from '~lib/networkTypes';
-import { createSignal } from '~lib/utils';
-import { getServer, setupEngine } from './lib/websocket/server';
-import { getRoutes, newUrlNavigationMessage } from './plugins_engine/router';
+import { fork, ChildProcess } from 'child_process';
+import { requestFromServer } from './utils/requestFromServer';
+import chokidar, { FSWatcher } from 'chokidar';
 
 // Optional, initialize the logger for any renderer process
 log.initialize();
@@ -93,29 +92,55 @@ const createWindow = () => {
   // mainWindow.webContents.openDevTools();
 };
 
-let messageSender: ResponseHandler | undefined = undefined;
-const messageSenderReady = createSignal();
 function isDev() {
   return !app.getAppPath().includes('app.asar');
 }
 
+let serverProcess: ChildProcess | null = null;
+let serverReady: Promise<void> | null = null;
+let serverWatcher: FSWatcher | null = null;
+
+function startServerProcess() {
+  if (serverProcess) {
+    serverProcess.kill();
+    serverProcess = null;
+  }
+  serverProcess = fork(path.join(__dirname, 'server.js'));
+  serverReady = requestFromServer<void>(
+    serverProcess,
+    {}, // No request message needed, just wait for the first 'ready' message
+    'ready'
+  );
+}
+
+if (isDev()) {
+  const serverJsPath = path.join(__dirname, 'server.js');
+  if (!serverWatcher) {
+    serverWatcher = chokidar.watch(serverJsPath, { ignoreInitial: true });
+    serverWatcher.on('change', () => {
+      log.info('Detected change in server.js, restarting server process...');
+      startServerProcess();
+    });
+  }
+}
+
 const ready = async () => {
-  // get free port
-  const serverContainer = await getServer();
-  console.log(`Server is running on port ${serverContainer.port}`);
-  // messageSender = getWebsocketMessageSender(serverContainer);
-  messageSender = serverContainer;
-  messageSenderReady.signal();
-  const routes = await getRoutes(serverContainer);
-  await setupEngine(serverContainer, routes);
+  if (!serverProcess) startServerProcess();
+  await serverReady;
+
+  // --- IPC Handlers ---
+
   ipcMain.handle('getPort', async () => {
-    return serverContainer.port;
+    const msg = await requestFromServer<{ type: string; port: number }>(serverProcess, { type: 'getPort' }, 'port');
+    return msg.port;
   });
 
   ipcMain.handle('getVersion', async () => {
-    return {
-      "tag": app.getVersion(),
-      "isDev": isDev(),
+    try {
+      const msg = await requestFromServer<{ type: string; version: string }>(serverProcess, { type: 'getVersion' }, 'version');
+      return { tag: msg.version, isDev: isDev() };
+    } catch {
+      return { tag: 'unknown', isDev: isDev() };
     }
   });
 
@@ -131,20 +156,17 @@ const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
   app.quit()
 } else {
-  app.on('second-instance', (_event, commandLine: string[], _workingDirectory) => {
+  app.on('second-instance', (_event, commandLine: string[]) => {
     // Someone tried to run a second instance, we should focus our window.
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore()
       mainWindow.focus()
     }
-
-    messageSenderReady.wait().then(() => {
-      if (!messageSender) {
-        console.warn("Message sender is not initialized yet, cannot handle open-url event");
-        return;
+    serverReady?.then(() => {
+      if (serverProcess && serverProcess.send) {
+        serverProcess.send({ type: 'navigateUrl', url: commandLine[1] });
       }
-      messageSender.sendMessage(newUrlNavigationMessage(commandLine[1])); // Assuming the URL is the second argument
-    })
+    });
   })
 
   // Create mainWindow, load the rest of the app, etc...
@@ -153,24 +175,13 @@ if (!gotTheLock) {
   })
 
   app.on('open-url', (event, url) => {
-    messageSenderReady.wait().then(() => {
-      if (!messageSender) {
-        console.warn("Message sender is not initialized yet, cannot handle open-url event");
-        return;
+    serverReady?.then(() => {
+      if (serverProcess && serverProcess.send) {
+        serverProcess.send({ type: 'navigateUrl', url });
       }
-
-      messageSender.sendMessage(newUrlNavigationMessage(url)); // Assuming the URL is the second argument
     });
   })
 }
-
-// const onUrl = (url: string) => {
-//   const parsedUrl = new URL(url);
-//   const source = parsedUrl.hostname;
-//   const query = parsedUrl.searchParams.get('query');
-//   const startTime = parsedUrl.searchParams.get('startTime');
-//   const endTime = parsedUrl.searchParams.get('endTime');
-// }
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits

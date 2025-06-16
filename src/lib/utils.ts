@@ -105,3 +105,12 @@ export const atLeastOneConnectionSignal = () => {
 	}
 }
 
+export const debounceInitialize = (fn: () => void, delay: number) => {
+  let timeoutId: NodeJS.Timeout;
+  return () => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      fn();
+    }, delay);
+  };
+};

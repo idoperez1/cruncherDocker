@@ -23,6 +23,10 @@ export type DatasetMetadata = {
 export type ApplicationStore = {
     controller: ApiController;
 
+    version: {
+        tag: string;
+        isDev: boolean;
+    }
     generalSettings: AppGeneralSettings;
     isInitialized: boolean;
     reload: () => Promise<void>;
@@ -43,6 +47,11 @@ export const appStore = createStore<ApplicationStore>((set, get) => ({
     controller: null as unknown as ApiController,
 
     datasets: {},
+
+    version: {
+        tag: 'unknown',
+        isDev: false,
+    },
 
     generalSettings: null as unknown as AppGeneralSettings,
     isInitialized: false,
@@ -122,6 +131,8 @@ export const appStore = createStore<ApplicationStore>((set, get) => ({
     initialize: async (controller: ApiController) => {
         set({ isInitialized: false, controller });
         try {
+            const version = await window.electronAPI.getVersion();
+            set({ version });
             await controller.resetQueries();
             await get().reload();
         } catch (error) {

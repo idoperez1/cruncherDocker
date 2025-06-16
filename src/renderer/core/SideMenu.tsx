@@ -1,25 +1,25 @@
 import { Badge, Icon, IconButton, Separator, Stack } from "@chakra-ui/react";
-import { createLink, Link } from "@tanstack/react-router";
-import { forwardRef, ReactNode, useMemo } from "react";
+import { Link } from "@tanstack/react-router";
+import { ReactNode, useMemo } from "react";
 import { LuBolt, LuFileSearch } from "react-icons/lu";
 import { useAsync } from "react-use";
 import logo from "src/icons/png/256x256.png";
 import { Tooltip } from "~components/ui/tooltip";
+import { ApplicationStore, useApplicationStore } from "./store/appStore";
 
 export type MenuItem = "searcher" | "settings";
 
+const versionSelector = (state: ApplicationStore) => {
+  const version = state.version;
+  if (!version) return "unknown";
+
+  const { tag, isDev } = version;
+
+  return tag + (isDev ? "*" : "");
+}
+
 export const SideMenu = () => {
-  const versionResult = useAsync(async () => {
-    return await window.electronAPI.getVersion();
-  }, []);
-
-  const version = useMemo(() => {
-    if (!versionResult.value) return "unknown";
-
-    const { tag, isDev } = versionResult.value;
-
-    return tag + (isDev ? "*" : "");
-  }, [versionResult]);
+  const version = useApplicationStore(versionSelector);
 
   return (
     <Stack direction="row" backgroundColor="rgb(22, 23, 29)" gap={0}>

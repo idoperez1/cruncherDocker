@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
 import { parseDate } from "~lib/dateUtils";
-import { createSignal, Signal } from "~lib/utils";
+import { createSignal, debounceInitialize, Signal } from "~lib/utils";
 import { Searcher } from "./Searcher";
 import { searcherGlobalShortcuts, useShortcuts } from "./keymaps";
 import { notifyError } from "./notifyError";
@@ -433,14 +433,4 @@ const DisplayTab: React.FC<{
       </Tooltip>
     </Stack>
   );
-};
-
-const debounceInitialize = (fn: () => void, delay: number) => {
-  let timeoutId: NodeJS.Timeout;
-  return () => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => {
-      fn();
-    }, delay);
-  };
 };
