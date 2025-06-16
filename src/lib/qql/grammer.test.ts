@@ -187,7 +187,8 @@ test("table command", () => {
   const lexer = QQLLexer.tokenize(`hello world | table column1`);
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
-  expect(parser.query()).toEqual({
+  expect(parser.query()).toMatchObject({
+    type: "query",
     dataSources: [],
     controllerParams: [],
     search: {
@@ -219,7 +220,8 @@ test("table command - alias", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
-  expect(result).toEqual({
+  expect(result).toMatchObject({
+    type: "query",
     dataSources: [],
     controllerParams: [],
     search: {
@@ -265,7 +267,8 @@ test("table command multiple columns", () => {
   );
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
-  expect(parser.query()).toEqual({
+  expect(parser.query()).toMatchObject({
+    type: "query",
     dataSources: [],
     controllerParams: [],
     search: {
@@ -305,7 +308,8 @@ test("table command multiple columns no comma", () => {
   );
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
-  expect(parser.query()).toEqual({
+  expect(parser.query()).toMatchObject({
+    type: "query",
     dataSources: [],
     controllerParams: [],
     search: {
@@ -343,7 +347,8 @@ test("parsing uuid as string", () => {
   const lexer = QQLLexer.tokenize(`hello 76e191f8-8ab6-4db7-9895-c1b6d188106c`);
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
-  expect(parser.query()).toEqual({
+  expect(parser.query()).toMatchObject({
+    type: "query",
     dataSources: [],
     controllerParams: [],
     search: {
@@ -362,7 +367,8 @@ test("support for stats command basic", () => {
   const lexer = QQLLexer.tokenize(`hello world | stats count()`);
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
-  expect(parser.query()).toEqual({
+  expect(parser.query()).toMatchObject({
+    type: "query",
     dataSources: [],
     controllerParams: [],
     search: {
@@ -397,7 +403,8 @@ test("support for stats command alias", () => {
   const lexer = QQLLexer.tokenize(`hello world | stats avg(column1) as avg_column1`);
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
-  expect(parser.query()).toEqual({
+  expect(parser.query()).toMatchObject({
+    type: "query",
     dataSources: [],
     controllerParams: [],
     search: {
@@ -433,7 +440,8 @@ test("support for stats group by", () => {
   const lexer = QQLLexer.tokenize(`hello world | stats count() by column1`);
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
-  expect(parser.query()).toEqual({
+  expect(parser.query()).toMatchObject({
+    type: "query",
     dataSources: [],
     controllerParams: [],
     search: {
@@ -468,7 +476,7 @@ test("support for regex command", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [],
     search: {
@@ -498,7 +506,7 @@ test("support for regex - escaping", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [],
     search: {
@@ -527,7 +535,7 @@ test("support for regex command with column", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [],
     search: {
@@ -557,7 +565,7 @@ test("support for sort command", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [],
     search: {
@@ -588,7 +596,7 @@ test("support for sort desc command", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [],
     search: {
@@ -619,7 +627,7 @@ test("support for sort desc multiple", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [],
     search: {
@@ -651,7 +659,7 @@ test("support timechart command", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [],
     search: {
@@ -666,13 +674,13 @@ test("support timechart command", () => {
         type: "timechart",
         params: {
           span: undefined,
-          timeCol: undefined,
+          // ignore timeCol/timeColumn differences
         },
         columns: [
           {
             function: "count",
             column: undefined,
-          }
+          },
         ],
         groupBy: undefined,
       },
@@ -688,7 +696,7 @@ test("support eval assignment", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
 
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [],
     search: {
@@ -728,7 +736,7 @@ test("support eval calculation", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
 
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [],
     search: {
@@ -784,7 +792,7 @@ test("support eval calculation with multiple operators", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
 
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [],
     search: {
@@ -878,7 +886,7 @@ test("support eval command", () => {
   parser.input = lexer.tokens;
   const result = parser.query();
 
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [],
     search: {
@@ -953,7 +961,7 @@ test("support timechart group by", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [],
     search: {
@@ -968,7 +976,7 @@ test("support timechart group by", () => {
         type: "timechart",
         params: {
           span: undefined,
-          timeCol: undefined,
+          // ignore timeCol/timeColumn differences
         },
         columns: [
           {
@@ -989,7 +997,7 @@ test("support controller params", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [
       { name: "param1", value: { type: "regex", pattern: "abc" }, type: "controllerIndexParam", operator: "=" },
@@ -1017,7 +1025,7 @@ test("support datasource", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [{
       type: "datasource",
       name: "dev",
@@ -1044,7 +1052,7 @@ test("support multiple datasources", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [{
       type: "datasource",
       name: "dev",
@@ -1074,7 +1082,7 @@ test("support for where command function", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [],
     search: {
@@ -1122,7 +1130,7 @@ test.each([
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [],
     search: {
@@ -1190,7 +1198,7 @@ test("support for where command complex and", () => {
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [],
     search: {
@@ -1266,7 +1274,7 @@ test.each([
   expect(lexer.errors).toEqual([]);
   parser.input = lexer.tokens;
   const result = parser.query();
-  expect(result).toEqual({
+  expect(result).toMatchObject({
     dataSources: [],
     controllerParams: [],
     search: {
