@@ -7,7 +7,11 @@ import { isIpcMessage } from './ipc';
  * @param request The request object to send
  * @param responseType The expected response type string
  */
-export function requestFromServer<T>(port: MessagePortMain, request: object, responseType: string): Promise<T> {
+export function requestFromServer<T>(port: MessagePortMain | null, request: object, responseType: string): Promise<T> {
+  if (!port) {
+    return Promise.reject(new Error("Server port is not initialized"));
+  }
+
   return new Promise((resolve, reject) => {
     const handler = (payload: Electron.MessageEvent) => {
       const msg = payload.data;

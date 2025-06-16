@@ -1,5 +1,5 @@
 import { compare } from 'compare-versions';
-import { app, BrowserWindow, dialog, ipcMain, shell, UtilityProcess } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, MessagePortMain, shell, UtilityProcess } from 'electron';
 import log from 'electron-log/main';
 import started from 'electron-squirrel-startup';
 import path from 'node:path';
@@ -100,8 +100,7 @@ function isDev() {
 let serverProcess: UtilityProcess | null = null;
 let serverReady: Promise<void> | null = null;
 let serverWatcher: FSWatcher | null = null;
-
-const { port1, port2 } = new MessageChannelMain();
+let port: MessagePortMain | null = null;
 
 function startServerProcess() {
   if (serverProcess) {
@@ -112,13 +111,10 @@ function startServerProcess() {
   console.log("Starting server process...");
   serverProcess = utilityProcess.fork(
     path.join(__dirname, 'server.js'),
-    // [],
-    // {
-    //   // execArgv: isDev() ? ['--inspect=9230'] : undefined,
-    //   // env: {
-    //   //   "ELECTRON_RUN_AS_NODE": "1",
-    //   // }
-    // }
+    [],
+    {
+      execArgv: isDev() ? ['--inspect=9230'] : undefined,
+    }
   );
 
   // check if forked process is running
@@ -128,6 +124,7 @@ function startServerProcess() {
     serverProcess = null;
     serverReady = null;
   });
+  const { port1, port2 } = new MessageChannelMain();
   serverProcess.postMessage({ type: 'init' }, [port1]);
   serverReady = requestFromServer<void>(
     port2,
@@ -135,6 +132,7 @@ function startServerProcess() {
     'ready'
   );
   port2.start();
+  port = port2;
 }
 
 // Cleanup on quit
@@ -164,13 +162,13 @@ const ready = async () => {
   // --- IPC Handlers ---
 
   ipcMain.handle('getPort', async () => {
-    const msg = await requestFromServer<{ type: string; port: number }>(port2, { type: 'getPort' }, 'port');
+    const msg = await requestFromServer<{ type: string; port: number }>(port, { type: 'getPort' }, 'port');
     return msg.port;
   });
 
   ipcMain.handle('getVersion', async () => {
     try {
-      const msg = await requestFromServer<{ type: string; version: string }>(port2, { type: 'getVersion' }, 'version');
+      const msg = await requestFromServer<{ type: string; version: string }>(port, { type: 'getVersion' }, 'version');
       return { tag: msg.version, isDev: isDev() };
     } catch {
       return { tag: 'unknown', isDev: isDev() };
@@ -196,7 +194,7 @@ if (!gotTheLock) {
       mainWindow.focus()
     }
     serverReady?.then(() => {
-      port2.postMessage({ type: 'navigateUrl', url: commandLine[1] });
+      port?.postMessage({ type: 'navigateUrl', url: commandLine[1] });
     });
   })
 
@@ -207,7 +205,7 @@ if (!gotTheLock) {
 
   app.on('open-url', (event, url) => {
     serverReady?.then(() => {
-      port2.postMessage({ type: 'navigateUrl', url });
+      port?.postMessage({ type: 'navigateUrl', url });
     });
   })
 }
