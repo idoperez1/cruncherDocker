@@ -1,9 +1,10 @@
 import { Box, IconButton, Stack } from "@chakra-ui/react";
 import { css } from "@emotion/react";
 import { atom, createStore, Provider, useAtom, useAtomValue } from "jotai";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { VscAdd, VscClose } from "react-icons/vsc";
-import { UrlNavigationSchema } from "src/plugins_engine/protocolOut";
+import { useMount } from "react-use";
+import { UrlNavigationSchema } from "src/processes/server/plugins_engine/protocolOut";
 import { v4 as uuidv4 } from "uuid";
 import { Shortcut } from "~components/ui/shortcut";
 import { Tooltip } from "~components/ui/tooltip";
@@ -18,8 +19,7 @@ import {
   runQueryForStore,
   selectedSearchProfileAtom,
   selectedSearchProfileIndexAtom,
-  useMessageEvent,
-  useSelectedSearchProfile,
+  useMessageEvent
 } from "./search";
 import { appStore } from "./store/appStore";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
@@ -28,7 +28,6 @@ import {
   searchQueryAtom,
   tabNameAtom,
 } from "./store/queryState";
-import { useMount } from "react-use";
 
 const createNewTab = (label?: string) => {
   const store = createStore();

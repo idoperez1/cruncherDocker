@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import { TableComponents, TableVirtuoso } from "react-virtuoso";
 import { useTableDataInfiniteQuery } from "~core/api";
 import { jobMetadataAtom } from "~core/store/queryState";
-import { asDisplayString, ProcessedData } from "../../../lib/adapters/logTypes";
+import { asDisplayString, ProcessedData } from "../../../../lib/adapters/logTypes";
 
 export type TableViewProps = {};
 

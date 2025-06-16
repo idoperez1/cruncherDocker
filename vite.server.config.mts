@@ -15,7 +15,7 @@ export default defineConfig({
     ],
     build: {
         lib: {
-            entry: 'src/server/main.ts',
+            entry: 'src/processes/server/main.ts',
             name: 'main-server',
             formats: ['cjs'],
             fileName: () => 'server.js'

@@ -1,9 +1,9 @@
-import { Engine } from "src/engineV2/engine";
-import { InstanceRef, QueryTask, SearchProfileRef, SerializeableParams, TaskRef } from "src/engineV2/types";
+import { Engine } from "../engineV2/engine";
+import { InstanceRef, QueryTask, SearchProfileRef, SerializeableParams, TaskRef } from "src/processes/server/engineV2/types";
 import { ResponseHandler } from "~lib/networkTypes";
 import { getAsyncRequestHandler, getSyncRequestHandler } from "~lib/websocket/server";
-import * as grafana from '../adapters/grafana_browser';
-import * as local from '../adapters/mocked_data';
+import * as grafana from '../../../adapters/grafana_browser';
+import * as local from '../../../adapters/mocked_data';
 import { appGeneralSettings, setupPluginsFromConfig } from "./config";
 import { QueryBatchDone, QueryJobUpdated, UrlNavigation } from "./protocolOut";
 

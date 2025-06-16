@@ -2,7 +2,7 @@ import { Mutex } from "async-mutex";
 import { produce } from "immer";
 import merge from "merge-k-sorted-arrays";
 import BTree from 'sorted-btree';
-import { newBatchDoneMessage, newJobUpdatedMessage } from "src/plugins_engine/router";
+import { newBatchDoneMessage, newJobUpdatedMessage } from "src/processes/server/plugins_engine/router";
 import { v4 as uuidv4 } from 'uuid';
 import { Adapter, PluginRef } from "~lib/adapters";
 import { asDateField, asDisplayString, compareProcessedData, ProcessedData } from "~lib/adapters/logTypes";

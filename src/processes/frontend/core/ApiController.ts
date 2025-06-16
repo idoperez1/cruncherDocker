@@ -1,5 +1,5 @@
-import { ClosestPoint, ExportResults, InstanceRef, PageResponse, QueryTask, SearchProfileRef, TableDataResponse, TaskRef } from "src/engineV2/types";
-import { QueryBatchDoneSchema, QueryJobUpdatedSchema } from "src/plugins_engine/protocolOut";
+import { ClosestPoint, ExportResults, InstanceRef, PageResponse, QueryTask, SearchProfileRef, TableDataResponse, TaskRef } from "src/processes/server/engineV2/types";
+import { QueryBatchDoneSchema, QueryJobUpdatedSchema } from "src/processes/server/plugins_engine/protocolOut";
 import z from "zod";
 import { ProcessedData } from "~lib/adapters/logTypes";
 import { DisplayResults } from "~lib/displayTypes";

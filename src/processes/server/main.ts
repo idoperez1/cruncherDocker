@@ -1,7 +1,7 @@
 import { ResponseHandler } from '~lib/networkTypes';
 import { createSignal } from '~lib/utils';
-import { getServer, setupEngine } from '../lib/websocket/server';
-import { getRoutes, newUrlNavigationMessage } from '../plugins_engine/router';
+import { getServer, setupEngine } from '~lib/websocket/server';
+import { getRoutes, newUrlNavigationMessage } from './plugins_engine/router';
 import log from 'electron-log/main';
 
 process.title = "cruncher-server";

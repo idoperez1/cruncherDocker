@@ -1,6 +1,6 @@
 {
-  "routesDirectory": "./src/renderer/routes",
-  "generatedRouteTree": "./src/renderer/routeTree.gen.ts",
+  "routesDirectory": "./src/processes/frontend/routes",
+  "generatedRouteTree": "./src/processes/frontend/routeTree.gen.ts",
   "routeFileIgnorePrefix": "-",
   "quoteStyle": "single"
 }

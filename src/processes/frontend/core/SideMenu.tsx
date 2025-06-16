@@ -1,8 +1,7 @@
 import { Badge, Icon, IconButton, Separator, Stack } from "@chakra-ui/react";
 import { Link } from "@tanstack/react-router";
-import { ReactNode, useMemo } from "react";
+import { ReactNode } from "react";
 import { LuBolt, LuFileSearch } from "react-icons/lu";
-import { useAsync } from "react-use";
 import logo from "src/icons/png/256x256.png";
 import { Tooltip } from "~components/ui/tooltip";
 import { ApplicationStore, useApplicationStore } from "./store/appStore";

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { CruncherConfigSchema } from "src/config/schema";
-import { Engine } from "src/engineV2/engine";
-import { InstanceRef, SearchProfileRef } from "src/engineV2/types";
+import { Engine } from "../engineV2/engine";
+import { InstanceRef, SearchProfileRef } from "../engineV2/types";
 import YAML from 'yaml';
 import { PluginRef } from "~lib/adapters";
 

@@ -1,5 +1,5 @@
-import { InstanceRef, PluginInstance, SearchProfile, SearchProfileRef, SerializableAdapter } from 'src/engineV2/types';
-import { AppGeneralSettings } from 'src/plugins_engine/config';
+import { InstanceRef, PluginInstance, SearchProfile, SearchProfileRef, SerializableAdapter } from 'src/processes/server/engineV2/types';
+import { AppGeneralSettings } from 'src/processes/server/plugins_engine/config';
 import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
 import { ApiController } from '~core/ApiController';

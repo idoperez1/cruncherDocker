@@ -62,7 +62,7 @@ import { ApplicationStore, useApplicationStore } from "./store/appStore";
 import { endFullDateAtom, startFullDateAtom } from "./store/dateState";
 import { jobMetadataAtom, searchQueryAtom } from "./store/queryState";
 import { Timer } from "./Timer";
-import { SearchProfileRef } from "src/engineV2/types";
+import { SearchProfileRef } from "src/processes/server/engineV2/types";
 import type { ValueChangeDetails } from "node_modules/@chakra-ui/react/dist/types/components/select/namespace";
 
 const StyledHeader = styled.form`
