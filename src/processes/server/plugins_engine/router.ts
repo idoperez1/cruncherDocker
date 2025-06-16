@@ -1,21 +1,10 @@
-import { Engine } from "../engineV2/engine";
 import { InstanceRef, QueryTask, SearchProfileRef, SerializeableParams, TaskRef } from "src/processes/server/engineV2/types";
-import { ResponseHandler } from "~lib/networkTypes";
 import { getAsyncRequestHandler, getSyncRequestHandler } from "~lib/websocket/server";
-import * as grafana from '../../../adapters/grafana_browser';
-import * as local from '../../../adapters/mocked_data';
+import { Engine } from "../engineV2/engine";
 import { appGeneralSettings, setupPluginsFromConfig } from "./config";
 import { QueryBatchDone, QueryJobUpdated, UrlNavigation } from "./protocolOut";
 
-export const getRoutes = async (messageSender: ResponseHandler) => {
-    const engineV2 = new Engine(messageSender);
-
-    // TODO: dynamically load supported plugins
-    engineV2.registerPlugin(grafana.adapter);
-    engineV2.registerPlugin(local.adapter);
-
-    // Initialize the plugins
-
+export const getRoutes = async (engineV2: Engine) => {
     return [
         getSyncRequestHandler("reloadConfig", async () => {
             setupPluginsFromConfig(appGeneralSettings, engineV2);

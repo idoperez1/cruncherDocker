@@ -4,7 +4,7 @@ import merge from "merge-k-sorted-arrays";
 import BTree from 'sorted-btree';
 import { newBatchDoneMessage, newJobUpdatedMessage } from "src/processes/server/plugins_engine/router";
 import { v4 as uuidv4 } from 'uuid';
-import { Adapter, PluginRef } from "~lib/adapters";
+import { Adapter, AdapterContext, ExternalAuthProvider, PluginRef } from "~lib/adapters";
 import { asDateField, asDisplayString, compareProcessedData, ProcessedData } from "~lib/adapters/logTypes";
 import { DisplayResults, Events } from "~lib/displayTypes";
 import { ResponseHandler } from "~lib/networkTypes";
@@ -34,7 +34,7 @@ export class Engine {
 
     private executedJobs: TaskRef[] = []; // Keep track of executed jobs - to allow for cleanup
 
-    constructor(private messageSender: ResponseHandler) { }
+    constructor(private messageSender: ResponseHandler, private authProvider: ExternalAuthProvider) { }
 
     public registerPlugin(plugin: Adapter): void {
         if (this.supportedPlugins.some(p => p.ref === plugin.ref)) {
@@ -85,7 +85,11 @@ export class Engine {
             throw new Error(`Plugin with ref ${pluginRef} not found`);
         }
 
-        const instance = plugin.factory({ params });
+        const adapterContext: AdapterContext = {
+            externalAuthProvider: this.authProvider,
+        }
+
+        const instance = plugin.factory(adapterContext, { params });
         if (!instance) {
             throw new Error(`Failed to create instance for plugin ${pluginRef}`);
         }

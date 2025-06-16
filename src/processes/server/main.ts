@@ -3,6 +3,12 @@ import { createSignal } from '~lib/utils';
 import { getServer, setupEngine } from '~lib/websocket/server';
 import { getRoutes, newUrlNavigationMessage } from './plugins_engine/router';
 import log from 'electron-log/main';
+import { Engine } from './engineV2/engine';
+import * as grafana from '../../adapters/grafana_browser';
+import * as local from '../../adapters/mocked_data';
+import { IPCMessage } from './types';
+import { ExternalAuthProvider } from '~lib/adapters';
+import { DefaultExternalAuthProvider, ElectronExternalAuthProvider } from './externalAuthProvider';
 
 process.title = "cruncher-server";
 
@@ -14,7 +20,7 @@ let messageSender: ResponseHandler | undefined = undefined;
 let serverContainer: Awaited<ReturnType<typeof getServer>> | undefined = undefined;
 const messageSenderReady = createSignal();
 
-const initializeServer = async () => {
+const initializeServer = async (authProvider: ExternalAuthProvider) => {
     console.log("Initializing server...");
     // get free port
     serverContainer = await getServer();
@@ -22,7 +28,13 @@ const initializeServer = async () => {
     // messageSender = getWebsocketMessageSender(serverContainer);
     messageSender = serverContainer;
     messageSenderReady.signal();
-    const routes = await getRoutes(serverContainer);
+
+    const engineV2 = new Engine(messageSender, authProvider);
+    // TODO: dynamically load supported plugins
+    engineV2.registerPlugin(grafana.adapter);
+    engineV2.registerPlugin(local.adapter);
+
+    const routes = await getRoutes(engineV2);
     await setupEngine(serverContainer, routes);
 
     return {
@@ -42,48 +54,49 @@ const sendUrlNavigationMessage = (url: string) => {
     messageSender.sendMessage(newUrlNavigationMessage(url));
 };
 
-// Define a type for IPC messages
-interface IPCMessage {
-    type: string;
-    [key: string]: unknown;
-}
 
 console.log("Server process started, waiting for IPC messages...");
 // If this file is run directly, start the server and listen for IPC messages
 if (require.main === module) {
     (async () => {
-        const serverData = await initializeServer();
+        if (process.parentPort === undefined) {
+            await initializeServer(new DefaultExternalAuthProvider());
+        } else {
+            process.parentPort?.on('message', async (e) => {
+                const [port] = e.ports
+                const serverData = await initializeServer(new ElectronExternalAuthProvider(port));
 
-        process.parentPort?.on('message', (e) => {
-            const [port] = e.ports
-            port.on('message', (e) => {
-                const msg = e.data as IPCMessage;
-                if (!msg || typeof msg !== 'object' || !('type' in msg)) return;
-
-                const handlers = {
-                    getPort: () => {
-                        port.postMessage({ type: 'port', port: serverData.port });
-                    },
-                    getVersion: () => {
-                        port.postMessage({ type: 'version', version: process.env.npm_package_version || 'unknown' });
-                    },
-                    navigateUrl: (msg: IPCMessage) => {
-                        if (typeof msg.url === 'string') sendUrlNavigationMessage(msg.url);
+                port.on('message', (e) => {
+                    const msg = e.data as IPCMessage;
+                    if (!msg || typeof msg !== 'object' || !('type' in msg)) return;
+                    if (msg.type === 'authResult') { // safety check for authResult - don't handle it here!
+                        return;
                     }
-                } as const;
 
-                console.log(`Received IPC message: ${msg.type}`, msg);
-                if (!(msg.type in handlers)) {
-                    console.warn(`No handler for message type: ${msg.type}`);
-                    return;
-                }
+                    const handlers = {
+                        getPort: () => {
+                            port.postMessage({ type: 'port', port: serverData.port });
+                        },
+                        getVersion: () => {
+                            port.postMessage({ type: 'version', version: process.env.npm_package_version || 'unknown' });
+                        },
+                        navigateUrl: (msg: IPCMessage) => {
+                            if (typeof msg.url === 'string') sendUrlNavigationMessage(msg.url);
+                        },
+                    } as const;
 
-                const handler = handlers[msg.type as keyof typeof handlers];
-                handler(msg);
+                    if (!(msg.type in handlers)) {
+                        return;
+                    }
+
+                    console.log(`Received IPC message: ${msg.type}`, msg);
+                    const handler = handlers[msg.type as keyof typeof handlers];
+                    handler(msg);
+                })
+                port.start()
+                port.postMessage({ type: 'ready', port: serverData.port });
             })
-            port.start()
-            port.postMessage({ type: 'ready', port: serverData.port });
-        })
+        }
 
     })();
 }

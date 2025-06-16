@@ -1,5 +1,5 @@
 import { Mutex } from 'async-mutex';
-import { QueryOptions, QueryProvider } from "~lib/adapters";
+import { AdapterContext, QueryOptions, QueryProvider } from "~lib/adapters";
 import { asNumberField, Field, ObjectFields, ProcessedData } from "~lib/adapters/logTypes";
 import { ControllerIndexParam, Search } from "~lib/qql/grammar";
 import { createAuthWindow } from "./auth";
@@ -116,6 +116,7 @@ export class GrafanaController implements QueryProvider {
     } | null = null;
 
     constructor(
+        private context: AdapterContext,
         private url: string,
         private uid: string,
         private filter: GrafanaLabelFilter[],
@@ -133,7 +134,16 @@ export class GrafanaController implements QueryProvider {
                 console.warn("Session expired, re-authenticating...");
 
                 // re-authenticate
-                this.cookies = await createAuthWindow(this.url);
+                const response = await this.context.externalAuthProvider.getCookies(
+                    this.url,
+                    ['grafana_session', 'grafana_session_expiry'],
+                    checkValidCookies,
+                )
+
+                this.cookies = {
+                    sessionCookie: response['grafana_session'],
+                    expiryTime: new Date(parseInt(response['grafana_session_expiry']) * 1000), // Convert seconds to milliseconds
+                }
             }
 
             const headers = options.headers || {};
@@ -249,4 +259,26 @@ export class GrafanaController implements QueryProvider {
     getControllerParams(): Promise<Record<string, string[]>> {
         return this._getControllerParams();
     }
+}
+
+
+
+const checkValidCookies = (cookies: Record<string, string>): Promise<boolean> => {
+    const grafanaExpiryCookie = cookies['grafana_session_expiry'];
+    const grafanaSessionCookie = cookies['grafana_session'];
+    try {
+        if (grafanaExpiryCookie) {
+            const expiryTime = new Date(parseInt(grafanaExpiryCookie) * 1000); // Convert seconds to milliseconds
+            console.log('Grafana Expiry Time:', expiryTime);
+            if (expiryTime > new Date() && grafanaSessionCookie) {
+                console.log('Grafana session is valid, expiry time is in the future.');
+                return Promise.resolve(true);
+            }
+        }
+    } catch (error) {
+        console.error('Error parsing Grafana cookies:', error);
+    }
+
+    console.info('Grafana expiry cookie not found or expired - prompting user to login again.');
+    return Promise.resolve(false);
 }

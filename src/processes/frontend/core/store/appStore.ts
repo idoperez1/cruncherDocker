@@ -30,7 +30,7 @@ export type ApplicationStore = {
     generalSettings: AppGeneralSettings;
     isInitialized: boolean;
     reload: () => Promise<void>;
-    initialize: (controller: ApiController) => void;
+    initialize: (controller: ApiController) => Promise<void>;
 
     initializeDataset: (instanceRef: InstanceRef) => Promise<void>;
     initializeProfileDatasets: (searchProfileRef: SearchProfileRef) => Promise<void>;

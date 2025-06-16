@@ -1,12 +1,12 @@
+import chokidar, { FSWatcher } from 'chokidar';
 import { compare } from 'compare-versions';
-import { app, BrowserWindow, dialog, ipcMain, MessagePortMain, shell, UtilityProcess } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, MessageChannelMain, MessagePortMain, shell, UtilityProcess, utilityProcess } from 'electron';
 import log from 'electron-log/main';
 import started from 'electron-squirrel-startup';
 import path from 'node:path';
-import { fork, ChildProcess } from 'child_process';
+import { createAuthWindow } from './utils/auth';
+import { isIpcMessage } from './utils/ipc';
 import { requestFromServer } from './utils/requestFromServer';
-import chokidar, { FSWatcher } from 'chokidar';
-import { utilityProcess, MessageChannelMain } from 'electron';
 
 // Optional, initialize the logger for any renderer process
 log.initialize();
@@ -101,6 +101,8 @@ let serverProcess: UtilityProcess | null = null;
 let serverReady: Promise<void> | null = null;
 let serverWatcher: FSWatcher | null = null;
 let port: MessagePortMain | null = null;
+let shouldRestartServer = true;
+let processActive = false;
 
 function startServerProcess() {
   if (serverProcess) {
@@ -116,29 +118,80 @@ function startServerProcess() {
       execArgv: isDev() ? ['--inspect=9230'] : [],
     }
   );
+  processActive = true;
 
+  serverProcess.on('exit', (code) => {
+    console.log(`Server process exited with code: ${code}`);
+    processActive = false;
+    if (code !== 0) {
+      dialog.showErrorBox('FATAL ERROR', `Server process exited with code: ${code}`);
+      serverProcess = null;
+      serverReady = null;
+      port = null;
+
+      // Optionally, restart the server process
+      if (!shouldRestartServer) return;
+      setTimeout(() => {
+        console.log("Restarting server process...");
+        startServerProcess();
+      }, 1000); // Restart after 1 second
+    }
+  });
+  const { port1, port2 } = new MessageChannelMain();
   // check if forked process is running
   serverProcess.on('error', (err) => {
     console.error('Failed to start server process:', err);
-    dialog.showErrorBox('Server Error', `Failed to start server process: ${err}`);
+    dialog.showErrorBox('FATAL ERROR', `Failed to start server process: ${err}`);
+    port1.close();
+    port2.close();
     serverProcess = null;
     serverReady = null;
   });
-  const { port1, port2 } = new MessageChannelMain();
   serverProcess.postMessage({ type: 'init' }, [port1]);
+
+  port2.on('message', async (payload) => {
+    const msg = payload.data;
+    if (isIpcMessage(msg) && msg.type === 'getAuth') {
+      const authUrl = msg.authUrl as string;
+      const requestedCookies = msg.cookies as string[];
+      const jobId = msg.jobId as string;
+      console.log("Received authentication request from server process, sending cookies...");
+
+      try {
+        await createAuthWindow(authUrl, requestedCookies, async (cookies) => {
+          const result = await requestFromServer<{ type: string, status: boolean }>(
+            port2,
+            { type: 'authResult', jobId: jobId, cookies: cookies },
+            'authResult',
+          );
+
+          return result.status;
+        });
+      } catch (error) {
+        if (processActive) {
+          console.error("Error during authentication", error);
+        } else {
+          console.warn("Server process is not active, skipping authentication error handling.");
+        }
+      }
+    }
+  });
+
+  port2.start();
+  port = port2;
+
   serverReady = requestFromServer<void>(
     port2,
     {}, // No request message needed, just wait for the first 'ready' message
     'ready'
   );
-  port2.start();
-  port = port2;
 }
 
 // Cleanup on quit
 app.on('before-quit', () => {
   if (serverProcess) {
     console.log('Killing child process...');
+    shouldRestartServer = false; // Prevent automatic restart
     serverProcess.kill(); // or .kill('SIGTERM')
   }
 });
@@ -162,6 +215,7 @@ const ready = async () => {
   // --- IPC Handlers ---
 
   ipcMain.handle('getPort', async () => {
+    await serverReady; // Ensure the server is ready before requesting the port
     const msg = await requestFromServer<{ type: string; port: number }>(port, { type: 'getPort' }, 'port');
     return msg.port;
   });

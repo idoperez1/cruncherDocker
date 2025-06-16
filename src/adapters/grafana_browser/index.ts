@@ -30,13 +30,13 @@ const adapter: Adapter = {
             defaultValue: [],
         }
     ],
-    factory: ({params}): QueryProvider => {
+    factory: (context, {params}): QueryProvider => {
         const { grafanaUrl, uid, filter, querySuffix } = params;
         if (!grafanaUrl || !uid) {
             throw new Error("Grafana URL and UID are required parameters.");
         }
 
-        return new GrafanaController(grafanaUrl as string, uid as string, filter as any, querySuffix as any);
+        return new GrafanaController(context, grafanaUrl as string, uid as string, filter as any, querySuffix as any);
     },
 }
 

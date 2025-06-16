@@ -20,6 +20,20 @@ export const getSyncRequestHandler = <T extends string, P extends object, R exte
         kind,
         _originalCallback: callback,
         callback: (server: EngineServer, request: SyncRequestIn) => {
+            const onError = (error: unknown) => {
+                if (!(error instanceof Error)) {
+                    throw new Error("An unexpected error occurred");
+                }
+                const response: SyncErrorOut = {
+                    type: "sync_error",
+                    uuid: request.uuid,
+                    payload: {
+                        error: error?.message || "An error occurred",
+                        details: error?.stack || undefined,
+                    },
+                };
+                server.sendMessage(response);
+            }
             try {
                 const params = request.payload;
                 callback(params).then((result) => {
@@ -29,22 +43,9 @@ export const getSyncRequestHandler = <T extends string, P extends object, R exte
                         payload: result,
                     }
                     server.sendMessage(response);
-                })
+                }).catch(onError);
             } catch (error) {
-                if (!(error instanceof Error)) {
-                    throw new Error("An unexpected error occurred");
-                }
-
-                const response: SyncErrorOut = {
-                    type: "sync_error",
-                    uuid: request.uuid,
-                    payload: {
-                        error: error?.message || "An error occurred",
-                        details: error?.stack || undefined,
-                    },
-                };
-
-                server.sendMessage(response);
+                onError(error);
             }
         },
     } as const;

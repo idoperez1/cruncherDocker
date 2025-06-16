@@ -13,10 +13,16 @@ export function requestFromServer<T>(port: MessagePortMain | null, request: obje
   }
 
   return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      port.off('message', handler);
+      reject(new Error(`Request timed out after 30 seconds for response type: ${responseType}`));
+    }, 30000); // 30 seconds timeout
+
     const handler = (payload: Electron.MessageEvent) => {
       const msg = payload.data;
       if (isIpcMessage(msg) && msg.type === responseType) {
         port.off('message', handler);
+        clearTimeout(timeout);
         resolve(msg as T);
       }
     };

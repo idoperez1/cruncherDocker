@@ -57,6 +57,14 @@ export type FactoryParams = {
 
 export type PluginRef = string & {_pr: never}; // A unique identifier for a plugin
 
+export type ExternalAuthProvider = {
+    getCookies(requestedUrl: string, cookies: string[], validate: (cookies: Record<string, string>) => Promise<boolean>): Promise<Record<string, string>>;
+}
+
+export type AdapterContext = {
+    externalAuthProvider: ExternalAuthProvider;
+}
+
 export interface Adapter {
     name: string;
     ref: PluginRef;
@@ -64,7 +72,7 @@ export interface Adapter {
     version: string;
 
     params: Param[];
-    factory: (params: FactoryParams) => QueryProvider;
+    factory: (context: AdapterContext, params: FactoryParams) => QueryProvider;
 }
 
 export function newPluginRef(ref: string): PluginRef {
