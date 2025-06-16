@@ -89,14 +89,23 @@ export const useSelectedSearchProfile = (opts: { store?: ReturnType<typeof creat
 }
 
 const controllerParamsAtom = atom(async (get) => {
-    const initializedInstances = initializedInstancesSelector(get(appStoreAtom));
+    const supportedProfiles = searchProfilesSelector(get(appStoreAtom));
     const selectedInstanceIndex = get(selectedSearchProfileIndexAtom);
-    if (selectedInstanceIndex === -1 || selectedInstanceIndex >= initializedInstances.length) {
+    if (selectedInstanceIndex === -1 || selectedInstanceIndex >= supportedProfiles.length) {
         return {};
     }
 
-    const selectedInstance = initializedInstances[selectedInstanceIndex];
-    return get(appStoreAtom).datasets[selectedInstance.name]?.controllerParams ?? {};
+    const selectedProfile = supportedProfiles[selectedInstanceIndex];
+    const controllerParams: Record<string, string[]> = {};
+    for (const instance of selectedProfile.instances) {
+        for (const [key, values] of Object.entries(get(appStoreAtom).datasets[instance]?.controllerParams ?? {})) {
+            if (!controllerParams[key]) {
+                controllerParams[key] = [];
+            }
+            controllerParams[key].push(...values);
+        }
+    }
+    return controllerParams;
 });
 
 export const loadingControllerParamsAtom = loadable(controllerParamsAtom);
