@@ -1,4 +1,4 @@
-import { ChildProcess } from 'child_process';
+import { MessagePortMain } from 'electron';
 import { isIpcMessage } from './ipc';
 
 /**
@@ -7,16 +7,17 @@ import { isIpcMessage } from './ipc';
  * @param request The request object to send
  * @param responseType The expected response type string
  */
-export function requestFromServer<T>(serverProcess: ChildProcess | null, request: object, responseType: string): Promise<T> {
+export function requestFromServer<T>(port: MessagePortMain, request: object, responseType: string): Promise<T> {
   return new Promise((resolve, reject) => {
-    if (!serverProcess) return reject(new Error('Server process is not running'));
-    const handler = (msg: unknown) => {
+    const handler = (payload: Electron.MessageEvent) => {
+      const msg = payload.data;
       if (isIpcMessage(msg) && msg.type === responseType) {
-        serverProcess.off('message', handler);
+        port.off('message', handler);
         resolve(msg as T);
       }
     };
-    serverProcess.on('message', handler);
-    serverProcess.send?.(request);
+
+    port.on('message', handler);
+    port.postMessage(request);
   });
 }

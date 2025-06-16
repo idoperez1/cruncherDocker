@@ -1,5 +1,5 @@
 import { pack, unpack } from 'msgpackr';
-import { WebSocketServer } from "ws";
+import { WebSocketServer, WebSocket } from "ws";
 import { GenericMessageSchema, ResponseHandler, SyncErrorOut, SyncRequestIn, SyncRequestInSchema, SyncResponseOut, } from "~lib/networkTypes";
 import { atLeastOneConnectionSignal } from "~lib/utils";
 

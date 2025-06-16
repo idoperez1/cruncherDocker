@@ -1,11 +1,12 @@
 import { compare } from 'compare-versions';
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell, UtilityProcess } from 'electron';
 import log from 'electron-log/main';
 import started from 'electron-squirrel-startup';
 import path from 'node:path';
 import { fork, ChildProcess } from 'child_process';
 import { requestFromServer } from './utils/requestFromServer';
 import chokidar, { FSWatcher } from 'chokidar';
+import { utilityProcess, MessageChannelMain } from 'electron';
 
 // Optional, initialize the logger for any renderer process
 log.initialize();
@@ -85,7 +86,7 @@ const createWindow = () => {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
-    mainWindow.loadFile(path.join(__dirname, `../frontend/${MAIN_WINDOW_VITE_NAME}/index.html`));
+    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
 
   // Open the DevTools.
@@ -96,22 +97,53 @@ function isDev() {
   return !app.getAppPath().includes('app.asar');
 }
 
-let serverProcess: ChildProcess | null = null;
+let serverProcess: UtilityProcess | null = null;
 let serverReady: Promise<void> | null = null;
 let serverWatcher: FSWatcher | null = null;
+
+const { port1, port2 } = new MessageChannelMain();
 
 function startServerProcess() {
   if (serverProcess) {
     serverProcess.kill();
     serverProcess = null;
   }
-  serverProcess = fork(path.join(__dirname, 'server.js'));
+
+  console.log("Starting server process...");
+  serverProcess = utilityProcess.fork(
+    path.join(__dirname, 'server.js'),
+    // [],
+    // {
+    //   // execArgv: isDev() ? ['--inspect=9230'] : undefined,
+    //   // env: {
+    //   //   "ELECTRON_RUN_AS_NODE": "1",
+    //   // }
+    // }
+  );
+
+  // check if forked process is running
+  serverProcess.on('error', (err) => {
+    console.error('Failed to start server process:', err);
+    dialog.showErrorBox('Server Error', `Failed to start server process: ${err}`);
+    serverProcess = null;
+    serverReady = null;
+  });
+  serverProcess.postMessage({ type: 'init' }, [port1]);
   serverReady = requestFromServer<void>(
-    serverProcess,
+    port2,
     {}, // No request message needed, just wait for the first 'ready' message
     'ready'
   );
+  port2.start();
 }
+
+// Cleanup on quit
+app.on('before-quit', () => {
+  if (serverProcess) {
+    console.log('Killing child process...');
+    serverProcess.kill(); // or .kill('SIGTERM')
+  }
+});
 
 if (isDev()) {
   const serverJsPath = path.join(__dirname, 'server.js');
@@ -126,18 +158,19 @@ if (isDev()) {
 
 const ready = async () => {
   if (!serverProcess) startServerProcess();
+  console.log("Waiting for server process to be ready...");
   await serverReady;
 
   // --- IPC Handlers ---
 
   ipcMain.handle('getPort', async () => {
-    const msg = await requestFromServer<{ type: string; port: number }>(serverProcess, { type: 'getPort' }, 'port');
+    const msg = await requestFromServer<{ type: string; port: number }>(port2, { type: 'getPort' }, 'port');
     return msg.port;
   });
 
   ipcMain.handle('getVersion', async () => {
     try {
-      const msg = await requestFromServer<{ type: string; version: string }>(serverProcess, { type: 'getVersion' }, 'version');
+      const msg = await requestFromServer<{ type: string; version: string }>(port2, { type: 'getVersion' }, 'version');
       return { tag: msg.version, isDev: isDev() };
     } catch {
       return { tag: 'unknown', isDev: isDev() };
@@ -163,9 +196,7 @@ if (!gotTheLock) {
       mainWindow.focus()
     }
     serverReady?.then(() => {
-      if (serverProcess && serverProcess.send) {
-        serverProcess.send({ type: 'navigateUrl', url: commandLine[1] });
-      }
+      port2.postMessage({ type: 'navigateUrl', url: commandLine[1] });
     });
   })
 
@@ -176,9 +207,7 @@ if (!gotTheLock) {
 
   app.on('open-url', (event, url) => {
     serverReady?.then(() => {
-      if (serverProcess && serverProcess.send) {
-        serverProcess.send({ type: 'navigateUrl', url });
-      }
+      port2.postMessage({ type: 'navigateUrl', url });
     });
   })
 }
