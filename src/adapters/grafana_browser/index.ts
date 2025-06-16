@@ -41,5 +41,5 @@ const adapter: Adapter = {
 }
 
 export {
-    adapter,
-}
+    adapter
+};
