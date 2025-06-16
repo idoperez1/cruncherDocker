@@ -113,7 +113,7 @@ function startServerProcess() {
     path.join(__dirname, 'server.js'),
     [],
     {
-      execArgv: isDev() ? ['--inspect=9230'] : undefined,
+      execArgv: isDev() ? ['--inspect=9230'] : [],
     }
   );
 

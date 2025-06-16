@@ -21,6 +21,14 @@ export default defineConfig({
             fileName: () => 'server.js'
         },
         rollupOptions: {
+            // external: [
+                // 'ws',
+                // 'chevrotain',
+                // 'zod',
+                // 'yaml',
+                // 'sorted-btree',
+                // 'lodash-es',
+            // ],
             output: {
                 sourcemap: true,
             },
