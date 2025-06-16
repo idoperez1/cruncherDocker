@@ -54,7 +54,7 @@ if (require.main === module) {
     (async () => {
         const serverData = await initializeServer();
 
-        process.parentPort.on('message', (e) => {
+        process.parentPort?.on('message', (e) => {
             const [port] = e.ports
             port.on('message', (e) => {
                 const msg = e.data as IPCMessage;
