@@ -17,6 +17,7 @@ export interface StreamConnection {
     invoke<T extends StreamBridgeSyncRequest["kind"]>(
         kind: T,
         params: Parameters<StreamSyncHandler<T>>[0],
+        options?: { timeout?: number },
     ): Promise<Awaited<ReturnType<StreamSyncHandler<T>>>>;
     dispatch<T extends StreamBridge["kind"]>(kind: T, params: Parameters<StreamAsyncHandler<T>>[0]): Promise<void>;
     sendMessage<T extends z.ZodTypeAny>(message: z.infer<T>): void

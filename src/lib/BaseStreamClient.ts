@@ -5,7 +5,6 @@ import { pack, unpack } from 'msgpackr';
 import { v4 as uuidv4 } from 'uuid';
 import { TypeOf, ZodTypeAny } from "zod";
 import { GenericMessageSchema, SyncRequestIn, SyncResponsesSchema } from "./networkTypes";
-import { measureTime } from "./utils";
 
 
 export abstract class BaseStreamClient implements StreamConnection {
@@ -112,7 +111,7 @@ export abstract class BaseStreamClient implements StreamConnection {
         })
     }
 
-    invoke<T extends StreamBridgeSyncRequest['kind']>(kind: T, payload: Parameters<StreamSyncHandler<T>>[0]): Promise<Awaited<ReturnType<StreamSyncHandler<T>>>> {
+    invoke<T extends StreamBridgeSyncRequest['kind']>(kind: T, payload: Parameters<StreamSyncHandler<T>>[0], options: {timeout?: number} = {}): Promise<Awaited<ReturnType<StreamSyncHandler<T>>>> {
         if (typeof kind !== 'string' || !kind.trim()) {
             throw new Error("Kind must be a non-empty string");
         }
@@ -127,13 +126,15 @@ export abstract class BaseStreamClient implements StreamConnection {
 
         this.sendMessage(toWebServerPayload);
 
+        const timeoutMs = options.timeout ?? 10000; // Default timeout of 10 seconds
+
         // register a promise to wait for the response
         // remove the event listener after the response is received
         // to avoid memory leaks
         return new Promise<Awaited<ReturnType<StreamSyncHandler<T>>>>((resolve, reject) => {
             const timeout = setTimeout(() => {
                 reject(new Error(`Timeout waiting for response for request ${kind} with ID ${requestId}`));
-            }, 10000); // 10 seconds timeout
+            }, timeoutMs);
 
             const handleResponse = (message: unknown) => {
                 try {

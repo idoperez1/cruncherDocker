@@ -35,7 +35,9 @@ export class ApiController {
     };
 
     getControllerParams = async (pluginInstanceRef: InstanceRef): Promise<Record<string, string[]>> => {
-        return await this.connection.invoke("getControllerParams", { instanceRef: pluginInstanceRef });
+        return await this.connection.invoke("getControllerParams", { instanceRef: pluginInstanceRef }, {
+            timeout: 120000, // Set a timeout for the request
+        });
     }
 
     subscribeToMessages = <T extends z.ZodTypeAny>(
