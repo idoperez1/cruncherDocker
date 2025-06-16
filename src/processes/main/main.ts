@@ -222,8 +222,7 @@ const ready = async () => {
 
   ipcMain.handle('getVersion', async () => {
     try {
-      const msg = await requestFromServer<{ type: string; version: string }>(port, { type: 'getVersion' }, 'version');
-      return { tag: msg.version, isDev: isDev() };
+      return { tag: version, isDev: isDev() };
     } catch {
       return { tag: 'unknown', isDev: isDev() };
     }

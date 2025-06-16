@@ -77,9 +77,6 @@ if (require.main === module) {
                         getPort: () => {
                             port.postMessage({ type: 'port', port: serverData.port });
                         },
-                        getVersion: () => {
-                            port.postMessage({ type: 'version', version: process.env.npm_package_version || 'unknown' });
-                        },
                         navigateUrl: (msg: IPCMessage) => {
                             if (typeof msg.url === 'string') sendUrlNavigationMessage(msg.url);
                         },
